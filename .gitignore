@@ -1,0 +1,19 @@
+# Visual Studio Code
+.vscode
+
+# python
+__pycache__/
+*.pyc
+*.egg-info
+
+# tests
+.cache
+.pytest_cache
+
+# outputs
+*.h5
+*.xdmf
+*.log
+*.csv
+*.tex
+*.png

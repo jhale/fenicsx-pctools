@@ -1,0 +1,330 @@
+import ufl
+
+from petsc4py import PETSc
+from dolfinx import fem, Function
+
+from fenics_pctools.pc.base import PCBase
+
+
+class PCDPCBase(PCBase):
+    r"""A base class for various implementations of Pressure-Convection-Diffusion (PCD)
+    preconditioner for incompressible Navier-Stokes equations.
+    """
+
+    _prefix = "pcd_"
+    needs_python_pmat = True
+
+    def initialize(self, pc):
+        if pc.getType() != "python":
+            raise ValueError("Preconditioner must be of type 'python'")
+
+        prefix = pc.getOptionsPrefix() or ""
+        prefix += self._prefix
+
+        _, P = pc.getOperators()
+        Pctx = P.getPythonContext()
+
+        test_space, trial_space = Pctx.function_spaces
+        assert len(test_space) == len(trial_space) == 1
+        if test_space[0] != trial_space[0]:
+            raise ValueError("Nonmatching pressure test and trial spaces")
+
+        V_p = test_space[0]
+
+        p_tr = ufl.TrialFunction(V_p)
+        p_te = ufl.TestFunction(V_p)
+
+        self.ghosted_workvec = fem.create_vector(p_te * ufl.dx)  # aux. vector used to apply BCs
+
+        ufl_form_Mp = Pctx.appctx.get("ufl_form_Mp", None)
+        if ufl_form_Mp is None:
+            nu = Pctx.appctx.get("nu", 1.0)
+            ufl_form_Mp = (1.0 / nu) * ufl.inner(p_tr, p_te) * ufl.dx
+        form_Mp = fem.assemble._create_cpp_form(ufl_form_Mp)
+
+        Mp = fem.create_matrix(form_Mp)
+        Mp.setOption(PETSc.Mat.Option.SPD, True)
+        Mp.setOptionsPrefix(prefix + "Mp_")
+        fem.assemble_matrix(Mp, form_Mp, bcs=[], diagonal=1.0)
+        Mp.assemble()
+
+        # TODO: Is this needed?
+        # Mp.setNullSpace(P.getNullSpace())
+        # tnullsp = P.getTransposeNullSpace()
+        # if tnullsp.handle != 0:
+        #     Mp.setTransposeNullSpace(tnullsp)
+
+        self.ksp_Mp = ksp_Mp = PETSc.KSP().create(comm=pc.comm)
+        ksp_Mp.setType(PETSc.KSP.Type.PREONLY)
+        ksp_Mp.pc.setType(PETSc.PC.Type.LU)
+        ksp_Mp.pc.setFactorSolverType("mumps")
+        ksp_Mp.incrementTabLevel(1, parent=pc)
+        ksp_Mp.setOptionsPrefix(prefix + "Mp_")
+        ksp_Mp.setOperators(Mp)
+        ksp_Mp.setFromOptions()
+        ksp_Mp.setUp()
+
+        ufl_form_Ap = Pctx.appctx.get("ufl_form_Ap", None)
+        if ufl_form_Ap is None:
+            ufl_form_Ap = ufl.inner(ufl.grad(p_tr), ufl.grad(p_te)) * ufl.dx
+            # TODO: Add stabilization term so we don't need to think about nullspaces anymore?
+            # from dolfinx import Constant
+            # ufl_form_Ap += Constant(V_p.mesh, 1e-6) * p_tr * p_te * ufl.dx
+        self.form_Ap = fem.assemble._create_cpp_form(ufl_form_Ap)
+
+        self.bcs_pcd = bcs_pcd = Pctx.appctx.get("bcs_pcd", [])
+
+        Ap = fem.create_matrix(self.form_Ap)
+        Ap.setOptionsPrefix(prefix + "Ap_")
+        fem.assemble_matrix(Ap, self.form_Ap, bcs=bcs_pcd, diagonal=1.0)
+        Ap.assemble()
+
+        if not bcs_pcd:
+            Ap.setOption(PETSc.Mat.Option.SYMMETRIC, True)
+            # Create default nullspace
+            # TODO: Consider an option `nullsp_Ap = Pctx.appctx.get("nullsp_Ap", None)``
+            null_vec = Ap.createVecLeft()
+            null_vec.set(1.0)
+            null_vec.normalize()
+            nullsp_Ap = PETSc.NullSpace().create(vectors=[null_vec], comm=pc.comm)
+            assert nullsp_Ap.test(Ap)
+            Ap.setNullSpace(nullsp_Ap)
+            Ap.setTransposeNullSpace(nullsp_Ap)  # FIXME: Isn't it automatic with SYMMETRIC opt?
+        else:
+            Ap.setOption(PETSc.Mat.Option.SPD, True)
+
+        self.ksp_Ap = ksp_Ap = PETSc.KSP().create(comm=pc.comm)
+        ksp_Ap.incrementTabLevel(1, parent=pc)
+        ksp_Ap.setOptionsPrefix(prefix + "Ap_")
+        ksp_Ap.setOperators(Ap)
+        ksp_Ap.setType(PETSc.KSP.Type.PREONLY)
+        ksp_Ap.pc.setType(PETSc.PC.Type.LU)
+        ksp_Ap.pc.setFactorSolverType("mumps")
+        ksp_Ap.setFromOptions()
+        ksp_Ap.setUp()
+
+        ufl_form_Kp = Pctx.appctx.get("ufl_form_Kp", None)
+        if ufl_form_Kp is None:
+            v = Pctx.appctx.get("v", ufl.grad(Function(V_p)))  # defaults to zero vector
+            nu = Pctx.appctx.get("nu", 1.0)
+            ds_in = Pctx.appctx.get("ds_in", None)
+            ufl_form_Kp = (1.0 / nu) * ufl.dot(ufl.grad(p_tr), v) * p_te * ufl.dx
+            if type(self).__name__ == "PCDPC_vY" and ds_in is not None:
+                n = ufl.FacetNormal(ds_in.subdomain_data().mesh)
+                ufl_form_Kp -= (1.0 / nu) * ufl.dot(v, n) * p_tr * p_te * ds_in
+        self.form_Kp = fem.assemble._create_cpp_form(ufl_form_Kp)
+
+        self.Kp = Kp = fem.create_matrix(self.form_Kp)
+        Kp.setOptionsPrefix(prefix + "Kp_")
+        fem.assemble_matrix(Kp, self.form_Kp, bcs=[], diagonal=1.0)
+        Kp.assemble()
+
+    def update(self, pc):
+        self.Kp.zeroEntries()
+        fem.assemble_matrix(self.Kp, self.form_Kp, bcs=[], diagonal=1.0)
+        self.Kp.assemble()
+
+    def get_work_vecs(self, v, num):
+        """Return *num* of work vectors initially duplicated from *v*."""
+        try:
+            vecs = self._work_vecs
+            assert len(vecs) == num
+        except AttributeError:
+            self._work_vecs = vecs = tuple(v.duplicate() for i in range(num))
+        except AssertionError:
+            raise ValueError("Number of work vectors cannot be changed")
+        return vecs
+
+    def bcs_applier(self, x, transpose=False):
+        if not self.bcs_pcd:
+            return
+
+        if transpose:
+            pass  # FIXME: Assure that self.form_Ap is always symmetric or make the transpose!
+
+        # NOTE:
+        #   Vectors passed to `self.apply` method are not ghosted, but lifting must be applied
+        #   to a ghosted vector.
+        y = self.ghosted_workvec
+        with y.localForm() as y_local:
+            y_local.set(0.0)
+        x.copy(result=y)
+        y.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+        fem.apply_lifting(y, [self.form_Ap], [self.bcs_pcd])
+        y.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+        fem.set_bc(y, self.bcs_pcd)
+        y.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+
+        # # A simple check why/whether it is needed to do the trick which costs 2x copy
+        # fem.apply_lifting(x, [self.form_Ap], [self.bcs_pcd])
+        # fem.set_bc(x, self.bcs_pcd)
+        # x.axpy(-1.0, y)
+        # assert x.norm() == 0.0
+
+        y.copy(result=x)  # move truly updated values back to x
+
+    def view(self, pc, viewer=None):
+        super(PCDPCBase, self).view(pc, viewer)
+        viewer.printfASCII("Pressure-Convection-Diffusion inverse:\n")
+        viewer.printfASCII("KSP solver for discrete Laplace operator on the pressure space:\n")
+        self.ksp_Ap.view(viewer)
+        viewer.printfASCII("KSP solver for pressure mass matrix:\n")
+        self.ksp_Mp.view(viewer)
+
+
+class PCDPC_vX(PCDPCBase):
+    r"""This class implements a modification of PCD variant similar to the one by
+    [1]_, see also Blechta [2]_.
+
+
+    .. [1] \ M. A. Olshanskii and Y. V. Vassilevski, "Pressure Schur Complement Preconditioners
+             for the Discrete Oseen Problem,” SIAM J. Sci. Comput., vol. 29, no. 6, pp. 2686–2704,
+             2007, doi: 10.1137/070679776.
+
+    .. [2] \ J. Blechta, “Towards efficient numerical computation of flows of non-Newtonian fluids,”
+             Jun. 2019, Accessed: Feb. 26, 2021. [Online].
+             Available: https://dspace.cuni.cz/handle/20.500.11956/108384.
+
+    """
+
+    def initialize(self, pc):
+        super(PCDPC_vX, self).initialize(pc)
+
+    def update(self, pc):
+        super(PCDPC_vX, self).update(pc)
+
+    def apply(self, pc, x, y):
+        r"""This method implements the action of the inverse of the approximate
+        Schur complement :math:`-\hat{S}^{-1}`, namely
+
+        .. math::
+
+            y = -M_p^{-1} (I + K_p A_p^{-1}) x,
+
+        where :math:`K_p` denotes the discrete pressure convection matrix, :math:`A_p` denotes the
+        discrete Laplace operator on the pressure space and :math:`M_p` is the pressure mass matrix.
+        Note that the solve :math:`A_p^{-1} x` is performed with the application of a subfield BC
+        on matrix :math:`A_p` and RHS :math:`x` (but only in that term). The subfield BC, together
+        with other necessary information, should be provided via an application context `appctx`
+        attached to the preconditioner matrix of type `'python'`, e.g.
+        :py:class:`fenics_pctools.mat.splittable.SplittableMatrixBlock`.
+        The expected application context is a dictionary with the following items:
+
+            + `"nu"` : kinematic viscosity :math:`\nu` used to scale :math:`M_p` and :math:`K_p`,
+              both by :math:`\nu^{-1}`
+            + `"v"` : FE representation of the velocity vector computed as part the current
+              nonlinear iterate (used to assemble :math:`K_p`)
+            + `"bcs_pcd"` : homogeneous Dirichlet BC at **inflow** boundary
+
+        .. note::
+
+            It is crucial that the identity term :math:`I x` is not absorbed into the second,
+            compact term in the sense
+
+            .. math::
+
+                y = -M_p^{-1} (A_p + K_p) A_p^{-1} x.
+
+            Keeping the identity term separated is important to get a stability with respect to
+            the leading Stokes term.
+        """
+
+        (z,) = self.get_work_vecs(x, 1)
+
+        x.copy(result=z)  # z = x
+        self.bcs_applier(z)  # apply bcs to z
+        self.ksp_Ap.solve(z, y)  # y = A_p^{-1} z
+        self.Kp.mult(y, z)  # z = K_p y
+        z.axpy(1.0, x)  # z = z + x
+        self.ksp_Mp.solve(z, y)  # y = M_p^{-1} z
+        # TODO: Check the sign!
+        y.scale(-1.0)  # y = -y
+
+    def applyTranspose(self, pc, x, y):
+        (z,) = self.get_work_vecs(x, 1)
+
+        self.ksp_Mp.solveTranspose(x, y)  # y = M_p^{-T} x
+        self.Kp.multTranspose(y, x)  # x = K_p^T y
+        self.bcs_applier(x, transpose=True)  # apply bcs to x
+        self.ksp_Ap.solveTranspose(x, z)  # z = A_p^{-T} x
+        y.axpy(1.0, z)  # y = y + z
+        # TODO: Check the sign!
+        y.scale(-1.0)  # y = -y
+
+
+class PCDPC_vY(PCDPCBase):
+    r"""This class implements a modification of steady variant of PCD discussed in the book
+    by Elman et al. [1]_, see also Blechta [2]_.
+
+    .. [1] \ H. C. Elman, D. J. Silvester, and A. J. Wathen, Finite elements and fast iterative
+             solvers: with applications in incompressible fluid dynamics. 2014.
+
+    .. [2] \ J. Blechta, “Towards efficient numerical computation of flows of non-Newtonian fluids,”
+             Jun. 2019, Accessed: Feb. 26, 2021. [Online].
+             Available: https://dspace.cuni.cz/handle/20.500.11956/108384.
+    """
+
+    def initialize(self, pc):
+        super(PCDPC_vY, self).initialize(pc)
+
+    def update(self, pc):
+        super(PCDPC_vY, self).update(pc)
+
+    def apply(self, pc, x, y):
+        r"""This method implements the action of the inverse of the approximate
+        Schur complement :math:`- \hat{S}^{-1}`, namely
+
+        .. math::
+
+            y = -(I + A_p^{-1} K_p) M_p^{-1} x,
+
+        where :math:`K_p` denotes the discrete pressure convection matrix, :math:`A_p` denotes the
+        discrete Laplace operator on the pressure space and :math:`M_p` is the pressure mass matrix.
+        Note that the solve :math:`A_p^{-1} x` is performed with the application of a subfield BC
+        on matrix :math:`A_p` and RHS :math:`x` (but only in that term). The subfield BC, together
+        with other necessary information, should be provided via an application context `appctx`
+        attached to the preconditioner matrix of type `'python'`, e.g.
+        :py:class:`fenics_pctools.mat.splittable.SplittableMatrixBlock`.
+        The expected application context is a dictionary with the following items:
+
+            + `"nu"` : kinematic viscosity :math:`\nu` used to scale :math:`M_p` and :math:`K_p`,
+              both by :math:`\nu^{-1}`
+            + `"v"` : FE representation of the velocity vector computed as part the current
+              nonlinear iterate (used to assemble :math:`K_p`)
+            + `"bcs_pcd"` : homogeneous Dirichlet BC at **outflow** boundary
+            + `"ds_in"`: measure used to get a surface integral at inflow boundary that contributes
+              to :math:`K_p`
+
+        .. note::
+
+            It is crucial that the identity term :math:`I x` is
+            not absorbed into the second, compact term in the sense
+
+            .. math::
+
+                y = -A_p^{-1} (A_p + K_p) M_p^{-1} x.
+
+            Keeping the identity term separated is important to get a stability with respect to
+            the leading Stokes term.
+        """
+        (z,) = self.get_work_vecs(x, 1)
+
+        self.ksp_Mp.solve(x, y)  # y = M_p^{-1} x
+        self.Kp.mult(y, x)  # x = K_p y
+        self.bcs_applier(x)  # apply bcs to x
+        self.ksp_Ap.solve(x, z)  # z = A_p^{-1} x
+        y.axpy(1.0, z)  # y = y + z
+        # FIXME: How is with the sign bussines?
+        y.scale(-1.0)  # y = -y
+
+    def applyTranspose(self, pc, x, y):
+        (z,) = self.get_work_vecs(x, 1)
+
+        x.copy(result=z)  # z = x
+        self.bcs_applier(z, transpose=True)  # apply bcs to z
+        self.ksp_Ap.solveTranspose(z, y)  # y = A_p^{-T} z
+        self.Kp.multTranspose(y, z)  # z = K_p^T y
+        z.axpy(1.0, x)  # z = z + x
+        self.ksp_Mp.solveTranspose(z, y)  # y = M_p^{-T} z
+        # TODO: Check the sign!
+        y.scale(-1.0)  # y = -y
