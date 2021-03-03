@@ -83,9 +83,9 @@ License
 
 Copyright |(C)| 2021 Rafinex S. á r. l. <info@rafinex.com>
 
-Rafinex reserves the right for the University of Luxembourg to hold a copy of the present work
-under the terms and conditions laid down in the *Collaboration Agreement in the frame of FNR
-Industrial Fellowships* concluded between both parties.
+The rights under which the University of Luxembourg and Rafinex can use this work are detailed in
+the *Collaboration Agreement in the frame of FNR Industrial Fellowships* concluded between both
+parties.
 
 The code is a property of the copyright holder. No distribution and/or modification allowed
 without written permission.
