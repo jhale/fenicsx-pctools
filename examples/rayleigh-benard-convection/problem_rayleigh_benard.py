@@ -3,64 +3,21 @@ import ufl
 
 from functools import cached_property
 from collections import OrderedDict
+from petsc4py import PETSc
 from ufl import dot, inner, grad, div, dx
 from dolfinx import cpp, fem, UnitCubeMesh, Constant, Function, FunctionSpace, VectorFunctionSpace
-from dolfinx.mesh import MeshTags, locate_entities
+from dolfinx.mesh import MeshTags, locate_entities, locate_entities_boundary
 
 
-# FIXME: This is too general, make it simple for this specific example!
-def get_boundary_mask(mesh, dim, ghosted=True):
-    r"""Get a mask for entities of given (co)dimension indicating whether these entities lay
-    on the boundary of the given mesh. The length of the returned array is by default equal
-    to the number of entities owned by the given process plus the number of ghost entities.
-
-    Parameters:
-        mesh (dfx.Mesh): mesh containing the entities
-        cdim (int): (co)dimension (default: -1)
-        ghosted (bool): extend the mask by ghost entities (default: True)
-
-    Returns:
-        np.ndarray: array of boolean values indexed by local entity indices
-    """
-    from dolfinx.mesh import locate_entities_boundary
-    from petsc4py import PETSc
-
+def get_boundary_mask(mesh):
     topology = mesh.topology
     tdim = topology.dim
-
-    # Create required connectivities
     topology.create_connectivity(tdim - 1, tdim)  # mark interior/exterior facets
-    if dim == 1 and tdim > 2:
-        topology.create_connectivity(1, tdim - 1)
-    # topology.create_connectivity_all()  # NOTE: Use this if the above shows to be insufficient.
 
-    # Get boundary mask (not yet updated)
-    imap = topology.index_map(dim)
-    if dim < tdim:
-        bndry_entities = locate_entities_boundary(mesh, dim, lambda x: np.full(x.shape[1], True))
-    else:  # dim == tdim
-        bndry_facets = locate_entities_boundary(mesh, tdim - 1, lambda x: np.full(x.shape[1], True))
-        c = topology.connectivity(tdim - 1, tdim)
-        bndry_entities = np.unique([c.links(facet_id)[0] for facet_id in bndry_facets])
+    imap = topology.index_map(tdim - 1)
+    bndry_entities = locate_entities_boundary(mesh, tdim - 1, lambda x: np.full(x.shape[1], True))
     bndry_mask = np.full(imap.size_local + imap.num_ghosts, False)
     bndry_mask[bndry_entities] = True
-    # NOTE (from the documentation of `dolfinx.mesh.locate_entities_boundary`):
-    #   For vertices and edges, in parallel this function will not necessarily
-    #   mark all entities that are on the exterior boundary. For example, it is
-    #   possible for a process to have a vertex that lies on the boundary without
-    #   any of the attached facets being a boundary facet.
-
-    # Update values in boundary mask from ghosts
-    bs = 1  # TODO: Double check that the block size is always 1 for topology index maps.
-    x = cpp.la.create_vector(imap, bs)
-    indices = np.arange(0, imap.size_local, dtype=np.intc)
-    x.setValuesLocal(indices, bndry_mask[: imap.size_local], addv=PETSc.InsertMode.INSERT)
-    x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
-    with x.localForm() as xloc:
-        bndry_mask = np.array(xloc.getArray(), dtype=bool)
-
-    if not ghosted:
-        bndry_mask = bndry_mask[: imap.size_local]
 
     return bndry_mask
 
@@ -82,19 +39,19 @@ class Problem(object):
         mesh.topology.create_connectivity_all()
         imap = mesh.topology.index_map(2)
         indices = np.arange(0, imap.size_local + imap.num_ghosts)
-        regions = MeshTags(mesh, 2, indices, np.zeros_like(indices, dtype=np.intc))
-        map_target_idx = {"left": 1, "right": 2, "rest": 3}
+        mesh_tags_facets = MeshTags(mesh, 2, indices, np.zeros_like(indices, dtype=np.intc))
+        bndry_tag_map = {"left": 1, "right": 2, "rest": 3}
 
-        bndry_mask = get_boundary_mask(mesh, 2)
-        regions.values[bndry_mask] = map_target_idx["rest"]
+        bndry_mask = get_boundary_mask(mesh)
+        mesh_tags_facets.values[bndry_mask] = bndry_tag_map["rest"]
 
         left_facets = locate_entities(mesh, 2, lambda x: np.isclose(x[0], 0.0))
-        regions.values[left_facets] = map_target_idx["left"]
+        mesh_tags_facets.values[left_facets] = bndry_tag_map["left"]
 
         right_facets = locate_entities(mesh, 2, lambda x: np.isclose(x[0], 1.0))
-        regions.values[right_facets] = map_target_idx["right"]
+        mesh_tags_facets.values[right_facets] = bndry_tag_map["right"]
 
-        return mesh, regions, map_target_idx
+        return mesh, mesh_tags_facets, bndry_tag_map
 
     @cached_property
     def num_elements(self):
@@ -209,22 +166,22 @@ class Problem(object):
     @cached_property
     def bcs(self):
         V_v, V_p, V_T = self.function_spaces
-        mesh, regions, map_target_idx = self.domain_data
-        facetdim = mesh.topology.dim - 1
+        mesh, mesh_tags_facets, bndry_tag_map = self.domain_data
+        tdim - 1 = mesh.topology.dim - 1
 
-        left_id = map_target_idx["left"]
-        left_facets = np.where(regions.values == left_id)[0]
-        leftdofsV_v = fem.locate_dofs_topological(V_v, facetdim, left_facets)
-        leftdofsV_T = fem.locate_dofs_topological(V_T, facetdim, left_facets)
+        left_id = bndry_tag_map["left"]
+        left_facets = np.where(mesh_tags_facets.values == left_id)[0]
+        leftdofsV_v = fem.locate_dofs_topological(V_v, tdim - 1, left_facets)
+        leftdofsV_T = fem.locate_dofs_topological(V_T, tdim - 1, left_facets)
 
-        right_id = map_target_idx["right"]
-        right_facets = np.where(regions.values == right_id)[0]
-        rightdofsV_v = fem.locate_dofs_topological(V_v, facetdim, right_facets)
-        rightdofsV_T = fem.locate_dofs_topological(V_T, facetdim, right_facets)
+        right_id = bndry_tag_map["right"]
+        right_facets = np.where(mesh_tags_facets.values == right_id)[0]
+        rightdofsV_v = fem.locate_dofs_topological(V_v, tdim - 1, right_facets)
+        rightdofsV_T = fem.locate_dofs_topological(V_T, tdim - 1, right_facets)
 
-        rest_id = map_target_idx["rest"]
-        rest_facets = np.where(regions.values == rest_id)[0]
-        restdofsV_v = fem.locate_dofs_topological(V_v, facetdim, rest_facets)
+        rest_id = bndry_tag_map["rest"]
+        rest_facets = np.where(mesh_tags_facets.values == rest_id)[0]
+        restdofsV_v = fem.locate_dofs_topological(V_v, tdim - 1, rest_facets)
 
         bcs = []
 

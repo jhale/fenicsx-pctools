@@ -108,6 +108,7 @@ def domain(comm, request):
     Rc = Rb / Rb_dls
     Lc = Rc * Lc_dls
 
+    # Generate mesh
     gmsh.initialize()
     gmsh.option.setNumber("General.Terminal", 1)
     gmsh_model = None
@@ -124,32 +125,22 @@ def domain(comm, request):
     mesh, mts = gmsh_to_dolfin(gmsh.model, 2, prune_z=True, comm=comm)
     gmsh.finalize()
 
-    regions = {}
-    map_target_idx = {}
-    for target, mt in mts.items():
-        regions_dim = regions.setdefault(mt.dim, {})
-        regions_dim[target] = mt
-    for dim in regions.keys():
-        mt_short, keys = merge_meshtags(regions[dim], dim)
-        imap = mesh.topology.index_map(dim)
-        if imap is None:
-            mesh.topology.create_connectivity_all()
-        indices = np.arange(0, imap.size_local + imap.num_ghosts)
-        values = np.zeros_like(indices, dtype=np.intc)
-        mt_full = MeshTags(mesh, dim, indices, values)
-        mt_full.values[mt_short.indices] = mt_short.values
-        regions[dim].clear()
-        regions[dim] = mt_full
-        if dim not in map_target_idx:
-            map_target_idx[dim] = keys
+    # Prepare mesh tags on all facets
+    facetdim = 1
+    mts_merged, bndry_tag_map = merge_meshtags(mts, facetdim)
+    imap = mesh.topology.index_map(facetdim)
+    indices = np.arange(0, imap.size_local + imap.num_ghosts)
+    values = np.zeros_like(indices, dtype=np.intc)
+    mesh_tags_facets = MeshTags(mesh, facetdim, indices, values)
+    mesh_tags_facets.values[mts_merged.indices] = mts_merged.values
 
     class Domain:
-        def __init__(self, mesh, regions, map_target_idx, name="unknown"):
-            self.mesh = mesh
-            self.regions = regions
-            self.map_target_idx = map_target_idx
+        def __init__(self, mesh, mesh_tags_facets, bndry_tag_map, name="unknown"):
             self.name = name
+            self.mesh = mesh
+            self.mesh_tags_facets = mesh_tags_facets
 
+            self._bndry_tag_map = bndry_tag_map
             self._h = None
 
         @property
@@ -181,22 +172,16 @@ def domain(comm, request):
         def h_max(self):
             return self.comm.allreduce(self.h.max(), op=MPI.MAX)
 
-        @property
-        def boundary_regions(self):
-            facetdim = self.mesh.topology.dim - 1
-            return regions[facetdim]
+        def get_boundary_tag(self, label):
+            return self._bndry_tag_map[label]
 
-        def get_boundary_id(self, part):
-            facetdim = self.mesh.topology.dim - 1
-            return self.map_target_idx[facetdim][part]
-
-        def ds(self, part=None):
-            ds = ufl.Measure("ds", subdomain_data=self.boundary_regions, domain=self.mesh)
-            if part is not None:
-                ds = ds(self.get_boundary_id(part))
+        def ds(self, label=None):
+            ds = ufl.Measure("ds", subdomain_data=self.mesh_tags_facets, domain=self.mesh)
+            if label is not None:
+                ds = ds(self.get_boundary_tag(label))
             return ds
 
-    domain = Domain(mesh, regions, map_target_idx, name=domain_name)
+    domain = Domain(mesh, mesh_tags_facets, bndry_tag_map, name=domain_name)
 
     # Remember level and specific dimensions for dimensionless analysis and reporting purposes
     domain.level = level
@@ -276,7 +261,7 @@ def test_capillary(domain, fullconfig, results_dir, timestamp, request):
     #     domain.mesh.topology.create_connectivity_all()
     #     f.write_mesh(domain.mesh)
     #     # f.write_meshtags(problem.get_sensor_utils("bwall")["mt"])
-    #     f.write_meshtags(domain.regions[1])
+    #     f.write_meshtags(domain.mesh_tags_facets)
     # # from dolfinx.io import VTKFile
     # # f = VTKFile(f"mesh.pvd")
     # # f.write(domain.mesh)
@@ -474,19 +459,8 @@ def test_capillary(domain, fullconfig, results_dir, timestamp, request):
                 if comm.rank == 0:
                     PETSc.Sys.Print(f"  + {os.path.abspath(xfile)}")
 
-            # TODO: Prepare and run ParaView scripts here, or right before clean up below?
-
         # Reset convergence history
         snesctx.reset()
-
-    # Sweep extra outut when running CI pipeline
-    if os.getenv("GITLAB_CI") == "true":
-        for i, xfile in enumerate(produced_xdmf):
-            if i == 0:
-                PETSc.Sys.Print("Removed output:")
-            os.remove(xfile)
-            os.remove(os.path.splitext(xfile)[0] + ".h5")
-            PETSc.Sys.Print(f"  - {os.path.abspath(xfile)}")
 
     # Reset test envorionment
     if opts.hasName("options_left"):

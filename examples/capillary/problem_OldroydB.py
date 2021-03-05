@@ -172,19 +172,19 @@ class Problem(NavierStokesProblem):
         Vv_r = Vv.sub(r_index).collapse()
         Vv_phi = Vv.sub(phi_index).collapse()
 
-        bnd_in = domain.get_boundary_id("inlet")
-        bnd_out = domain.get_boundary_id("outlet")
-        bnd_symm = domain.get_boundary_id("symmetry")
-        bnd_w1 = domain.get_boundary_id("bwall_hor")
-        bnd_w2 = domain.get_boundary_id("bwall_ver")
-        bnd_w3 = domain.get_boundary_id("cwall")
+        bnd_in = domain.get_boundary_tag("inlet")
+        bnd_out = domain.get_boundary_tag("outlet")
+        bnd_symm = domain.get_boundary_tag("symmetry")
+        bnd_w1 = domain.get_boundary_tag("bwall_hor")
+        bnd_w2 = domain.get_boundary_tag("bwall_ver")
+        bnd_w3 = domain.get_boundary_tag("cwall")
 
-        facets_in = np.where(domain.boundary_regions.values == bnd_in)[0]
-        facets_out = np.where(domain.boundary_regions.values == bnd_out)[0]
-        facets_symm = np.where(domain.boundary_regions.values == bnd_symm)[0]
-        facets_w1 = np.where(domain.boundary_regions.values == bnd_w1)[0]
-        facets_w2 = np.where(domain.boundary_regions.values == bnd_w2)[0]
-        facets_w3 = np.where(domain.boundary_regions.values == bnd_w3)[0]
+        facets_in = np.where(domain.mesh_tags_facets.values == bnd_in)[0]
+        facets_out = np.where(domain.mesh_tags_facets.values == bnd_out)[0]
+        facets_symm = np.where(domain.mesh_tags_facets.values == bnd_symm)[0]
+        facets_w1 = np.where(domain.mesh_tags_facets.values == bnd_w1)[0]
+        facets_w2 = np.where(domain.mesh_tags_facets.values == bnd_w2)[0]
+        facets_w3 = np.where(domain.mesh_tags_facets.values == bnd_w3)[0]
 
         inlet_dofsVv = fem.locate_dofs_topological(Vv, facetdim, facets_in)
         outlet_dofsVv_r = fem.locate_dofs_topological((Vv.sub(r_index), Vv_r), facetdim, facets_out)
