@@ -171,15 +171,14 @@ def domain(comm, request):
 
 _fullconfigs = {
     "NavierStokes": {
-        r"\rho": 1.0e03,
-        r"\mu": 1.2e04,
+        "beta": 1.0,
+        "Re": 0.0,
         "bc_outlet": "NoEnd",
     },
     "OldroydB": {
-        r"\rho": 1.0e03,
-        r"\mu_0": 2.0e03,
-        r"\mu_1": 1.0e04,
-        r"G_1": 1.0e07,
+        "beta": 1.0,
+        "Re": 0.0,
+        "Wi": 0.1,
         "bc_outlet": "NoEnd",
     },
 }

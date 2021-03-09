@@ -37,10 +37,29 @@ class Problem(object):
         self.coeffs = {}
         self.parse_options(**kwargs)
 
+    def _get_coeff(self, name):
+        coeff = self.coeffs.get(name, None)
+        if coeff is None:
+            raise ValueError(f"Parameter '{name}' has not been set")
+        elif isinstance(coeff, fem.Constant):
+            return float(coeff.value)
+        else:
+            return coeff
+
+    def _set_coeff(self, name, value):
+        coeff = self.coeffs.get(name, None)
+        if coeff is None:
+            self.coeffs[name] = value
+            # self.coeffs[name] = fem.Constant(self.domain.mesh, value)  # TODO: Test performance!
+        elif isinstance(coeff, fem.Constant):
+            self.coeffs[name].value = value
+        else:
+            self.coeffs[name] = value
+
     # FIXME: Make me abstract! Derived models will override this instead of __init__
     def parse_options(self, **kwargs):
-        for prm in [r"\rho", r"\mu"]:
-            self.coeffs[prm] = kwargs.pop(prm)
+        for prm in ["beta", "Re"]:
+            self._set_coeff(prm, kwargs.pop(prm))
         if kwargs:
             raise RuntimeError(f"Unused parameters passed to {type(self).__name__}: {kwargs}")
 
@@ -48,39 +67,33 @@ class Problem(object):
 
     @property
     def reduced_opts_for_NavierStokes(self):
-        for prm in [r"\rho", r"\mu"]:
+        for prm in ["beta", "Re"]:
             if prm not in self._ns_opts:
                 raise ValueError(f"Parameter '{prm}' not found among reduced Navier-Stokes options")
 
         return self._ns_opts
 
-    def Re(self, v_char, x_char):
-        """For given characteristic quantities, compute the Reynolds number."""
-        return self.coeffs[r"\rho"] * v_char * x_char / self.coeffs[r"\mu"]
+    @property
+    def beta(self):
+        return self._get_coeff("beta")
 
-    def Wi(self, dgamma_char):
-        """For given characteristic quantities, compute the Weissenberg number."""
-        relaxtime = 0.0
-        return relaxtime * dgamma_char
+    @beta.setter
+    def beta(self, value):
+        self._set_coeff("beta", value)
 
-    def De(self, t_char):
-        """For given characteristic quantities, compute the Deborah number."""
-        relaxtime = 0.0
-        return relaxtime / t_char
+    @property
+    def Re(self):
+        return self._get_coeff("Re")
 
-    @cached_property
-    def mu(self):
-        return fem.Constant(self.domain.mesh, self.coeffs[r"\mu"])
-
-    @cached_property
-    def rho(self):
-        return fem.Constant(self.domain.mesh, self.coeffs[r"\rho"])
+    @Re.setter
+    def Re(self, value):
+        self._set_coeff("Re", value)
 
     def D(self, v):
         return ufl.sym(ufl.grad(v))
 
     def T(self, v, p):
-        return -p * self.I + 2.0 * self.mu * self.D(v)
+        return -p * self.I + 2.0 * self.coeffs["beta"] * self.D(v)
 
     @cached_property
     def _mixed_space(self):
@@ -140,7 +153,8 @@ class Problem(object):
 
         # Volume contributions
         F_v = ufl.inner(self.T(v, p), self.D(v_te)) * dx
-        # F_v += self.rho * ufl.inner(ufl.dot(ufl.grad(v), v), v_te) * dx  # NOTE: Inertia omitted!
+        # NOTE: Inertia omitted!
+        # F_v += self.coeffs["Re"] * ufl.inner(ufl.dot(ufl.grad(v), v), v_te) * dx
 
         F_p = -ufl.div(v) * p_te * dx
 
@@ -148,7 +162,7 @@ class Problem(object):
         if self.application_opts["bc_outlet"] == "NoEnd":
             ds_outlet = self.domain.ds("outlet")
             n = self.facet_normal
-            F_v += -ufl.inner(2.0 * self.mu * ufl.dot(self.D(v), n), v_te) * ds_outlet
+            F_v += -ufl.inner(2.0 * self.coeffs["beta"] * ufl.dot(self.D(v), n), v_te) * ds_outlet
 
         return [F_v, F_p]
 
