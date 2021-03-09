@@ -235,9 +235,14 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
     v_h = problem.solution_vars[0]
     p_h = problem.solution_vars[1]
 
+    # FIXME: Use `dolfinx.function.Expression` for direct evaluation (instead of projections)!
+    with PETSc.Log.Stage("Projection postprocessing step"):
+        T_h = problem.projected_stress
+
     # Save ParaView plots
     if not request.config.getoption("noxdmf"):
-        for field in problem.solution_vars:# + (T_h, D_h, dgamma_h):
+        PETSc.Sys.Print(f"\nSaved fields:")
+        for field in problem.solution_vars + tuple([T_h]):
             xfile = f"{model_name}_field_{field.name}.xdmf"
             xfile = os.path.join(results_dir, xfile)
             mode = "w"

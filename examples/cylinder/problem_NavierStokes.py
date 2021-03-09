@@ -3,10 +3,8 @@ import ufl
 import numpy as np
 
 from functools import cached_property
-from mpi4py import MPI
 from petsc4py import PETSc
-from dolfinx import fem, cpp
-from dolfinx.mesh import locate_entities_boundary, create_meshtags
+from dolfinx import fem
 
 
 class Problem(object):
@@ -16,12 +14,12 @@ class Problem(object):
     def __init__(self, domain, **kwargs):
         self.domain = domain
 
-        # self._projection_utils = {}
+        # Cache for utilities used to get projected stress, shear rate, etc.
+        self._projection_utils = {}
 
         # UFL helpers
         self.I = ufl.Identity(domain.mesh.geometry.dim)  # noqa: E741
         self.facet_normal = ufl.FacetNormal(domain.mesh)
-        # self.x = ufl.SpatialCoordinate(domain.mesh)
 
         # Parse application-specific options
         self.application_opts = {}
@@ -30,7 +28,7 @@ class Problem(object):
         self.application_opts["bc_outlet"] = bc_outlet
 
         # Keep options for reduced Navier-Stokes (NS) problem as a special variable
-        # NOTE: NS problem is solved to get a good initial condition for more complicated models.
+        # NOTE: NS problem is often solved to get a good initial guess for more complicated models.
         self._ns_opts = self.application_opts.copy()
 
         # Parse model parameters
@@ -56,7 +54,7 @@ class Problem(object):
         else:
             self.coeffs[name] = value
 
-    # FIXME: Make me abstract! Derived models will override this instead of __init__
+    # NOTE: Derived models should override this method instead of `__init__`.
     def parse_options(self, **kwargs):
         for prm in ["beta", "Re"]:
             self._set_coeff(prm, kwargs.pop(prm))
@@ -290,112 +288,111 @@ class Problem(object):
     def appctx(self):
         return None
 
-    # def _get_projection_utils(self, tensor_order, element_metadata=None):
-    #     if element_metadata is None:
-    #         family = "DG" if self.domain.mesh.ufl_cell() == ufl.triangle else "DQ"
-    #         degree = 1
-    #         element_metadata = (family, degree)
-    #     projection_utils = self._projection_utils.setdefault(tensor_order, {})
+    def _get_projection_utils(self, tensor_order, element_metadata=None):
+        if element_metadata is None:
+            family = "DG" if self.domain.mesh.ufl_cell() == ufl.triangle else "DQ"
+            degree = 1
+            element_metadata = (family, degree)
+        projection_utils = self._projection_utils.setdefault(tensor_order, {})
 
-    #     if not projection_utils:
-    #         domain = self.domain
-    #         FE = ufl.FiniteElement(element_metadata[0], domain.mesh.ufl_cell(), element_metadata[1])
-    #         if tensor_order == 0:
-    #             V = fem.FunctionSpace(domain.mesh, FE)
-    #             dummy_tensor = 1.0
-    #         elif tensor_order == 1:
-    #             V = fem.FunctionSpace(domain.mesh, ufl.VectorElement(FE, dim=3))
-    #             dummy_tensor = ufl.as_vector(3 * [1.0])
-    #         else:
-    #             V = fem.FunctionSpace(domain.mesh, ufl.TensorElement(FE, shape=tensor_order * (3,)))
-    #             dummy_tensor = 3 * [1.0]
-    #             for i in range(tensor_order - 1):
-    #                 dummy_tensor = 3 * [dummy_tensor]
-    #             dummy_tensor = ufl.as_tensor(dummy_tensor)
+        if not projection_utils:
+            mesh = self.domain.mesh
+            gdim = mesh.geometry.dim
+            FE = ufl.FiniteElement(element_metadata[0], mesh.ufl_cell(), element_metadata[1])
+            if tensor_order == 0:
+                V = fem.FunctionSpace(mesh, FE)
+                dummy_tensor = 1.0
+            elif tensor_order == 1:
+                V = fem.FunctionSpace(mesh, ufl.VectorElement(FE, dim=gdim))
+                dummy_tensor = ufl.as_vector(gdim * [1.0])
+            else:
+                V = fem.FunctionSpace(mesh, ufl.TensorElement(FE, shape=tensor_order * (gdim,)))
+                dummy_tensor = gdim * [1.0]
+                for i in range(tensor_order - 1):
+                    dummy_tensor = gdim * [dummy_tensor]
+                dummy_tensor = ufl.as_tensor(dummy_tensor)
 
-    #         r = self.coord_r
-    #         q_te, q_tr = ufl.TestFunction(V), ufl.TrialFunction(V)
-    #         dummy_rhs_form = fem.form.Form(ufl.inner(dummy_tensor, q_te) * ufl.dx)
-    #         projection_form = fem.form.Form(ufl.inner(r * q_tr, q_te) * ufl.dx)
-    #         Amat = fem.assemble_matrix(projection_form)
-    #         Amat.assemble()
+            q_te, q_tr = ufl.TestFunction(V), ufl.TrialFunction(V)
+            dummy_rhs_form = fem.form.Form(ufl.inner(dummy_tensor, q_te) * ufl.dx)
+            projection_form = fem.form.Form(ufl.inner(q_tr, q_te) * ufl.dx)
+            Amat = fem.assemble_matrix(projection_form)
+            Amat.assemble()
 
-    #         solver = PETSc.KSP().create(self.domain.comm)
-    #         solver.setOptionsPrefix(f"projector_TO{tensor_order}_")
-    #         solver.setOperators(Amat)
-    #         solver.setType("preonly")
-    #         solver.getPC().setType("lu")
-    #         solver.getPC().setFactorSolverType("mumps")
-    #         solver.setFromOptions()
+            solver = PETSc.KSP().create(mesh.mpi_comm())
+            solver.setOptionsPrefix(f"projector_TO{tensor_order}_")
+            solver.setOperators(Amat)
+            solver.setType("preonly")
+            solver.getPC().setType("lu")
+            solver.getPC().setFactorSolverType("mumps")
+            solver.setFromOptions()
 
-    #         projection_utils["function_space"] = V
-    #         projection_utils["solver"] = solver
-    #         projection_utils["rhs_vec"] = fem.create_vector(dummy_rhs_form)
+            projection_utils["function_space"] = V
+            projection_utils["solver"] = solver
+            projection_utils["rhs_vec"] = fem.create_vector(dummy_rhs_form)
 
-    #     return self._projection_utils[tensor_order]
+        return self._projection_utils[tensor_order]
 
-    # def _project(self, q, L):
-    #     tensor_order = len(q._ufl_shape)
-    #     solver = self._get_projection_utils(tensor_order)["solver"]
-    #     bvec = self._get_projection_utils(tensor_order)["rhs_vec"]
+    def _project(self, q, L):
+        tensor_order = len(q._ufl_shape)
+        solver = self._get_projection_utils(tensor_order)["solver"]
+        bvec = self._get_projection_utils(tensor_order)["rhs_vec"]
 
-    #     with bvec.localForm() as bloc:
-    #         bloc.set(0.0)
+        with bvec.localForm() as bloc:
+            bloc.set(0.0)
 
-    #     fem.assemble_vector(bvec, L)
-    #     bvec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
-    #     solver.solve(bvec, q.vector)
-    #     q.vector.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+        fem.assemble_vector(bvec, L)
+        bvec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+        solver.solve(bvec, q.vector)
+        q.vector.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
-    # @cached_property
-    # def _projected_stress(self):
-    #     V = self._get_projection_utils(tensor_order=2)["function_space"]
-    #     T = fem.Function(V, name="T")
-    #     T_te = ufl.TestFunction(V)
-    #     projection_rhs = fem.form.Form(ufl.inner(self.rT(*self.solution_vars), T_te) * ufl.dx)
+    @cached_property
+    def _projected_stress(self):
+        V = self._get_projection_utils(tensor_order=2)["function_space"]
+        T = fem.Function(V, name="T")
+        T_te = ufl.TestFunction(V)
+        projection_rhs = fem.form.Form(ufl.inner(self.T(*self.solution_vars), T_te) * ufl.dx)
 
-    #     return T, projection_rhs
+        return T, projection_rhs
 
-    # @property
-    # def projected_stress(self):
-    #     T_h, L = self._projected_stress
-    #     self._project(T_h, L)
+    @property
+    def projected_stress(self):
+        T_h, L = self._projected_stress
+        self._project(T_h, L)
 
-    #     return T_h
+        return T_h
 
-    # @cached_property
-    # def _projected_strain_rate(self):
-    #     V = self._get_projection_utils(tensor_order=2)["function_space"]
-    #     D = fem.Function(V, name="D")
-    #     D_te = ufl.TestFunction(V)
-    #     v = self.solution_vars[0]
-    #     projection_rhs = fem.form.Form(ufl.inner(self.rD(v), D_te) * ufl.dx)
+    @cached_property
+    def _projected_strain_rate(self):
+        V = self._get_projection_utils(tensor_order=2)["function_space"]
+        D = fem.Function(V, name="D")
+        D_te = ufl.TestFunction(V)
+        v = self.solution_vars[0]
+        projection_rhs = fem.form.Form(ufl.inner(self.D(v), D_te) * ufl.dx)
 
-    #     return D, projection_rhs
+        return D, projection_rhs
 
-    # @property
-    # def projected_strain_rate(self):
-    #     D_h, L = self._projected_strain_rate
-    #     self._project(D_h, L)
+    @property
+    def projected_strain_rate(self):
+        D_h, L = self._projected_strain_rate
+        self._project(D_h, L)
 
-    #     return D_h
+        return D_h
 
-    # @cached_property
-    # def _projected_shear_rate(self):
-    #     V = self._get_projection_utils(tensor_order=0)["function_space"]
-    #     dgamma = fem.Function(V, name="dgamma")
-    #     dgamma_te = ufl.TestFunction(V)
-    #     v = self.solution_vars[0]
-    #     r = self.coord_r
-    #     projection_rhs = fem.form.Form(
-    #         r * ufl.sqrt(2.0 * ufl.inner(self.D(v), self.D(v))) * dgamma_te * ufl.dx
-    #     )
+    @cached_property
+    def _projected_shear_rate(self):
+        V = self._get_projection_utils(tensor_order=0)["function_space"]
+        dgamma = fem.Function(V, name="dgamma")
+        dgamma_te = ufl.TestFunction(V)
+        v = self.solution_vars[0]
+        projection_rhs = fem.form.Form(
+            ufl.sqrt(2.0 * ufl.inner(self.D(v), self.D(v))) * dgamma_te * ufl.dx
+        )
 
-    #     return dgamma, projection_rhs
+        return dgamma, projection_rhs
 
-    # @property
-    # def projected_shear_rate(self):
-    #     dgamma_h, L = self._projected_shear_rate
-    #     self._project(dgamma_h, L)
+    @property
+    def projected_shear_rate(self):
+        dgamma_h, L = self._projected_shear_rate
+        self._project(dgamma_h, L)
 
-    #     return dgamma_h
+        return dgamma_h
