@@ -2,6 +2,7 @@ import gmsh
 import itertools
 import numpy as np
 import os
+import pandas
 import pytest
 import ufl
 
@@ -9,6 +10,7 @@ from mpi4py import MPI
 from petsc4py import PETSc
 from dolfinx import cpp, fem, MeshTags
 from dolfinx.io import XDMFFile
+from dolfinx.common import list_timings, TimingType
 from dolfiny.mesh import gmsh_to_dolfin, merge_meshtags
 
 from fenics_pctools.mat.splittable import create_splittable_matrix_block
@@ -84,7 +86,7 @@ def _get_domain_id(param):
         [0],  # level of refinement
     ),
     ids=_get_domain_id,
-    scope="module"
+    scope="module",
 )
 def domain(comm, request):
     H, L, R, level = request.param
@@ -170,22 +172,18 @@ def domain(comm, request):
 
 
 _fullconfigs = {
-    "NavierStokes": {
-        "beta": 1.0,
-        "Re": 0.0,
-        "bc_outlet": "NoEnd",
-    },
-    "OldroydB": {
-        "beta": 1.0,
-        "Re": 0.0,
-        "Wi": 0.1,
-        "bc_outlet": "NoEnd",
-    },
+    "NavierStokes": {"beta": 1.0, "Re": 0.0, "bc_outlet": "NoEnd"},
+    "OldroydB": {"beta": 1.0, "Re": 0.0, "Wi": 0.1, "bc_outlet": "NoEnd"},
 }
+
+
+first_run = True
 
 
 @pytest.mark.parametrize("model_name", ["NavierStokes"])
 def test_cylinder(domain, model_name, results_dir, timestamp, request):
+    global first_run
+
     comm = domain.comm
     H, L, R = domain.specific_dimensions
 
@@ -225,6 +223,7 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
     PETSc.Sys.Print(
         f"\nSolving on mesh with {domain.num_cells:g} cells ({problem.num_dofs:g} DOFs)..."
     )
+    counter = 0  # TODO: Loop over Wi!
     with PETSc.Log.Stage("Nonlinear solve"):
         solver.solve(None, x0)
         x0.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
@@ -239,9 +238,64 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
     with PETSc.Log.Stage("Projection postprocessing step"):
         T_h = problem.projected_stress
 
+    # Save results
+    n = problem.facet_normal
+    ds = domain.ds
+    T = problem.T
+    integrals = {
+        "F_drag": -ufl.inner(2.0 * ufl.dot(T(v_h, p_h), n), ufl.as_vector([1, 0])) * ds("cylinder"),
+    }
+    for key, val in integrals.items():
+        if counter == 0:
+            integrals[key] = fem.form.Form(val)
+        integrals[key] = comm.allreduce(fem.assemble_scalar(integrals[key]), op=MPI.SUM)
+
+    filename = f"{os.path.splitext(module_name[5:])[0]}_{model_name}.csv"
+    results_file = os.path.join(results_dir, filename)
+    results = {
+        "timestamp": timestamp,
+        "model": model_name,
+        "domain": domain.name,
+        "H": H,
+        "L": L,
+        "R": R,
+        "num_procs": comm.size,
+        "num_dofs": problem.num_dofs,
+        "num_coredofs": problem.num_dofs / comm.size,
+        "num_elements": domain.num_cells,
+        "num_vertices": domain.num_vertices,
+        "h_min": domain.h_min,
+        "h_max": domain.h_max,
+        "its_snes": solver.getIterationNumber(),
+        "SNESSolve": time_snes,
+        "F_drag": integrals["F_drag"],
+    }
+    for key, val in problem.coeffs.items():  # FIXME: Fix getters and setters for Constant coeffs!
+        results[key] = val
+    for key, val in problem.application_opts.items():
+        results[key] = val
+
+    if comm.rank == 0:
+        data = pandas.DataFrame(results, index=[0])
+        PETSc.Sys.Print(f"\nSaved data:\n{data.iloc[-1]}")
+        if request.config.getoption("overwrite"):
+            if first_run:
+                mode = "w"
+                header = True
+            else:
+                mode = "a"
+                header = False
+            first_run = False
+        else:
+            mode = "a"
+            header = not os.path.exists(results_file)
+
+        data.to_csv(results_file, index=False, mode=mode, header=header)
+        # generate_output(results_file)  # TODO
+
     # Save ParaView plots
     if not request.config.getoption("noxdmf"):
-        PETSc.Sys.Print(f"\nSaved fields:")
+        PETSc.Sys.Print("\nSaved fields:")
         for field in problem.solution_vars + tuple([T_h]):
             xfile = f"{model_name}_field_{field.name}.xdmf"
             xfile = os.path.join(results_dir, xfile)
@@ -252,6 +306,13 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
             if comm.rank == 0:
                 PETSc.Sys.Print(f"  + {os.path.abspath(xfile)}")
 
+    # List timings
+    list_timings(comm, [TimingType.wall])
+
+    # Save logs
+    logfile = os.path.join(results_dir, f"petsc_rayleigh_benard_{comm.size}.log")
+    PETSc.Log.view(viewer=PETSc.Viewer.ASCII(logfile, comm=comm))
+
     # Reset convergence history
     snesctx.reset()
 
@@ -260,3 +321,4 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
         PETSc.Sys.Print("Cleaning up PETSc options database including unused options!")
     for opt in opts.getAll().keys():
         opts.delValue(opt)
+    first_run = True
