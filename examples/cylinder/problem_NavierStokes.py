@@ -10,12 +10,13 @@ from dolfinx import fem
 class Problem(object):
 
     model_name = os.path.splitext(os.path.basename(__file__))[0][8:]
+    model_parameters = ("beta", "Re")
+    # NOTE:
+    #   Model parameters are coefficients that will be set as class attributes. A `Constant`
+    #   object will be created for each of them; use `constant` member function to access it.
 
     def __init__(self, domain, **kwargs):
         self.domain = domain
-
-        # Cache for utilities used to get projected stress, shear rate, etc.
-        self._projection_utils = {}
 
         # UFL helpers
         self.I = ufl.Identity(domain.mesh.geometry.dim)  # noqa: E741
@@ -31,76 +32,62 @@ class Problem(object):
         # NOTE: NS problem is often solved to get a good initial guess for more complicated models.
         self._ns_opts = self.application_opts.copy()
 
+        # Init cache
+        self._constants = {}  # for constant coefficients
+        self._projection_utils = {}  # for utilities used to get projected stress, shear rate, etc.
+
         # Parse model parameters
-        self.coeffs = {}
         self.parse_options(**kwargs)
 
-    def _get_coeff(self, name):
-        coeff = self.coeffs.get(name, None)
-        if coeff is None:
-            raise ValueError(f"Parameter '{name}' has not been set")
-        elif isinstance(coeff, fem.Constant):
-            return float(coeff.value)
-        else:
-            return coeff
+    def __setattr__(self, name, value):
+        if name in self.model_parameters:
+            constant = self._constants.setdefault(name, fem.Constant(self.domain.mesh, value))
+            constant.value = value
+        return super().__setattr__(name, value)
 
-    def _set_coeff(self, name, value):
-        coeff = self.coeffs.get(name, None)
-        if coeff is None:
-            self.coeffs[name] = value
-            # self.coeffs[name] = fem.Constant(self.domain.mesh, value)  # TODO: Test performance!
-        elif isinstance(coeff, fem.Constant):
-            self.coeffs[name].value = value
-        else:
-            self.coeffs[name] = value
-
-    # NOTE: Derived models should override this method instead of `__init__`.
+    # NOTE: Derived models should override this method instead of the constructor.
     def parse_options(self, **kwargs):
-        for prm in ["beta", "Re"]:
-            self._set_coeff(prm, kwargs.pop(prm))
+        for prm in self.model_parameters:
+            value = kwargs.pop(prm, None)
+            if value is None:
+                raise ValueError(f"Missing parameter '{prm}'")
+            setattr(self, prm, value)
         if kwargs:
             raise RuntimeError(f"Unused parameters passed to {type(self).__name__}: {kwargs}")
 
-        self._ns_opts.update(self.coeffs)  # copy values to pass the sanity check below
+        for prm in Problem.model_parameters:
+            self._ns_opts[prm] = getattr(self, prm, None)
 
     @property
     def reduced_opts_for_NavierStokes(self):
-        for prm in ["beta", "Re"]:
-            if prm not in self._ns_opts:
+        for prm in Problem.model_parameters:
+            ns_coeff = self._ns_opts.get(prm, None)
+            if ns_coeff is None:
                 raise ValueError(f"Parameter '{prm}' not found among reduced Navier-Stokes options")
 
         return self._ns_opts
 
-    @property
-    def beta(self):
-        return self._get_coeff("beta")
+    def constant(self, prm):
+        constant = self._constants.get(prm, None)
+        if constant is None:
+            raise ValueError(f"Parameter '{prm}' has not been set")
 
-    @beta.setter
-    def beta(self, value):
-        self._set_coeff("beta", value)
-
-    @property
-    def Re(self):
-        return self._get_coeff("Re")
-
-    @Re.setter
-    def Re(self, value):
-        self._set_coeff("Re", value)
+        return constant
 
     def D(self, v):
         return ufl.sym(ufl.grad(v))
 
     def T(self, v, p):
-        return -p * self.I + 2.0 * self.coeffs["beta"] * self.D(v)
+        return -p * self.I + 2.0 * self.constant("beta") * self.D(v)
 
     @cached_property
     def _mixed_space(self):
-        domain = self.domain
-        family = "P" if domain.mesh.ufl_cell() == ufl.triangle else "Q"
+        mesh = self.domain.mesh
+        family = "P" if mesh.ufl_cell() == ufl.triangle else "Q"
 
         return [
-            ("v", fem.VectorFunctionSpace(domain.mesh, (family, 2), dim=domain.mesh.geometry.dim)),
-            ("p", fem.FunctionSpace(domain.mesh, (family, 1))),
+            ("v", fem.VectorFunctionSpace(mesh, (family, 2), dim=mesh.geometry.dim)),
+            ("p", fem.FunctionSpace(mesh, (family, 1))),
         ]
 
     @property
@@ -152,15 +139,15 @@ class Problem(object):
         # Volume contributions
         F_v = ufl.inner(self.T(v, p), self.D(v_te)) * dx
         # NOTE: Inertia omitted!
-        # F_v += self.coeffs["Re"] * ufl.inner(ufl.dot(ufl.grad(v), v), v_te) * dx
+        # F_v += self.constant("Re") * ufl.inner(ufl.dot(ufl.grad(v), v), v_te) * dx
 
         F_p = -ufl.div(v) * p_te * dx
 
         # Boundary contributions
         if self.application_opts["bc_outlet"] == "NoEnd":
-            ds_outlet = self.domain.ds("outlet")
             n = self.facet_normal
-            F_v += -ufl.inner(2.0 * self.coeffs["beta"] * ufl.dot(self.D(v), n), v_te) * ds_outlet
+            ds_outlet = self.domain.ds("outlet")
+            F_v += -ufl.inner(2.0 * self.constant("beta") * ufl.dot(self.D(v), n), v_te) * ds_outlet
 
         return [F_v, F_p]
 

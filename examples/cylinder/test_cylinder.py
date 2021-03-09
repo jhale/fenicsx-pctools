@@ -270,8 +270,8 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
         "SNESSolve": time_snes,
         "F_drag": integrals["F_drag"],
     }
-    for key, val in problem.coeffs.items():  # FIXME: Fix getters and setters for Constant coeffs!
-        results[key] = val
+    for key in problem.model_parameters:
+        results[key] = getattr(problem, key)
     for key, val in problem.application_opts.items():
         results[key] = val
 
