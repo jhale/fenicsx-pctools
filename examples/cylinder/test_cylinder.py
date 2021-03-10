@@ -17,6 +17,7 @@ from fenics_pctools.mat.splittable import create_splittable_matrix_block
 
 from gmsh_cylinder import model_setter
 from snescontext_cylinder import SNESContext
+from generate_cylinder_output import main as generate_output
 
 
 def _load_problem_module(model_name, module_dir):
@@ -173,14 +174,14 @@ def domain(comm, request):
 
 _fullconfigs = {
     "NavierStokes": {"beta": 1.0, "Re": 0.0, "bc_outlet": "NoEnd"},
-    "OldroydB": {"beta": 1.0, "Re": 0.0, "Wi": 0.1, "bc_outlet": "NoEnd"},
+    "OldroydB": {"beta": 0.59, "Re": 0.0, "Wi": 0.1, "bc_outlet": "NoEnd"},
 }
 
 
 first_run = True
 
 
-@pytest.mark.parametrize("model_name", ["NavierStokes"])
+@pytest.mark.parametrize("model_name", ["OldroydB"])
 def test_cylinder(domain, model_name, results_dir, timestamp, request):
     global first_run
 
@@ -223,88 +224,93 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
     PETSc.Sys.Print(
         f"\nSolving on mesh with {domain.num_cells:g} cells ({problem.num_dofs:g} DOFs)..."
     )
-    counter = 0  # TODO: Loop over Wi!
-    with PETSc.Log.Stage("Nonlinear solve"):
-        solver.solve(None, x0)
-        x0.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
-        info_snes = PETSc.Log.Event("SNESSolve").getPerfInfo()
-        time_snes = comm.allreduce(info_snes["time"], op=MPI.SUM) / comm.size
+    test_cases = np.arange(0.1, 0.8, 0.1)
+    for counter, Wi in enumerate(test_cases):
+        problem.Wi = Wi
 
-    SNESContext.vec_to_functions(x0, problem.solution_vars)
-    v_h = problem.solution_vars[0]
-    p_h = problem.solution_vars[1]
+        with PETSc.Log.Stage(f"Nonlinear solve #{counter}"):
+            solver.solve(None, x0)
+            x0.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+            info_snes = PETSc.Log.Event("SNESSolve").getPerfInfo()
+            time_snes = comm.allreduce(info_snes["time"], op=MPI.SUM) / comm.size
 
-    # FIXME: Use `dolfinx.function.Expression` for direct evaluation (instead of projections)!
-    with PETSc.Log.Stage("Projection postprocessing step"):
-        T_h = problem.projected_stress
+        SNESContext.vec_to_functions(x0, problem.solution_vars)
 
-    # Save results
-    n = problem.facet_normal
-    ds = domain.ds
-    T = problem.T
-    integrals = {
-        "F_drag": -ufl.inner(2.0 * ufl.dot(T(v_h, p_h), n), ufl.as_vector([1, 0])) * ds("cylinder"),
-    }
-    for key, val in integrals.items():
-        if counter == 0:
-            integrals[key] = fem.form.Form(val)
-        integrals[key] = comm.allreduce(fem.assemble_scalar(integrals[key]), op=MPI.SUM)
+        # FIXME: Use `dolfinx.function.Expression` for direct evaluation (instead of projections)!
+        with PETSc.Log.Stage(f"Projection postprocessing step #{counter}"):
+            T_h = problem.projected_stress
 
-    filename = f"{os.path.splitext(module_name[5:])[0]}_{model_name}.csv"
-    results_file = os.path.join(results_dir, filename)
-    results = {
-        "timestamp": timestamp,
-        "model": model_name,
-        "domain": domain.name,
-        "H": H,
-        "L": L,
-        "R": R,
-        "num_procs": comm.size,
-        "num_dofs": problem.num_dofs,
-        "num_coredofs": problem.num_dofs / comm.size,
-        "num_elements": domain.num_cells,
-        "num_vertices": domain.num_vertices,
-        "h_min": domain.h_min,
-        "h_max": domain.h_max,
-        "its_snes": solver.getIterationNumber(),
-        "SNESSolve": time_snes,
-        "F_drag": integrals["F_drag"],
-    }
-    for key in problem.model_parameters:
-        results[key] = getattr(problem, key)
-    for key, val in problem.application_opts.items():
-        results[key] = val
+        # Save results
+        n = problem.facet_normal
+        e_x = ufl.as_vector([1, 0])
+        ds = domain.ds
+        T = problem.T(*problem.solution_vars)
+        integrals = {
+            "F_drag": -ufl.inner(2.0 * ufl.dot(T, n), e_x) * ds("cylinder"),
+        }
+        for key, val in integrals.items():
+            if counter == 0:
+                integrals[key] = fem.form.Form(val)
+            integrals[key] = comm.allreduce(fem.assemble_scalar(integrals[key]), op=MPI.SUM)
 
-    if comm.rank == 0:
-        data = pandas.DataFrame(results, index=[0])
-        PETSc.Sys.Print(f"\nSaved data:\n{data.iloc[-1]}")
-        if request.config.getoption("overwrite"):
-            if first_run:
-                mode = "w"
-                header = True
+        filename = f"{os.path.splitext(module_name[5:])[0]}_{model_name}.csv"
+        results_file = os.path.join(results_dir, filename)
+        results = {
+            "timestamp": timestamp,
+            "model": model_name,
+            "domain": domain.name,
+            "H": H,
+            "L": L,
+            "R": R,
+            "num_procs": comm.size,
+            "num_dofs": problem.num_dofs,
+            "num_coredofs": problem.num_dofs / comm.size,
+            "num_elements": domain.num_cells,
+            "num_vertices": domain.num_vertices,
+            "h_min": domain.h_min,
+            "h_max": domain.h_max,
+            "its_snes": solver.getIterationNumber(),
+            "SNESSolve": time_snes,
+            "F_drag": integrals["F_drag"],
+        }
+        for key in problem.model_parameters:
+            results[key] = getattr(problem, key)
+        for key, val in problem.application_opts.items():
+            results[key] = val
+
+        if comm.rank == 0:
+            data = pandas.DataFrame(results, index=[0])
+            PETSc.Sys.Print(f"\nSaved data:\n{data.iloc[-1]}")
+            if request.config.getoption("overwrite"):
+                if first_run:
+                    mode = "w"
+                    header = True
+                else:
+                    mode = "a"
+                    header = False
+                first_run = False
             else:
                 mode = "a"
-                header = False
-            first_run = False
-        else:
-            mode = "a"
-            header = not os.path.exists(results_file)
+                header = not os.path.exists(results_file)
 
-        data.to_csv(results_file, index=False, mode=mode, header=header)
-        # generate_output(results_file)  # TODO
+            data.to_csv(results_file, index=False, mode=mode, header=header)
+            generate_output(results_file)
 
-    # Save ParaView plots
-    if not request.config.getoption("noxdmf"):
-        PETSc.Sys.Print("\nSaved fields:")
-        for field in problem.solution_vars + tuple([T_h]):
-            xfile = f"{model_name}_field_{field.name}.xdmf"
-            xfile = os.path.join(results_dir, xfile)
-            mode = "w"
-            with XDMFFile(comm, xfile, mode) as f:
-                f.write_mesh(field.function_space.mesh)
-                f.write_function(field)
-            if comm.rank == 0:
-                PETSc.Sys.Print(f"  + {os.path.abspath(xfile)}")
+        # Save ParaView plots
+        if not request.config.getoption("noxdmf"):
+            for field in problem.solution_vars + tuple([T_h]):
+                xfile = f"{model_name}_field_{field.name}.xdmf"
+                xfile = os.path.join(results_dir, xfile)
+                mode = "w" if counter == 0 else "a"
+                with XDMFFile(comm, xfile, mode) as f:
+                    if counter == 0:
+                        f.write_mesh(field.function_space.mesh)
+                    f.write_function(field, t=counter)
+                if comm.rank == 0:
+                    PETSc.Sys.Print(f"  + {os.path.abspath(xfile)}")
+
+        # Reset convergence history
+        snesctx.reset()
 
     # List timings
     list_timings(comm, [TimingType.wall])
@@ -312,9 +318,6 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
     # Save logs
     logfile = os.path.join(results_dir, f"petsc_rayleigh_benard_{comm.size}.log")
     PETSc.Log.view(viewer=PETSc.Viewer.ASCII(logfile, comm=comm))
-
-    # Reset convergence history
-    snesctx.reset()
 
     # Reset test envorionment
     if opts.hasName("options_left"):
