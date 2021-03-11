@@ -20,24 +20,23 @@ class CarreauYasudaViscosity(object):
 
 
 class Problem(NavierStokesProblem):
+
+    model_parameters = ("rho", "mu_0", "mu_8", "alpha", "n")
+
     def parse_options(self, **kwargs):
-        for prm in [r"\rho", r"\mu_0", r"\mu_8", r"\alpha", r"n"]:
-            self.coeffs[prm] = kwargs.pop(prm)
-        if kwargs:
-            raise RuntimeError(f"Unused parameters passed to {type(self).__name__}: {kwargs}")
+        super().parse_options(**kwargs)
+
+        # Non-constant coefficients
+        self._coeffs["mu"] = self.mu
 
         # Mapping to Navier-Stokes problem options
-        self._ns_opts = {
-            r"\rho": self.coeffs[r"\rho"],
-            r"\mu": self.coeffs[r"\mu_0"],
-            "bc_outlet": self.application_opts["bc_outlet"],
-        }
+        self._ns_opts["mu"] = self.mu_0
 
     @cached_property
     def viscosity_law(self):
         # TODO: Any other useful formulas?
         mu = CarreauYasudaViscosity(
-            self.coeffs[r"\mu_0"], self.coeffs[r"\mu_8"], self.coeffs[r"\alpha"], self.coeffs[r"n"]
+            self.mu_0, self.mu_8, self.alpha, self.n
         )
         return mu
 
@@ -58,7 +57,7 @@ class Problem(NavierStokesProblem):
     def Re(self, v_char, x_char):
         """For given characteristic quantities, compute the Reynolds number."""
         mu = self.viscosity_law
-        return self.coeffs[r"\rho"] * v_char * x_char / mu((v_char / x_char) ** 2)
+        return self.rho * v_char * x_char / mu((v_char / x_char) ** 2)
 
     @cached_property
     def F_form(self):
@@ -71,7 +70,7 @@ class Problem(NavierStokesProblem):
         # Volume contributions
         F_v = ufl.inner(self.rT(v, p), self.D_base(v_te)) * dx_fixqd
         F_v += ufl.inner(self.T(v, p), self.D_xtra(v_te)) * dx_fixqd
-        F_v += self.rho * ufl.inner(ufl.dot(self.rgrad(v), v), v_te) * dx
+        F_v += self.coeff("rho") * ufl.inner(ufl.dot(self.rgrad(v), v), v_te) * dx
 
         F_p = -self.rdiv(v) * p_te * dx
 
@@ -81,6 +80,6 @@ class Problem(NavierStokesProblem):
             e, r_index, z_index = self.e, self.r_index, self.z_index
             n = ufl.FacetNormal(self.domain.mesh)
             n = n[r_index] * e[r_index] + n[z_index] * e[z_index]
-            F_v += -ufl.inner(2.0 * self.mu * ufl.dot(self.rD(v), n), v_te) * ds_outlet
+            F_v += -ufl.inner(2.0 * self.coeff("mu") * ufl.dot(self.rD(v), n), v_te) * ds_outlet
 
         return [F_v, F_p]

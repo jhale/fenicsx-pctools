@@ -12,8 +12,9 @@ class Problem(object):
     model_name = os.path.splitext(os.path.basename(__file__))[0][8:]
     model_parameters = ("beta", "Re")
     # NOTE:
-    #   Model parameters are coefficients that will be set as class attributes. A `Constant`
-    #   object will be created for each of them; use `constant` member function to access it.
+    #   Model parameters are coefficients that will be set as class attributes. At the same time,
+    #   we store the coefficients wrapped as appropriate DOLFINX/UFL objects in a cache; use `coeff`
+    #   member function to access the cached objects.
 
     def __init__(self, domain, **kwargs):
         self.domain = domain
@@ -33,7 +34,8 @@ class Problem(object):
         self._ns_opts = self.application_opts.copy()
 
         # Init cache
-        self._constants = {}  # for constant coefficients
+        self._coeffs = {}  # for UFL coefficients
+        self._bndry_facets = {}  # for boundary facets
         self._projection_utils = {}  # for utilities used to get projected stress, shear rate, etc.
 
         # Parse model parameters
@@ -41,7 +43,7 @@ class Problem(object):
 
     def __setattr__(self, name, value):
         if name in self.model_parameters:
-            constant = self._constants.setdefault(name, fem.Constant(self.domain.mesh, value))
+            constant = self._coeffs.setdefault(name, fem.Constant(self.domain.mesh, value))
             constant.value = value
         return super().__setattr__(name, value)
 
@@ -67,18 +69,18 @@ class Problem(object):
 
         return self._ns_opts
 
-    def constant(self, prm):
-        constant = self._constants.get(prm, None)
-        if constant is None:
+    def coeff(self, prm):
+        coeff = self._coeffs.get(prm, None)
+        if coeff is None:
             raise ValueError(f"Parameter '{prm}' has not been set")
 
-        return constant
+        return coeff
 
     def D(self, v):
         return ufl.sym(ufl.grad(v))
 
     def T(self, v, p):
-        return -p * self.I + 2.0 * self.constant("beta") * self.D(v)
+        return -p * self.I + 2.0 * self.coeff("beta") * self.D(v)
 
     @cached_property
     def _mixed_space(self):
@@ -139,7 +141,7 @@ class Problem(object):
         # Volume contributions
         F_v = ufl.inner(self.T(v, p), self.D(v_te)) * dx
         # NOTE: Inertia omitted!
-        # F_v += self.constant("Re") * ufl.inner(ufl.dot(ufl.grad(v), v), v_te) * dx
+        # F_v += self.coeff("Re") * ufl.inner(ufl.dot(ufl.grad(v), v), v_te) * dx
 
         F_p = -ufl.div(v) * p_te * dx
 
@@ -147,7 +149,7 @@ class Problem(object):
         if self.application_opts["bc_outlet"] == "NoEnd":
             n = self.facet_normal
             ds_outlet = self.domain.ds("outlet")
-            F_v += -ufl.inner(2.0 * self.constant("beta") * ufl.dot(self.D(v), n), v_te) * ds_outlet
+            F_v += -ufl.inner(2.0 * self.coeff("beta") * ufl.dot(self.D(v), n), v_te) * ds_outlet
 
         return [F_v, F_p]
 
@@ -172,7 +174,7 @@ class Problem(object):
         return J_form
 
     def inlet_velocity_profile(self, x):
-        values = np.zeros((2, x.shape[1]))
+        values = np.zeros((self.domain.mesh.geometry.dim, x.shape[1]))
         H = self.domain.specific_dimensions[0]
         values[0] = 1.5 * (1.0 - (x[1] / H) ** 2)
 
@@ -192,17 +194,18 @@ class Problem(object):
         bnd_wall = domain.get_boundary_tag("wall")
         bnd_cylinder = domain.get_boundary_tag("cylinder")
 
-        facets_in = np.where(domain.mesh_tags_facets.values == bnd_in)[0]
-        facets_out = np.where(domain.mesh_tags_facets.values == bnd_out)[0]
-        facets_symm = np.where(domain.mesh_tags_facets.values == bnd_symm)[0]
-        facets_wall = np.where(domain.mesh_tags_facets.values == bnd_wall)[0]
-        facets_cylinder = np.where(domain.mesh_tags_facets.values == bnd_cylinder)[0]
+        bf = self._bndry_facets
+        bf["in"] = np.where(domain.mesh_tags_facets.values == bnd_in)[0]
+        bf["out"] = np.where(domain.mesh_tags_facets.values == bnd_out)[0]
+        bf["symm"] = np.where(domain.mesh_tags_facets.values == bnd_symm)[0]
+        bf["wall"] = np.where(domain.mesh_tags_facets.values == bnd_wall)[0]
+        bf["cylinder"] = np.where(domain.mesh_tags_facets.values == bnd_cylinder)[0]
 
-        inlet_dofsVv = fem.locate_dofs_topological(Vv, facetdim, facets_in)
-        outlet_dofsVv_y = fem.locate_dofs_topological((Vv.sub(1), Vv_y), facetdim, facets_out)
-        symm_dofsVv_y = fem.locate_dofs_topological((Vv.sub(1), Vv_y), facetdim, facets_symm)
-        wall_dofsVv = fem.locate_dofs_topological(Vv, facetdim, facets_wall)
-        cylinder_dofsVv = fem.locate_dofs_topological(Vv, facetdim, facets_cylinder)
+        inlet_dofsVv = fem.locate_dofs_topological(Vv, facetdim, bf["in"])
+        outlet_dofsVv_y = fem.locate_dofs_topological((Vv.sub(1), Vv_y), facetdim, bf["out"])
+        symm_dofsVv_y = fem.locate_dofs_topological((Vv.sub(1), Vv_y), facetdim, bf["symm"])
+        wall_dofsVv = fem.locate_dofs_topological(Vv, facetdim, bf["wall"])
+        cylinder_dofsVv = fem.locate_dofs_topological(Vv, facetdim, bf["cylinder"])
 
         def expand_blocksized_dofs(dofs, bs):
             bs_shifter = np.array([list(range(bs))]).repeat(dofs.shape[0], axis=0).flatten()
@@ -247,27 +250,11 @@ class Problem(object):
         bcs = [
             fem.DirichletBC(v_inlet, inlet_dofsVv),
             fem.DirichletBC(v_zero, walls_dofsVv),
+            fem.DirichletBC(v_y_zero, symm_dofsVv_y, Vv.sub(1)),
         ]
 
-        # NOTE:
-        #   There is an issue with DirichletBC constructor if one tries to send it an empty
-        #   array with `dtype == numpy.int32`
-        try:
-            bcs.append(fem.DirichletBC(v_y_zero, symm_dofsVv_y, Vv.sub(1)))
-        except TypeError as err:
-            if symm_dofsVv_y.size == 0 and symm_dofsVv_y.dtype == np.int32:
-                symm_dofsVv_y = np.empty((0, 2))  # uses default dtype which is correctly converted
-            else:
-                raise err
-
         if self.application_opts["bc_outlet"] == "NoEnd":
-            try:  # NOTE: Same as above.
-                bcs.append(fem.DirichletBC(v_y_zero, outlet_dofsVv_y, Vv.sub(1)))
-            except TypeError as err:
-                if outlet_dofsVv_y.size == 0 and outlet_dofsVv_y.dtype == np.int32:
-                    outlet_dofsVv_y = np.empty((0, 2))
-                else:
-                    raise err
+            bcs.append(fem.DirichletBC(v_y_zero, outlet_dofsVv_y, Vv.sub(1)))
 
         return tuple(bcs)
 

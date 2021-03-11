@@ -101,8 +101,15 @@ def _plot_dragforce(axes, data, label_suffix=""):
 
 def _generate_plots(results_file, single_file=True):
     data_0 = pandas.read_csv(results_file)
-
     drawn_figs = []
+
+    models = data_0["model"].unique()
+    assert len(models) == 1
+    model_name = models[0]
+
+    if model_name == "NavierStokes":
+        return drawn_figs  # no plots!
+
     if single_file:
         drawn_figs.append(("all-plots", _get_empty_figure(grid=True, subplots=(1, 1))))
     # else:

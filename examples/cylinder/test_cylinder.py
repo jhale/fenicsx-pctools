@@ -17,7 +17,7 @@ from fenics_pctools.mat.splittable import create_splittable_matrix_block
 
 from gmsh_cylinder import model_setter
 from snescontext_cylinder import SNESContext
-from generate_cylinder_output import main as generate_output
+from output_cylinder import main as generate_output
 
 
 def _load_problem_module(model_name, module_dir):
@@ -50,7 +50,11 @@ def _set_up_solver(problem, opts, options_prefix=None, options_file=None):
 
     # Prepare Jacobian matrix (UFL variational form is required in this step)
     Jmat = create_splittable_matrix_block(
-        problem.J_form, problem.bcs, problem.appctx, options_prefix=options_prefix
+        problem.J_form,
+        problem.bcs,
+        problem.appctx,
+        comm=problem.domain.comm,
+        options_prefix=options_prefix,
     )
 
     # Compile each UFL Form into dolfinx Form for better assembly performance
@@ -224,11 +228,13 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
     PETSc.Sys.Print(
         f"\nSolving on mesh with {domain.num_cells:g} cells ({problem.num_dofs:g} DOFs)..."
     )
-    test_cases = np.arange(0.1, 0.8, 0.1)
+    if request.config.getoption("warmup"):
+        PETSc.Sys.Print("WARNING: --warmup option not supported in this example")
+    test_cases = np.arange(0.1, 0.8, 0.1) if model_name != "NavierStokes" else [0.0]
     for counter, Wi in enumerate(test_cases):
         problem.Wi = Wi
 
-        with PETSc.Log.Stage(f"Nonlinear solve #{counter}"):
+        with PETSc.Log.Stage(f"{model_name}: nonlinear solve #{counter}"):
             solver.solve(None, x0)
             x0.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
             info_snes = PETSc.Log.Event("SNESSolve").getPerfInfo()
@@ -237,7 +243,7 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
         SNESContext.vec_to_functions(x0, problem.solution_vars)
 
         # FIXME: Use `dolfinx.function.Expression` for direct evaluation (instead of projections)!
-        with PETSc.Log.Stage(f"Projection postprocessing step #{counter}"):
+        with PETSc.Log.Stage(f"{model_name}: projection postprocessing step #{counter}"):
             T_h = problem.projected_stress
 
         # Save results
@@ -294,7 +300,9 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
                 header = not os.path.exists(results_file)
 
             data.to_csv(results_file, index=False, mode=mode, header=header)
-            generate_output(results_file)
+
+        comm.barrier()
+        generate_output(results_file)  # savefig must run on all processes (to prevent deadlocks)
 
         # Save ParaView plots
         if not request.config.getoption("noxdmf"):
@@ -306,8 +314,7 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
                     if counter == 0:
                         f.write_mesh(field.function_space.mesh)
                     f.write_function(field, t=counter)
-                if comm.rank == 0:
-                    PETSc.Sys.Print(f"  + {os.path.abspath(xfile)}")
+                PETSc.Sys.Print(f"  + {os.path.abspath(xfile)}")
 
         # Reset convergence history
         snesctx.reset()
@@ -316,7 +323,7 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
     list_timings(comm, [TimingType.wall])
 
     # Save logs
-    logfile = os.path.join(results_dir, f"petsc_rayleigh_benard_{comm.size}.log")
+    logfile = os.path.join(results_dir, f"petsc_cylinder_{comm.size}.log")
     PETSc.Log.view(viewer=PETSc.Viewer.ASCII(logfile, comm=comm))
 
     # Reset test envorionment

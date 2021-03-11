@@ -21,8 +21,8 @@ class Problem(NavierStokesProblem):
         self._ns_opts["beta"] = 1.0
 
     def T(self, v, p, B):
-        beta = self.constant("beta")
-        Wi = self.constant("Wi")
+        beta = self.coeff("beta")
+        Wi = self.coeff("Wi")
         return -p * self.I + 2.0 * beta * self.D(v) + ((1.0 - beta) / Wi) * B
 
     @cached_property
@@ -82,13 +82,13 @@ class Problem(NavierStokesProblem):
         # Volume contributions
         F_v = ufl.inner(self.T(v, p, B), self.D(v_te)) * dx
         # NOTE: Inertia omitted!
-        # F_v += self.constant("Re") * ufl.inner(ufl.dot(ufl.grad(v), v), v_te) * dx
+        # F_v += self.coeff("Re") * ufl.inner(ufl.dot(ufl.grad(v), v), v_te) * dx
 
         F_p = -ufl.div(v) * p_te * dx
 
         F_B = ufl.inner(ufl.dot(ufl.grad(B), v), B_te) * dx
         F_B -= ufl.inner(ufl.dot(ufl.grad(v), B) + ufl.dot(B, ufl.grad(v).T), B_te) * dx
-        F_B += ufl.inner((1.0 / self.constant("Wi")) * (B - self.I), B_te) * dx
+        F_B += ufl.inner((1.0 / self.coeff("Wi")) * (B - self.I), B_te) * dx
 
         # Boundary contributions
         if self.application_opts["bc_outlet"] == "NoEnd":
@@ -96,8 +96,8 @@ class Problem(NavierStokesProblem):
             ds_outlet = self.domain.ds("outlet")
             F_v += (
                 -ufl.inner(
-                    2.0 * self.constant("beta") * ufl.dot(self.D(v), n)
-                    + ((1.0 - self.constant("beta")) / self.constant("Wi")) * ufl.dot(B, n),
+                    2.0 * self.coeff("beta") * ufl.dot(self.D(v), n)
+                    + ((1.0 - self.coeff("beta")) / self.coeff("Wi")) * ufl.dot(B, n),
                     v_te,
                 )
                 * ds_outlet
@@ -125,11 +125,8 @@ class Problem(NavierStokesProblem):
         bcs = list(super().bcs)
 
         VB = self.function_spaces[-1]
-        domain = self.domain
-        facetdim = domain.mesh.topology.dim - 1
-        bnd_in = domain.get_boundary_tag("inlet")
-        facets_in = np.where(domain.mesh_tags_facets.values == bnd_in)[0]
-        inlet_dofsVB = fem.locate_dofs_topological(VB, facetdim, facets_in)
+        facetdim = self.domain.mesh.topology.dim - 1
+        inlet_dofsVB = fem.locate_dofs_topological(VB, facetdim, self._bndry_facets["in"])
 
         B_inlet = fem.Function(VB, name="B_inlet")
         B_inlet.interpolate(self.inlet_stress_profile)

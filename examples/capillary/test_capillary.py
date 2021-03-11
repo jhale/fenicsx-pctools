@@ -16,7 +16,7 @@ from fenics_pctools.mat.splittable import create_splittable_matrix_block
 
 from gmsh_capillary import model_setter
 from snescontext_capillary import SNESContext
-from generate_capillary_output import main as generate_output
+from output_capillary import main as generate_output
 
 
 def _load_problem_module(model_name, module_dir):
@@ -49,7 +49,11 @@ def _set_up_solver(problem, opts, options_prefix=None, options_file=None):
 
     # Prepare Jacobian matrix (UFL variational form is required in this step)
     Jmat = create_splittable_matrix_block(
-        problem.J_form, problem.bcs, problem.appctx, options_prefix=options_prefix
+        problem.J_form,
+        problem.bcs,
+        problem.appctx,
+        comm=problem.domain.comm,
+        options_prefix=options_prefix,
     )
 
     # Compile each UFL Form into dolfinx Form for better assembly performance
@@ -192,52 +196,39 @@ def domain(comm, request):
 
 _apparent_shear_rates = 10 ** np.linspace(np.log10(2.0), np.log10(300.0), num=4)
 _load_cycle = list(map(lambda q: float(q), _apparent_shear_rates))
-_fullconfigs = [
-    # (
-    #     "NavierStokes",
-    #     {
-    #         r"\rho": 1.0e03,
-    #         r"\mu": 1.2e04,
-    #         "bc_inlet": "parabolic",
-    #         "bc_outlet": "NoEnd",
-    #     },
-    # ),
-    # (
-    #     "PowerLaw",
-    #     {
-    #         r"\rho": 1.0e03,
-    #         r"\mu_0": 3.6e05,
-    #         r"\mu_8": 1.0e00,
-    #         r"\alpha": 7.21,
-    #         r"n": 0.3,
-    #         "bc_inlet": "parabolic",
-    #         "bc_outlet": "NoEnd",
-    #     },
-    # ),
-    (
-        "OldroydB",
-        {
-            r"\rho": 1.0e03,
-            r"\mu_0": 2.0e03,
-            r"\mu_1": 1.0e04,
-            r"G_1": 1.0e07,
-            "bc_inlet": "parabolic",
-            "bc_outlet": "NoEnd",
-            "_model_type": "linear",  # FIXME: Implement the Leonov model and remove this option!
-        },
-    ),
-]
-
-
-def _get_fullconfig_id(param):
-    return f"{param[0]}-{repr(list(param[1].values()))}"
+_fullconfigs = {
+    "NavierStokes": {
+        "rho": 1.0e03,
+        "mu": 1.2e04,
+        "bc_inlet": "parabolic",
+        "bc_outlet": "NoEnd",
+    },
+    "PowerLaw": {
+        "rho": 1.0e03,
+        "mu_0": 3.6e05,
+        "mu_8": 1.0e00,
+        "alpha": 7.21,
+        "n": 0.3,
+        "bc_inlet": "parabolic",
+        "bc_outlet": "NoEnd",
+    },
+    "OldroydB": {
+        "rho": 1.0e03,
+        "mu_0": 2.0e03,
+        "mu_1": 1.0e04,
+        "G_1": 1.0e07,
+        "bc_inlet": "parabolic",
+        "bc_outlet": "NoEnd",
+        "_model_type": "linear",  # FIXME: Implement the Leonov model and remove this option!
+    },
+}
 
 
 first_run = True
 
 
-@pytest.mark.parametrize("fullconfig", _fullconfigs, ids=_get_fullconfig_id)
-def test_capillary(domain, fullconfig, results_dir, timestamp, request):
+@pytest.mark.parametrize("model_name", ["OldroydB"])
+def test_capillary(domain, model_name, results_dir, timestamp, request):
     global first_run
 
     comm = domain.comm
@@ -248,8 +239,7 @@ def test_capillary(domain, fullconfig, results_dir, timestamp, request):
         return dgamma_app * (Rc ** 3) / (4.0 * Rb ** 2)
 
     # Parse configuration
-    model_name = fullconfig[0]
-    problem_opts = fullconfig[1].copy()  # NOTE: Must copy here to get the same opts for each run!
+    problem_opts = _fullconfigs[model_name]
 
     # Get mathematical formulation of the discrete problem
     module_dir, module_name = os.path.split(os.path.realpath(request.node.fspath))
@@ -316,6 +306,8 @@ def test_capillary(domain, fullconfig, results_dir, timestamp, request):
     PETSc.Sys.Print(
         f"\nSolving on mesh with {domain.num_cells:g} cells ({problem.num_dofs:g} DOFs)..."
     )
+    if request.config.getoption("warmup"):
+        PETSc.Sys.Print("WARNING: --warmup option not supported in this example")
     produced_xdmf = []
     for counter, dgamma_app in enumerate(_load_cycle):
         Vb_mean = shear_rate_to_velocity(dgamma_app)  # expected mean velocity at the inlet
@@ -340,7 +332,7 @@ def test_capillary(domain, fullconfig, results_dir, timestamp, request):
 
         # Solve the problem
         PETSc.Sys.Print(f"\nApparent shear rate: {dgamma_app:g}")
-        with PETSc.Log.Stage(f"Nonlinear solve #{counter}"):
+        with PETSc.Log.Stage(f"{model_name}: nonlinear solve #{counter}"):
             solver.solve(None, x0)
             x0.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
             info_snes = PETSc.Log.Event("SNESSolve").getPerfInfo()
@@ -351,7 +343,7 @@ def test_capillary(domain, fullconfig, results_dir, timestamp, request):
         p_h = problem.solution_vars[1]
 
         # FIXME: Use `dolfinx.function.Expression` for direct evaluation (instead of projections)!
-        with PETSc.Log.Stage(f"Projection postprocessing step #{counter}"):
+        with PETSc.Log.Stage(f"{model_name}: projection postprocessing step #{counter}"):
             T_h = problem.projected_stress
             D_h = problem.projected_strain_rate
             dgamma_h = problem.projected_shear_rate
@@ -422,8 +414,8 @@ def test_capillary(domain, fullconfig, results_dir, timestamp, request):
             "Q_in": integrals["Q_in"],
             "Q_out": integrals["Q_out"],
         }
-        for key, val in problem.coeffs.items():
-            results[key] = val
+        for key in problem.model_parameters:
+            results[key] = getattr(problem, key)
         for key, val in problem.application_opts.items():
             results[key] = val
 
@@ -443,7 +435,9 @@ def test_capillary(domain, fullconfig, results_dir, timestamp, request):
                 header = not os.path.exists(results_file)
 
             data.to_csv(results_file, index=False, mode=mode, header=header)
-            generate_output(results_file)
+
+        comm.barrier()
+        generate_output(results_file)  # savefig must run on all processes (to prevent deadlocks)
 
         # Save ParaView plots
         if not request.config.getoption("noxdmf"):
@@ -456,8 +450,7 @@ def test_capillary(domain, fullconfig, results_dir, timestamp, request):
                         produced_xdmf.append(xfile)
                         f.write_mesh(field.function_space.mesh)
                     f.write_function(field, t=counter)
-                if comm.rank == 0:
-                    PETSc.Sys.Print(f"  + {os.path.abspath(xfile)}")
+                PETSc.Sys.Print(f"  + {os.path.abspath(xfile)}")
 
         # Reset convergence history
         snesctx.reset()
