@@ -192,52 +192,39 @@ def domain(comm, request):
 
 _apparent_shear_rates = 10 ** np.linspace(np.log10(2.0), np.log10(300.0), num=4)
 _load_cycle = list(map(lambda q: float(q), _apparent_shear_rates))
-_fullconfigs = [
-    # (
-    #     "NavierStokes",
-    #     {
-    #         r"\rho": 1.0e03,
-    #         r"\mu": 1.2e04,
-    #         "bc_inlet": "parabolic",
-    #         "bc_outlet": "NoEnd",
-    #     },
-    # ),
-    # (
-    #     "PowerLaw",
-    #     {
-    #         r"\rho": 1.0e03,
-    #         r"\mu_0": 3.6e05,
-    #         r"\mu_8": 1.0e00,
-    #         r"\alpha": 7.21,
-    #         r"n": 0.3,
-    #         "bc_inlet": "parabolic",
-    #         "bc_outlet": "NoEnd",
-    #     },
-    # ),
-    (
-        "OldroydB",
-        {
-            r"\rho": 1.0e03,
-            r"\mu_0": 2.0e03,
-            r"\mu_1": 1.0e04,
-            r"G_1": 1.0e07,
-            "bc_inlet": "parabolic",
-            "bc_outlet": "NoEnd",
-            "_model_type": "linear",  # FIXME: Implement the Leonov model and remove this option!
-        },
-    ),
-]
-
-
-def _get_fullconfig_id(param):
-    return f"{param[0]}-{repr(list(param[1].values()))}"
+_fullconfigs = {
+    "NavierStokes": {
+        r"\rho": 1.0e03,
+        r"\mu": 1.2e04,
+        "bc_inlet": "parabolic",
+        "bc_outlet": "NoEnd",
+    },
+    "PowerLaw": {
+        r"\rho": 1.0e03,
+        r"\mu_0": 3.6e05,
+        r"\mu_8": 1.0e00,
+        r"\alpha": 7.21,
+        r"n": 0.3,
+        "bc_inlet": "parabolic",
+        "bc_outlet": "NoEnd",
+    },
+    "OldroydB": {
+        r"\rho": 1.0e03,
+        r"\mu_0": 2.0e03,
+        r"\mu_1": 1.0e04,
+        r"G_1": 1.0e07,
+        "bc_inlet": "parabolic",
+        "bc_outlet": "NoEnd",
+        "_model_type": "linear",  # FIXME: Implement the Leonov model and remove this option!
+    },
+}
 
 
 first_run = True
 
 
-@pytest.mark.parametrize("fullconfig", _fullconfigs, ids=_get_fullconfig_id)
-def test_capillary(domain, fullconfig, results_dir, timestamp, request):
+@pytest.mark.parametrize("model_name", ["OldroydB"])
+def test_capillary(domain, model_name, results_dir, timestamp, request):
     global first_run
 
     comm = domain.comm
@@ -248,8 +235,7 @@ def test_capillary(domain, fullconfig, results_dir, timestamp, request):
         return dgamma_app * (Rc ** 3) / (4.0 * Rb ** 2)
 
     # Parse configuration
-    model_name = fullconfig[0]
-    problem_opts = fullconfig[1].copy()  # NOTE: Must copy here to get the same opts for each run!
+    problem_opts = _fullconfigs[model_name]
 
     # Get mathematical formulation of the discrete problem
     module_dir, module_name = os.path.split(os.path.realpath(request.node.fspath))
@@ -456,8 +442,7 @@ def test_capillary(domain, fullconfig, results_dir, timestamp, request):
                         produced_xdmf.append(xfile)
                         f.write_mesh(field.function_space.mesh)
                     f.write_function(field, t=counter)
-                if comm.rank == 0:
-                    PETSc.Sys.Print(f"  + {os.path.abspath(xfile)}")
+                PETSc.Sys.Print(f"  + {os.path.abspath(xfile)}")
 
         # Reset convergence history
         snesctx.reset()
