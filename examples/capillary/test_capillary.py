@@ -306,6 +306,8 @@ def test_capillary(domain, model_name, results_dir, timestamp, request):
     PETSc.Sys.Print(
         f"\nSolving on mesh with {domain.num_cells:g} cells ({problem.num_dofs:g} DOFs)..."
     )
+    if request.config.getoption("warmup"):
+        PETSc.Sys.Print("WARNING: --warmup option not supported in this example")
     produced_xdmf = []
     for counter, dgamma_app in enumerate(_load_cycle):
         Vb_mean = shear_rate_to_velocity(dgamma_app)  # expected mean velocity at the inlet

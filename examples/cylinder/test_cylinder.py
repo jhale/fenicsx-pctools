@@ -228,6 +228,8 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
     PETSc.Sys.Print(
         f"\nSolving on mesh with {domain.num_cells:g} cells ({problem.num_dofs:g} DOFs)..."
     )
+    if request.config.getoption("warmup"):
+        PETSc.Sys.Print("WARNING: --warmup option not supported in this example")
     test_cases = np.arange(0.1, 0.8, 0.1) if model_name != "NavierStokes" else [0.0]
     for counter, Wi in enumerate(test_cases):
         problem.Wi = Wi
