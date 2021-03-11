@@ -50,7 +50,11 @@ def _set_up_solver(problem, opts, options_prefix=None, options_file=None):
 
     # Prepare Jacobian matrix (UFL variational form is required in this step)
     Jmat = create_splittable_matrix_block(
-        problem.J_form, problem.bcs, problem.appctx, options_prefix=options_prefix
+        problem.J_form,
+        problem.bcs,
+        problem.appctx,
+        comm=problem.domain.comm,
+        options_prefix=options_prefix,
     )
 
     # Compile each UFL Form into dolfinx Form for better assembly performance
