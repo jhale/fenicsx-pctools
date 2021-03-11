@@ -326,7 +326,7 @@ def test_capillary(domain, model_name, results_dir, timestamp, request):
 
         # Solve the problem
         PETSc.Sys.Print(f"\nApparent shear rate: {dgamma_app:g}")
-        with PETSc.Log.Stage(f"Nonlinear solve #{counter}"):
+        with PETSc.Log.Stage(f"{model_name}: nonlinear solve #{counter}"):
             solver.solve(None, x0)
             x0.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
             info_snes = PETSc.Log.Event("SNESSolve").getPerfInfo()
@@ -337,7 +337,7 @@ def test_capillary(domain, model_name, results_dir, timestamp, request):
         p_h = problem.solution_vars[1]
 
         # FIXME: Use `dolfinx.function.Expression` for direct evaluation (instead of projections)!
-        with PETSc.Log.Stage(f"Projection postprocessing step #{counter}"):
+        with PETSc.Log.Stage(f"{model_name}: projection postprocessing step #{counter}"):
             T_h = problem.projected_stress
             D_h = problem.projected_strain_rate
             dgamma_h = problem.projected_shear_rate
@@ -429,7 +429,9 @@ def test_capillary(domain, model_name, results_dir, timestamp, request):
                 header = not os.path.exists(results_file)
 
             data.to_csv(results_file, index=False, mode=mode, header=header)
-            generate_output(results_file)
+
+        comm.barrier()
+        generate_output(results_file)  # savefig must run on all processes (to prevent deadlocks)
 
         # Save ParaView plots
         if not request.config.getoption("noxdmf"):
