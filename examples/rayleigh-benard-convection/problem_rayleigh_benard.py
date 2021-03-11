@@ -167,21 +167,21 @@ class Problem(object):
     def bcs(self):
         V_v, V_p, V_T = self.function_spaces
         mesh, mesh_tags_facets, bndry_tag_map = self.domain_data
-        tdim - 1 = mesh.topology.dim - 1
+        facetdim = mesh.topology.dim - 1
 
         left_id = bndry_tag_map["left"]
         left_facets = np.where(mesh_tags_facets.values == left_id)[0]
-        leftdofsV_v = fem.locate_dofs_topological(V_v, tdim - 1, left_facets)
-        leftdofsV_T = fem.locate_dofs_topological(V_T, tdim - 1, left_facets)
+        leftdofsV_v = fem.locate_dofs_topological(V_v, facetdim, left_facets)
+        leftdofsV_T = fem.locate_dofs_topological(V_T, facetdim, left_facets)
 
         right_id = bndry_tag_map["right"]
         right_facets = np.where(mesh_tags_facets.values == right_id)[0]
-        rightdofsV_v = fem.locate_dofs_topological(V_v, tdim - 1, right_facets)
-        rightdofsV_T = fem.locate_dofs_topological(V_T, tdim - 1, right_facets)
+        rightdofsV_v = fem.locate_dofs_topological(V_v, facetdim, right_facets)
+        rightdofsV_T = fem.locate_dofs_topological(V_T, facetdim, right_facets)
 
         rest_id = bndry_tag_map["rest"]
         rest_facets = np.where(mesh_tags_facets.values == rest_id)[0]
-        restdofsV_v = fem.locate_dofs_topological(V_v, tdim - 1, rest_facets)
+        restdofsV_v = fem.locate_dofs_topological(V_v, facetdim, rest_facets)
 
         bcs = []
 
