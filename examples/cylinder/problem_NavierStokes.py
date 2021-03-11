@@ -173,7 +173,7 @@ class Problem(object):
         return J_form
 
     def inlet_velocity_profile(self, x):
-        values = np.zeros((2, x.shape[1]))
+        values = np.zeros((self.domain.mesh.geometry.dim, x.shape[1]))
         H = self.domain.specific_dimensions[0]
         values[0] = 1.5 * (1.0 - (x[1] / H) ** 2)
 

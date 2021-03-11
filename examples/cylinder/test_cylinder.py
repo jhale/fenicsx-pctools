@@ -321,7 +321,7 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
     list_timings(comm, [TimingType.wall])
 
     # Save logs
-    logfile = os.path.join(results_dir, f"petsc_rayleigh_benard_{comm.size}.log")
+    logfile = os.path.join(results_dir, f"petsc_cylinder_{comm.size}.log")
     PETSc.Log.view(viewer=PETSc.Viewer.ASCII(logfile, comm=comm))
 
     # Reset test envorionment
