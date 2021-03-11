@@ -16,7 +16,7 @@ from fenics_pctools.mat.splittable import create_splittable_matrix_block
 
 from gmsh_capillary import model_setter
 from snescontext_capillary import SNESContext
-from generate_capillary_output import main as generate_output
+from output_capillary import main as generate_output
 
 
 def _load_problem_module(model_name, module_dir):

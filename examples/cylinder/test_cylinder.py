@@ -17,7 +17,7 @@ from fenics_pctools.mat.splittable import create_splittable_matrix_block
 
 from gmsh_cylinder import model_setter
 from snescontext_cylinder import SNESContext
-from generate_cylinder_output import main as generate_output
+from output_cylinder import main as generate_output
 
 
 def _load_problem_module(model_name, module_dir):
