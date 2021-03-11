@@ -149,70 +149,7 @@ class Problem(NavierStokesProblem):
 
     @cached_property
     def bcs(self):
-        Vv = self.function_spaces[0]
-        domain = self.domain
-        facetdim = domain.mesh.topology.dim - 1
-
-        r_index, phi_index = self.r_index, self.phi_index
-        Vv_r = Vv.sub(r_index).collapse()
-        Vv_phi = Vv.sub(phi_index).collapse()
-
-        bnd_in = domain.get_boundary_tag("inlet")
-        bnd_out = domain.get_boundary_tag("outlet")
-        bnd_symm = domain.get_boundary_tag("symmetry")
-        bnd_w1 = domain.get_boundary_tag("bwall_hor")
-        bnd_w2 = domain.get_boundary_tag("bwall_ver")
-        bnd_w3 = domain.get_boundary_tag("cwall")
-
-        facets_in = np.where(domain.mesh_tags_facets.values == bnd_in)[0]
-        facets_out = np.where(domain.mesh_tags_facets.values == bnd_out)[0]
-        facets_symm = np.where(domain.mesh_tags_facets.values == bnd_symm)[0]
-        facets_w1 = np.where(domain.mesh_tags_facets.values == bnd_w1)[0]
-        facets_w2 = np.where(domain.mesh_tags_facets.values == bnd_w2)[0]
-        facets_w3 = np.where(domain.mesh_tags_facets.values == bnd_w3)[0]
-
-        inlet_dofsVv = fem.locate_dofs_topological(Vv, facetdim, facets_in)
-        outlet_dofsVv_r = fem.locate_dofs_topological((Vv.sub(r_index), Vv_r), facetdim, facets_out)
-        symm_dofsVv_r = fem.locate_dofs_topological((Vv.sub(r_index), Vv_r), facetdim, facets_symm)
-        w1_dofsVv = fem.locate_dofs_topological(Vv, facetdim, facets_w1)
-        w2_dofsVv = fem.locate_dofs_topological(Vv, facetdim, facets_w2)
-        w3_dofsVv = fem.locate_dofs_topological(Vv, facetdim, facets_w3)
-
-        bs = Vv.dofmap.index_map_bs
-        bs_shifter = np.array([list(range(bs))]).repeat(inlet_dofsVv.shape[0], axis=0).flatten()
-        inlet_dofsVv_expanded = bs * inlet_dofsVv.repeat(bs) + bs_shifter
-        bs_shifter = np.array([list(range(bs))]).repeat(w3_dofsVv.shape[0], axis=0).flatten()
-        w3_dofsVv_expanded = bs * w3_dofsVv.repeat(bs) + bs_shifter
-
-        # Remove duplicated DOFs for consistency
-        cornerdofs = np.intersect1d(w1_dofsVv, inlet_dofsVv)
-        w1_dofsVv = np.setdiff1d(w1_dofsVv, cornerdofs)
-
-        cornerdofs = np.intersect1d(symm_dofsVv_r[0], inlet_dofsVv_expanded, return_indices=True)[1]
-        symm_dofsVv_r[0] = np.delete(symm_dofsVv_r[0], cornerdofs)
-        symm_dofsVv_r[1] = np.delete(symm_dofsVv_r[1], cornerdofs)
-
-        cornerdofs = np.hstack(
-            (
-                np.intersect1d(outlet_dofsVv_r[0], symm_dofsVv_r[0], return_indices=True)[1],
-                np.intersect1d(outlet_dofsVv_r[0], w3_dofsVv_expanded, return_indices=True)[1],
-            )
-        )
-        outlet_dofsVv_r[0] = np.delete(outlet_dofsVv_r[0], cornerdofs)
-        outlet_dofsVv_r[1] = np.delete(outlet_dofsVv_r[1], cornerdofs)
-
-        walls_dofsVv = np.unique(np.hstack((w1_dofsVv, w2_dofsVv, w3_dofsVv)))
-
-        # Prescribe BCs
-        v_zero = fem.Function(Vv, name="v_zero")
-        v_inlet = fem.Function(Vv, name="v_inlet")
-        v_inlet.interpolate(self.inlet_velocity_profile)
-        v_r_zero = fem.Function(Vv_r, name="v_r_zero")
-
-        bcs = [
-            fem.DirichletBC(v_inlet, inlet_dofsVv),
-            fem.DirichletBC(v_zero, walls_dofsVv),
-        ]
+        bcs = list(super().bcs)
 
         # FIXME: What about inlet stress BCs?
         if self.application_opts["_model_type"] == "nonlinear":
@@ -222,35 +159,13 @@ class Problem(NavierStokesProblem):
             B1_inlet = fem.Function(VB1, name="B1_inlet")
             with B1_inlet.vector.localForm() as inlet, B1_ic.vector.localForm() as ic:
                 ic.copy(inlet)
+
+            domain = self.domain
+            facetdim = domain.mesh.topology.dim - 1
+            bnd_in = domain.get_boundary_tag("inlet")
+            facets_in = np.where(domain.mesh_tags_facets.values == bnd_in)[0]
             inlet_dofsVB1 = fem.locate_dofs_topological(VB1, facetdim, facets_in)
             bcs.append(fem.DirichletBC(B1_inlet, inlet_dofsVB1))
-
-        # NOTE:
-        #   There is an issue with DirichletBC constructor if one tries to send it an empty
-        #   array with `dtype == numpy.int32`
-        try:
-            bcs.append(fem.DirichletBC(v_r_zero, symm_dofsVv_r, Vv.sub(r_index)))
-        except TypeError as err:
-            if symm_dofsVv_r.size == 0 and symm_dofsVv_r.dtype == np.int32:
-                symm_dofsVv_r = np.empty((0, 2))  # uses default dtype which is correctly converted
-            else:
-                raise err
-
-        if self.application_opts["bc_outlet"] == "NoEnd":
-            try:  # NOTE: Same as above.
-                bcs.append(fem.DirichletBC(v_r_zero, outlet_dofsVv_r, Vv.sub(r_index)))
-            except TypeError as err:
-                if outlet_dofsVv_r.size == 0 and outlet_dofsVv_r.dtype == np.int32:
-                    outlet_dofsVv_r = np.empty((0, 2))
-                else:
-                    raise err
-
-        # Enforce zero azimuthal velocity
-        axisymm_dofsVv_phi = fem.locate_dofs_geometrical(
-            (Vv.sub(phi_index), Vv_phi), lambda x: np.full((x.shape[1],), True)
-        )
-        v_phi_zero = fem.Function(Vv_phi)
-        bcs.append(fem.DirichletBC(v_phi_zero, axisymm_dofsVv_phi, Vv.sub(phi_index)))
 
         return tuple(bcs)
 
