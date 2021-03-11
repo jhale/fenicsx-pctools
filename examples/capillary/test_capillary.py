@@ -198,25 +198,25 @@ _apparent_shear_rates = 10 ** np.linspace(np.log10(2.0), np.log10(300.0), num=4)
 _load_cycle = list(map(lambda q: float(q), _apparent_shear_rates))
 _fullconfigs = {
     "NavierStokes": {
-        r"\rho": 1.0e03,
-        r"\mu": 1.2e04,
+        "rho": 1.0e03,
+        "mu": 1.2e04,
         "bc_inlet": "parabolic",
         "bc_outlet": "NoEnd",
     },
     "PowerLaw": {
-        r"\rho": 1.0e03,
-        r"\mu_0": 3.6e05,
-        r"\mu_8": 1.0e00,
-        r"\alpha": 7.21,
-        r"n": 0.3,
+        "rho": 1.0e03,
+        "mu_0": 3.6e05,
+        "mu_8": 1.0e00,
+        "alpha": 7.21,
+        "n": 0.3,
         "bc_inlet": "parabolic",
         "bc_outlet": "NoEnd",
     },
     "OldroydB": {
-        r"\rho": 1.0e03,
-        r"\mu_0": 2.0e03,
-        r"\mu_1": 1.0e04,
-        r"G_1": 1.0e07,
+        "rho": 1.0e03,
+        "mu_0": 2.0e03,
+        "mu_1": 1.0e04,
+        "G_1": 1.0e07,
         "bc_inlet": "parabolic",
         "bc_outlet": "NoEnd",
         "_model_type": "linear",  # FIXME: Implement the Leonov model and remove this option!
@@ -412,8 +412,8 @@ def test_capillary(domain, model_name, results_dir, timestamp, request):
             "Q_in": integrals["Q_in"],
             "Q_out": integrals["Q_out"],
         }
-        for key, val in problem.coeffs.items():
-            results[key] = val
+        for key in problem.model_parameters:
+            results[key] = getattr(problem, key)
         for key, val in problem.application_opts.items():
             results[key] = val
 

@@ -8,54 +8,34 @@ from problem_NavierStokes import Problem as NavierStokesProblem
 
 
 class Problem(NavierStokesProblem):
+
+    model_parameters = ("rho", "mu_0", "mu_1", "G_1")
+
     def parse_options(self, **kwargs):
         # FIXME: Remove the following option as soon as the Leonov model is implemented!
         _model_type = kwargs.pop("_model_type", "linear")
         assert _model_type in ["linear", "nonlinear"]
         self.application_opts["_model_type"] = _model_type
 
-        for prm in [r"\rho", r"\mu_0", r"\mu_1", r"G_1"]:
-            self.coeffs[prm] = kwargs.pop(prm)
-        if kwargs:
-            raise RuntimeError(f"Unused parameters passed to {type(self).__name__}: {kwargs}")
+        super().parse_options(**kwargs)
 
         # Mapping to Navier-Stokes problem options
-        self._ns_opts = {
-            r"\rho": self.coeffs[r"\rho"],
-            r"\mu": self.coeffs[r"\mu_0"] + self.coeffs[r"\mu_1"],
-            "bc_outlet": self.application_opts["bc_outlet"],
-        }
+        self._ns_opts["mu"] = self.mu_0 + self.mu_1
 
     def Re(self, v_char, x_char):
         """For given characteristic quantities, compute the Reynolds number."""
-        mu = self.coeffs[r"\mu_0"] + self.coeffs[r"\mu_1"]
-        return self.coeffs[r"\rho"] * v_char * x_char / mu
+        mu = self.mu_0 + self.mu_1
+        return self.rho * v_char * x_char / mu
 
     def Wi(self, dgamma_char):
         """For given characteristic quantities, compute the Weissenberg number."""
-        relaxtime = self.coeffs[r"\mu_1"] / self.coeffs[r"G_1"]
+        relaxtime = self.mu_1 / self.G_1
         return relaxtime * dgamma_char
 
     def De(self, t_char):
         """For given characteristic quantities, compute the Deborah number."""
-        relaxtime = self.coeffs[r"\mu_1"] / self.coeffs[r"G_1"]
+        relaxtime = self.mu_1 / self.G_1
         return relaxtime / t_char
-
-    @cached_property
-    def mu0(self):
-        return fem.Constant(self.domain.mesh, self.coeffs[r"\mu_0"])
-
-    @cached_property
-    def mu1(self):
-        return fem.Constant(self.domain.mesh, self.coeffs[r"\mu_1"])
-
-    @cached_property
-    def G1(self):
-        return fem.Constant(self.domain.mesh, self.coeffs[r"G_1"])
-
-    @cached_property
-    def rho(self):
-        return fem.Constant(self.domain.mesh, self.coeffs[r"\rho"])
 
     def grad2_xtra(self, A):
         e, r_index, phi_index, z_index = self.e, self.r_index, self.phi_index, self.z_index
@@ -68,22 +48,26 @@ class Problem(NavierStokesProblem):
         )
 
     def T(self, v, p, B1):
-        return -p * self.I + 2.0 * self.mu0 * self.D(v) + self.G1 * (B1 - self.I)
+        mu_0 = self.coeff("mu_0")
+        G_1 = self.coeff("G_1")
+        return -p * self.I + 2.0 * mu_0 * self.D(v) + G_1 * (B1 - self.I)
 
     def rT(self, v, p, B1):
         r = self.coord_r
-        return -r * p * self.I + 2.0 * self.mu0 * self.rD(v) + r * self.G1 * (B1 - self.I)
+        mu_0 = self.coeff("mu_0")
+        G_1 = self.coeff("G_1")
+        return -r * p * self.I + 2.0 * mu_0 * self.rD(v) + r * G_1 * (B1 - self.I)
 
     @cached_property
     def _mixed_space(self):
-        domain = self.domain
-        family = "P" if domain.mesh.ufl_cell() == ufl.triangle else "Q"
+        mesh = self.domain.mesh
+        family = "P" if mesh.ufl_cell() == ufl.triangle else "Q"
 
         # FIXME: Set symmetry to True (it's a bit faster)! Not working for Leonov though.
         return [
-            ("v", fem.VectorFunctionSpace(domain.mesh, (family, 2), dim=3)),
-            ("p", fem.FunctionSpace(domain.mesh, (family, 1))),
-            ("B1", fem.TensorFunctionSpace(domain.mesh, (family, 2), shape=(3, 3), symmetry=None)),
+            ("v", fem.VectorFunctionSpace(mesh, (family, 2), dim=3)),
+            ("p", fem.FunctionSpace(mesh, (family, 1))),
+            ("B1", fem.TensorFunctionSpace(mesh, (family, 2), shape=(3, 3), symmetry=None)),
         ]  # TODO: Which FE combination?
 
     @cached_property
@@ -123,25 +107,26 @@ class Problem(NavierStokesProblem):
         # Volume contributions
         F_v = ufl.inner(self.rT(v, p, B1), self.D_base(v_te)) * dx
         F_v += ufl.inner(self.T(v, p, B1), self.D_xtra(v_te)) * dx
-        F_v += ufl.inner(self.rho * ufl.dot(self.rgrad(v), v), v_te) * dx
+        F_v += ufl.inner(self.coeff("rho") * ufl.dot(self.rgrad(v), v), v_te) * dx
 
         F_p = -self.rdiv(v) * p_te * dx
 
         r = self.coord_r
         v_phi = v[self.phi_index]
+        mu_1 = self.coeff("mu_1")
         Y1 = lambda B: B - self.I  # noqa E731
         if self.application_opts["_model_type"] == "nonlinear":
             Y1 = lambda B: ufl.dot(B, ufl.dev(B))  # the simplest Leonov model
             # FIXME: Implement new derived class instead of adding options!
-        F_B1 = ufl.inner(r * self.G1 * Y1(B1), B1_te) * dx
+        F_B1 = ufl.inner(r * self.coeff("G_1") * Y1(B1), B1_te) * dx
         F_B1 += (
             ufl.inner(
-                self.mu1 * (r * ufl.dot(self.grad_base(B1), v) + v_phi * self.grad2_xtra(B1)), B1_te
+                mu_1 * (r * ufl.dot(self.grad_base(B1), v) + v_phi * self.grad2_xtra(B1)), B1_te
             )
             * dx
         )
         F_B1 -= (
-            ufl.inner(self.mu1 * (ufl.dot(self.rgrad(v), B1) + ufl.dot(B1, self.rgrad(v).T)), B1_te)
+            ufl.inner(mu_1 * (ufl.dot(self.rgrad(v), B1) + ufl.dot(B1, self.rgrad(v).T)), B1_te)
             * dx
         )
 
@@ -153,8 +138,8 @@ class Problem(NavierStokesProblem):
             n = n[r_index] * e[r_index] + n[z_index] * e[z_index]
             F_v += (
                 -ufl.inner(
-                    2.0 * self.mu0 * ufl.dot(self.rD(v), n)
-                    + r * self.G1 * ufl.dot((B1 - self.I), n),
+                    2.0 * self.coeff("mu_0") * ufl.dot(self.rD(v), n)
+                    + r * self.coeff("G_1") * ufl.dot((B1 - self.I), n),
                     v_te,
                 )
                 * ds_outlet
@@ -279,14 +264,15 @@ class Problem(NavierStokesProblem):
         p, q = self.trial_functions[1], self.test_functions[1]
         v = self.solution_vars[0]
         n = self.facet_normal
-        mu = self.mu0 + self.mu1
+        mu = self.coeff("mu_0") + self.coeff("mu_1")
+        rho = self.coeff("rho")
 
         ufl_form_Mp = (1.0 / mu) * r * ufl.inner(p, q) * dx
         ufl_form_Ap = r * ufl.inner(ufl.grad(p), ufl.grad(q)) * dx
         ufl_form_Kp = (
-            (self.rho / mu) * r * (p.dx(r_index) * v[r_index] + p.dx(z_index) * v[z_index]) * q * dx
+            (rho / mu) * r * (p.dx(r_index) * v[r_index] + p.dx(z_index) * v[z_index]) * q * dx
         )
-        ufl_form_Kp -= (self.rho / mu) * r * ufl.dot(v, n) * p * q * ds_inlet
+        ufl_form_Kp -= (rho / mu) * r * ufl.dot(v, n) * p * q * ds_inlet
 
         return {
             "ufl_form_Mp": ufl_form_Mp,

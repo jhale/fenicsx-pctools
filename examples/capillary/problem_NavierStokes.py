@@ -12,6 +12,11 @@ from dolfinx.mesh import locate_entities_boundary, create_meshtags
 class Problem(object):
 
     model_name = os.path.splitext(os.path.basename(__file__))[0][8:]
+    model_parameters = ("rho", "mu")
+    # NOTE:
+    #   Model parameters are coefficients that will be set as class attributes. At the same time,
+    #   we store the coefficients wrapped as appropriate DOLFINX/UFL objects in a cache; use `coeff`
+    #   member function to access the cached objects.
 
     def __init__(self, domain, **kwargs):
         self.domain = domain
@@ -47,22 +52,35 @@ class Problem(object):
         # NOTE: NS problem is solved to get a good initial condition for more complicated models.
         self._ns_opts = self.application_opts.copy()
 
+        # Init cache
+        self._coeffs = {}  # for UFL coefficients
+        self._projection_utils = {}  # for utilities used to get projected stress, shear rate, etc.
+
         # Parse model parameters
-        self.coeffs = {}
         self.parse_options(**kwargs)
 
-    # FIXME: Make me abstract! Derived models will override this instead of __init__
+    def __setattr__(self, name, value):
+        if name in self.model_parameters:
+            constant = self._coeffs.setdefault(name, fem.Constant(self.domain.mesh, value))
+            constant.value = value
+        return super().__setattr__(name, value)
+
+    # NOTE: Derived models should override this method instead of the constructor.
     def parse_options(self, **kwargs):
-        for prm in [r"\rho", r"\mu"]:
-            self.coeffs[prm] = kwargs.pop(prm)
+        for prm in self.model_parameters:
+            value = kwargs.pop(prm, None)
+            if value is None:
+                raise ValueError(f"Missing parameter '{prm}'")
+            setattr(self, prm, value)
         if kwargs:
             raise RuntimeError(f"Unused parameters passed to {type(self).__name__}: {kwargs}")
 
-        self._ns_opts.update(self.coeffs)  # copy values to pass the sanity check below
+        for prm in Problem.model_parameters:
+            self._ns_opts[prm] = getattr(self, prm, None)
 
     @property
     def reduced_opts_for_NavierStokes(self):
-        for prm in [r"\rho", r"\mu"]:
+        for prm in Problem.model_parameters:
             if prm not in self._ns_opts:
                 raise ValueError(f"Parameter '{prm}' not found among reduced Navier-Stokes options")
 
@@ -128,7 +146,7 @@ class Problem(object):
 
     def Re(self, v_char, x_char):
         """For given characteristic quantities, compute the Reynolds number."""
-        return self.coeffs[r"\rho"] * v_char * x_char / self.coeffs[r"\mu"]
+        return self.rho * v_char * x_char / self.mu
 
     def Wi(self, dgamma_char):
         """For given characteristic quantities, compute the Weissenberg number."""
@@ -140,13 +158,12 @@ class Problem(object):
         relaxtime = 0.0
         return relaxtime / t_char
 
-    @cached_property
-    def mu(self):
-        return fem.Constant(self.domain.mesh, self.coeffs[r"\mu"])
+    def coeff(self, prm):
+        coeff = self._coeffs.get(prm, None)
+        if coeff is None:
+            raise ValueError(f"Parameter '{prm}' has not been set")
 
-    @cached_property
-    def rho(self):
-        return fem.Constant(self.domain.mesh, self.coeffs[r"\rho"])
+        return coeff
 
     def grad_base(self, v):
         e, r_index, z_index = self.e, self.r_index, self.z_index
@@ -184,20 +201,20 @@ class Problem(object):
         return r * self.D_base(v) + self.D_xtra(v)
 
     def T(self, v, p):
-        return -p * self.I + 2.0 * self.mu * self.D(v)
+        return -p * self.I + 2.0 * self.coeff("mu") * self.D(v)
 
     def rT(self, v, p):
         r = self.coord_r
-        return -r * p * self.I + 2.0 * self.mu * self.rD(v)
+        return -r * p * self.I + 2.0 * self.coeff("mu") * self.rD(v)
 
     @cached_property
     def _mixed_space(self):
-        domain = self.domain
-        family = "P" if domain.mesh.ufl_cell() == ufl.triangle else "Q"
+        mesh = self.domain.mesh
+        family = "P" if mesh.ufl_cell() == ufl.triangle else "Q"
 
         return [
-            ("v", fem.VectorFunctionSpace(domain.mesh, (family, 2), dim=3)),
-            ("p", fem.FunctionSpace(domain.mesh, (family, 1))),
+            ("v", fem.VectorFunctionSpace(mesh, (family, 2), dim=3)),
+            ("p", fem.FunctionSpace(mesh, (family, 1))),
         ]
 
     @property
@@ -249,7 +266,7 @@ class Problem(object):
         # Volume contributions
         F_v = ufl.inner(self.rT(v, p), self.D_base(v_te)) * dx
         F_v += ufl.inner(self.T(v, p), self.D_xtra(v_te)) * dx
-        F_v += self.rho * ufl.inner(ufl.dot(self.rgrad(v), v), v_te) * dx
+        F_v += self.coeff("rho") * ufl.inner(ufl.dot(self.rgrad(v), v), v_te) * dx
 
         F_p = -self.rdiv(v) * p_te * dx
 
@@ -257,7 +274,7 @@ class Problem(object):
         if self.application_opts["bc_outlet"] == "NoEnd":
             ds_outlet = self.domain.ds("outlet")
             n = self.facet_normal
-            F_v += -ufl.inner(2.0 * self.mu * ufl.dot(self.rD(v), n), v_te) * ds_outlet
+            F_v += -ufl.inner(2.0 * self.coeff("mu") * ufl.dot(self.rD(v), n), v_te) * ds_outlet
 
         return [F_v, F_p]
 
@@ -439,6 +456,8 @@ class Problem(object):
     def pcd_forms(self):
         r = self.coord_r
         r_index, z_index = self.r_index, self.z_index
+        mu = self.coeff("mu")
+        rho = self.coeff("rho")
         dx = ufl.dx
         ds_inlet = self.domain.ds("inlet")
 
@@ -446,16 +465,16 @@ class Problem(object):
         v = self.solution_vars[0]
         n = self.facet_normal
 
-        ufl_form_Mp = (1.0 / self.mu) * r * ufl.inner(p, q) * dx
+        ufl_form_Mp = (1.0 / mu) * r * ufl.inner(p, q) * dx
         ufl_form_Ap = r * ufl.inner(ufl.grad(p), ufl.grad(q)) * dx
         ufl_form_Kp = (
-            (self.rho / self.mu)
+            (rho / mu)
             * r
             * (p.dx(r_index) * v[r_index] + p.dx(z_index) * v[z_index])
             * q
             * dx
         )
-        ufl_form_Kp -= (self.rho / self.mu) * r * ufl.dot(v, n) * p * q * ds_inlet
+        ufl_form_Kp -= (rho / mu) * r * ufl.dot(v, n) * p * q * ds_inlet
 
         return {
             "ufl_form_Mp": ufl_form_Mp,

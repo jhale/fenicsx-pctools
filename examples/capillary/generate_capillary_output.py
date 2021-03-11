@@ -50,7 +50,7 @@ def _get_label(data):
     elif model_name == "PowerLaw":
         label += rf"Power-law, $\mathrm{{max\;Re}}$ = {Re_max:.2g}"
     elif model_name == "OldroydB":
-        mu0 = data[r"\mu_0"].unique()
+        mu0 = data["mu_0"].unique()
         assert len(mu0) == 1
         # FIXME: Remove the following entry from results as soon as the Leonov model is implemented!
         _model_type = data["_model_type"].unique()
@@ -71,7 +71,7 @@ def _get_analytic_formulas(data):
     shstress_formula = None
     N1_formula, N2_formula = None, None
     if model_name == "NavierStokes":
-        mu = data[r"\mu"].unique()[0]
+        mu = data["mu"].unique()[0]
         shstress_formula = lambda g: mu * g
         N1_formula = lambda g: 0.0 * g
         N2_formula = lambda g: 0.0 * g
@@ -79,10 +79,10 @@ def _get_analytic_formulas(data):
     elif model_name == "PowerLaw":
         from problem_PowerLaw import CarreauYasudaViscosity
 
-        mu_0 = data[r"\mu_0"].unique()[0]
-        mu_8 = data[r"\mu_8"].unique()[0]
-        alpha = data[r"\alpha"].unique()[0]
-        n = data[r"n"].unique()[0]
+        mu_0 = data["mu_0"].unique()[0]
+        mu_8 = data["mu_8"].unique()[0]
+        alpha = data["alpha"].unique()[0]
+        n = data["n"].unique()[0]
 
         mu = CarreauYasudaViscosity(mu_0, mu_8, alpha, n)
         shstress_formula = lambda g: mu(g ** 2.0) * g
@@ -91,9 +91,9 @@ def _get_analytic_formulas(data):
 
     elif model_name == "OldroydB":
         # FIXME: Missing sanity checks!
-        mu0 = data[r"\mu_0"].unique()[0]
-        mu1 = data[r"\mu_1"].unique()[0]
-        G1 = data[r"G_1"].unique()[0]
+        mu0 = data["mu_0"].unique()[0]
+        mu1 = data["mu_1"].unique()[0]
+        G1 = data["G_1"].unique()[0]
         tau1 = mu1 / G1
 
         # FIXME: Remove the following entry from results as soon as the Leonov model is implemented!
