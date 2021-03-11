@@ -35,6 +35,7 @@ class Problem(object):
 
         # Init cache
         self._coeffs = {}  # for UFL coefficients
+        self._bndry_facets = {}  # for boundary facets
         self._projection_utils = {}  # for utilities used to get projected stress, shear rate, etc.
 
         # Parse model parameters
@@ -193,17 +194,18 @@ class Problem(object):
         bnd_wall = domain.get_boundary_tag("wall")
         bnd_cylinder = domain.get_boundary_tag("cylinder")
 
-        facets_in = np.where(domain.mesh_tags_facets.values == bnd_in)[0]
-        facets_out = np.where(domain.mesh_tags_facets.values == bnd_out)[0]
-        facets_symm = np.where(domain.mesh_tags_facets.values == bnd_symm)[0]
-        facets_wall = np.where(domain.mesh_tags_facets.values == bnd_wall)[0]
-        facets_cylinder = np.where(domain.mesh_tags_facets.values == bnd_cylinder)[0]
+        bf = self._bndry_facets
+        bf["in"] = np.where(domain.mesh_tags_facets.values == bnd_in)[0]
+        bf["out"] = np.where(domain.mesh_tags_facets.values == bnd_out)[0]
+        bf["symm"] = np.where(domain.mesh_tags_facets.values == bnd_symm)[0]
+        bf["wall"] = np.where(domain.mesh_tags_facets.values == bnd_wall)[0]
+        bf["cylinder"] = np.where(domain.mesh_tags_facets.values == bnd_cylinder)[0]
 
-        inlet_dofsVv = fem.locate_dofs_topological(Vv, facetdim, facets_in)
-        outlet_dofsVv_y = fem.locate_dofs_topological((Vv.sub(1), Vv_y), facetdim, facets_out)
-        symm_dofsVv_y = fem.locate_dofs_topological((Vv.sub(1), Vv_y), facetdim, facets_symm)
-        wall_dofsVv = fem.locate_dofs_topological(Vv, facetdim, facets_wall)
-        cylinder_dofsVv = fem.locate_dofs_topological(Vv, facetdim, facets_cylinder)
+        inlet_dofsVv = fem.locate_dofs_topological(Vv, facetdim, bf["in"])
+        outlet_dofsVv_y = fem.locate_dofs_topological((Vv.sub(1), Vv_y), facetdim, bf["out"])
+        symm_dofsVv_y = fem.locate_dofs_topological((Vv.sub(1), Vv_y), facetdim, bf["symm"])
+        wall_dofsVv = fem.locate_dofs_topological(Vv, facetdim, bf["wall"])
+        cylinder_dofsVv = fem.locate_dofs_topological(Vv, facetdim, bf["cylinder"])
 
         def expand_blocksized_dofs(dofs, bs):
             bs_shifter = np.array([list(range(bs))]).repeat(dofs.shape[0], axis=0).flatten()

@@ -125,11 +125,8 @@ class Problem(NavierStokesProblem):
         bcs = list(super().bcs)
 
         VB = self.function_spaces[-1]
-        domain = self.domain
-        facetdim = domain.mesh.topology.dim - 1
-        bnd_in = domain.get_boundary_tag("inlet")
-        facets_in = np.where(domain.mesh_tags_facets.values == bnd_in)[0]
-        inlet_dofsVB = fem.locate_dofs_topological(VB, facetdim, facets_in)
+        facetdim = self.domain.mesh.topology.dim - 1
+        inlet_dofsVB = fem.locate_dofs_topological(VB, facetdim, self._bndry_facets["in"])
 
         B_inlet = fem.Function(VB, name="B_inlet")
         B_inlet.interpolate(self.inlet_stress_profile)

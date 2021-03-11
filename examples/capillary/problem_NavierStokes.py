@@ -54,6 +54,7 @@ class Problem(object):
 
         # Init cache
         self._coeffs = {}  # for UFL coefficients
+        self._bndry_facets = {}  # for boundary facets
         self._projection_utils = {}  # for utilities used to get projected stress, shear rate, etc.
 
         # Parse model parameters
@@ -337,19 +338,20 @@ class Problem(object):
         bnd_w2 = domain.get_boundary_tag("bwall_ver")
         bnd_w3 = domain.get_boundary_tag("cwall")
 
-        facets_in = np.where(domain.mesh_tags_facets.values == bnd_in)[0]
-        facets_out = np.where(domain.mesh_tags_facets.values == bnd_out)[0]
-        facets_symm = np.where(domain.mesh_tags_facets.values == bnd_symm)[0]
-        facets_w1 = np.where(domain.mesh_tags_facets.values == bnd_w1)[0]
-        facets_w2 = np.where(domain.mesh_tags_facets.values == bnd_w2)[0]
-        facets_w3 = np.where(domain.mesh_tags_facets.values == bnd_w3)[0]
+        bf = self._bndry_facets
+        bf["in"] = np.where(domain.mesh_tags_facets.values == bnd_in)[0]
+        bf["out"] = np.where(domain.mesh_tags_facets.values == bnd_out)[0]
+        bf["symm"] = np.where(domain.mesh_tags_facets.values == bnd_symm)[0]
+        bf["w1"] = np.where(domain.mesh_tags_facets.values == bnd_w1)[0]
+        bf["w2"] = np.where(domain.mesh_tags_facets.values == bnd_w2)[0]
+        bf["w3"] = np.where(domain.mesh_tags_facets.values == bnd_w3)[0]
 
-        inlet_dofsVv = fem.locate_dofs_topological(Vv, facetdim, facets_in)
-        outlet_dofsVv_r = fem.locate_dofs_topological((Vv.sub(r_index), Vv_r), facetdim, facets_out)
-        symm_dofsVv_r = fem.locate_dofs_topological((Vv.sub(r_index), Vv_r), facetdim, facets_symm)
-        w1_dofsVv = fem.locate_dofs_topological(Vv, facetdim, facets_w1)
-        w2_dofsVv = fem.locate_dofs_topological(Vv, facetdim, facets_w2)
-        w3_dofsVv = fem.locate_dofs_topological(Vv, facetdim, facets_w3)
+        inlet_dofsVv = fem.locate_dofs_topological(Vv, facetdim, bf["in"])
+        outlet_dofsVv_r = fem.locate_dofs_topological((Vv.sub(r_index), Vv_r), facetdim, bf["out"])
+        symm_dofsVv_r = fem.locate_dofs_topological((Vv.sub(r_index), Vv_r), facetdim, bf["symm"])
+        w1_dofsVv = fem.locate_dofs_topological(Vv, facetdim, bf["w1"])
+        w2_dofsVv = fem.locate_dofs_topological(Vv, facetdim, bf["w2"])
+        w3_dofsVv = fem.locate_dofs_topological(Vv, facetdim, bf["w3"])
 
         bs = Vv.dofmap.index_map_bs
         bs_shifter = np.array([list(range(bs))]).repeat(inlet_dofsVv.shape[0], axis=0).flatten()
@@ -419,31 +421,19 @@ class Problem(object):
     @cached_property
     def pcd_bcs_inlet(self):
         Vp = self.function_spaces[1]
-        domain = self.domain
-        facetdim = domain.mesh.topology.dim - 1
-        bnd_in = domain.get_boundary_tag("inlet")
-        facets_in = np.where(domain.mesh_tags_facets.values == bnd_in)[0]
-        inlet_dofsVp = fem.locate_dofs_topological(Vp, facetdim, facets_in)
+        facetdim = self.domain.mesh.topology.dim - 1
+        inlet_dofsVp = fem.locate_dofs_topological(Vp, facetdim, self._bndry_facets["in"])
 
         return [fem.DirichletBC(fem.Function(Vp), inlet_dofsVp)]
 
     @cached_property
     def pcd_bcs_outlet(self):
         Vp = self.function_spaces[1]
-        domain = self.domain
-        facetdim = domain.mesh.topology.dim - 1
+        facetdim = self.domain.mesh.topology.dim - 1
 
-        bnd_out = domain.get_boundary_tag("outlet")
-        bnd_symm = domain.get_boundary_tag("symmetry")
-        bnd_w3 = domain.get_boundary_tag("cwall")
-
-        facets_out = np.where(domain.mesh_tags_facets.values == bnd_out)[0]
-        facets_symm = np.where(domain.mesh_tags_facets.values == bnd_symm)[0]
-        facets_w3 = np.where(domain.mesh_tags_facets.values == bnd_w3)[0]
-
-        outlet_dofsVp = fem.locate_dofs_topological(Vp, facetdim, facets_out)
-        symm_dofsVp = fem.locate_dofs_topological(Vp, facetdim, facets_symm)
-        w3_dofsVp = fem.locate_dofs_topological(Vp, facetdim, facets_w3)
+        outlet_dofsVp = fem.locate_dofs_topological(Vp, facetdim, self._bndry_facets["out"])
+        symm_dofsVp = fem.locate_dofs_topological(Vp, facetdim, self._bndry_facets["symm"])
+        w3_dofsVp = fem.locate_dofs_topological(Vp, facetdim, self._bndry_facets["w3"])
 
         cornerdofs = np.intersect1d(outlet_dofsVp, w3_dofsVp)
         outlet_dofsVp = np.setdiff1d(outlet_dofsVp, cornerdofs).reshape((-1, 1))

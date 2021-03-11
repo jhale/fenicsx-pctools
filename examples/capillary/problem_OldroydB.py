@@ -160,11 +160,8 @@ class Problem(NavierStokesProblem):
             with B1_inlet.vector.localForm() as inlet, B1_ic.vector.localForm() as ic:
                 ic.copy(inlet)
 
-            domain = self.domain
-            facetdim = domain.mesh.topology.dim - 1
-            bnd_in = domain.get_boundary_tag("inlet")
-            facets_in = np.where(domain.mesh_tags_facets.values == bnd_in)[0]
-            inlet_dofsVB1 = fem.locate_dofs_topological(VB1, facetdim, facets_in)
+            facetdim = self.domain.mesh.topology.dim - 1
+            inlet_dofsVB1 = fem.locate_dofs_topological(VB1, facetdim, self._bndry_facets["in"])
             bcs.append(fem.DirichletBC(B1_inlet, inlet_dofsVB1))
 
         return tuple(bcs)
