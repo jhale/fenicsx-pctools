@@ -250,27 +250,11 @@ class Problem(object):
         bcs = [
             fem.DirichletBC(v_inlet, inlet_dofsVv),
             fem.DirichletBC(v_zero, walls_dofsVv),
+            fem.DirichletBC(v_y_zero, symm_dofsVv_y, Vv.sub(1)),
         ]
 
-        # NOTE:
-        #   There is an issue with DirichletBC constructor if one tries to send it an empty
-        #   array with `dtype == numpy.int32`
-        try:
-            bcs.append(fem.DirichletBC(v_y_zero, symm_dofsVv_y, Vv.sub(1)))
-        except TypeError as err:
-            if symm_dofsVv_y.size == 0 and symm_dofsVv_y.dtype == np.int32:
-                symm_dofsVv_y = np.empty((0, 2))  # uses default dtype which is correctly converted
-            else:
-                raise err
-
         if self.application_opts["bc_outlet"] == "NoEnd":
-            try:  # NOTE: Same as above.
-                bcs.append(fem.DirichletBC(v_y_zero, outlet_dofsVv_y, Vv.sub(1)))
-            except TypeError as err:
-                if outlet_dofsVv_y.size == 0 and outlet_dofsVv_y.dtype == np.int32:
-                    outlet_dofsVv_y = np.empty((0, 2))
-                else:
-                    raise err
+            bcs.append(fem.DirichletBC(v_y_zero, outlet_dofsVv_y, Vv.sub(1)))
 
         return tuple(bcs)
 

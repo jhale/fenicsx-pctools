@@ -387,27 +387,11 @@ class Problem(object):
         bcs = [
             fem.DirichletBC(v_inlet, inlet_dofsVv),
             fem.DirichletBC(v_zero, walls_dofsVv),
+            fem.DirichletBC(v_r_zero, symm_dofsVv_r, Vv.sub(r_index)),
         ]
 
-        # NOTE:
-        #   There is an issue with DirichletBC constructor if one tries to send it an empty
-        #   array with `dtype == numpy.int32`
-        try:
-            bcs.append(fem.DirichletBC(v_r_zero, symm_dofsVv_r, Vv.sub(r_index)))
-        except TypeError as err:
-            if symm_dofsVv_r.size == 0 and symm_dofsVv_r.dtype == np.int32:
-                symm_dofsVv_r = np.empty((0, 2))  # uses default dtype which is correctly converted
-            else:
-                raise err
-
         if self.application_opts["bc_outlet"] == "NoEnd":
-            try:  # NOTE: Same as above.
-                bcs.append(fem.DirichletBC(v_r_zero, outlet_dofsVv_r, Vv.sub(r_index)))
-            except TypeError as err:
-                if outlet_dofsVv_r.size == 0 and outlet_dofsVv_r.dtype == np.int32:
-                    outlet_dofsVv_r = np.empty((0, 2))
-                else:
-                    raise err
+            bcs.append(fem.DirichletBC(v_r_zero, outlet_dofsVv_r, Vv.sub(r_index)))
 
         # Enforce zero azimuthal velocity
         axisymm_dofsVv_phi = fem.locate_dofs_geometrical(
