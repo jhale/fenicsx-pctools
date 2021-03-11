@@ -12,8 +12,9 @@ class Problem(object):
     model_name = os.path.splitext(os.path.basename(__file__))[0][8:]
     model_parameters = ("beta", "Re")
     # NOTE:
-    #   Model parameters are coefficients that will be set as class attributes. A `Constant`
-    #   object will be created for each of them; use `constant` member function to access it.
+    #   Model parameters are coefficients that will be set as class attributes. At the same time,
+    #   we store the coefficients wrapped as appropriate DOLFINX/UFL objects in a cache; use `coeff`
+    #   member function to access the cached objects.
 
     def __init__(self, domain, **kwargs):
         self.domain = domain
@@ -33,7 +34,7 @@ class Problem(object):
         self._ns_opts = self.application_opts.copy()
 
         # Init cache
-        self._constants = {}  # for constant coefficients
+        self._coeffs = {}  # for UFL coefficients
         self._projection_utils = {}  # for utilities used to get projected stress, shear rate, etc.
 
         # Parse model parameters
@@ -41,7 +42,7 @@ class Problem(object):
 
     def __setattr__(self, name, value):
         if name in self.model_parameters:
-            constant = self._constants.setdefault(name, fem.Constant(self.domain.mesh, value))
+            constant = self._coeffs.setdefault(name, fem.Constant(self.domain.mesh, value))
             constant.value = value
         return super().__setattr__(name, value)
 
@@ -67,18 +68,18 @@ class Problem(object):
 
         return self._ns_opts
 
-    def constant(self, prm):
-        constant = self._constants.get(prm, None)
-        if constant is None:
+    def coeff(self, prm):
+        coeff = self._coeffs.get(prm, None)
+        if coeff is None:
             raise ValueError(f"Parameter '{prm}' has not been set")
 
-        return constant
+        return coeff
 
     def D(self, v):
         return ufl.sym(ufl.grad(v))
 
     def T(self, v, p):
-        return -p * self.I + 2.0 * self.constant("beta") * self.D(v)
+        return -p * self.I + 2.0 * self.coeff("beta") * self.D(v)
 
     @cached_property
     def _mixed_space(self):
@@ -139,7 +140,7 @@ class Problem(object):
         # Volume contributions
         F_v = ufl.inner(self.T(v, p), self.D(v_te)) * dx
         # NOTE: Inertia omitted!
-        # F_v += self.constant("Re") * ufl.inner(ufl.dot(ufl.grad(v), v), v_te) * dx
+        # F_v += self.coeff("Re") * ufl.inner(ufl.dot(ufl.grad(v), v), v_te) * dx
 
         F_p = -ufl.div(v) * p_te * dx
 
@@ -147,7 +148,7 @@ class Problem(object):
         if self.application_opts["bc_outlet"] == "NoEnd":
             n = self.facet_normal
             ds_outlet = self.domain.ds("outlet")
-            F_v += -ufl.inner(2.0 * self.constant("beta") * ufl.dot(self.D(v), n), v_te) * ds_outlet
+            F_v += -ufl.inner(2.0 * self.coeff("beta") * ufl.dot(self.D(v), n), v_te) * ds_outlet
 
         return [F_v, F_p]
 
