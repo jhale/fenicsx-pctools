@@ -1,0 +1,13 @@
+[submodule "dolfinx"]
+	path = dolfinx
+	url = https://github.com/FEniCS/dolfinx.git
+[submodule "ffcx"]
+	path = ffcx
+	url = https://github.com/FEniCS/ffcx.git
+[submodule "basix"]
+	path = basix
+	url = https://github.com/FEniCS/basix.git
+	branch = main
+[submodule "ufl"]
+	path = ufl
+	url = https://github.com/FEniCS/ufl.git
