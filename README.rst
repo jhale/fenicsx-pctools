@@ -71,6 +71,19 @@ Assuming that the current working directory is the root of this repository.
    Hint: Run the last command with ``--help`` and search for the section *custom options*
    to get the detailed information about the optional arguments in square brackets.
 
+Developer notes
+===============
+
+How to build dev image
+----------------------
+
+From the root of the repository run
+
+   .. code-block:: console
+
+      ./docker/build-image.sh dolfinx/dolfinx-onbuild:latest dev [your_preferred_tag]
+
+
 Authors
 =======
 
