@@ -177,8 +177,24 @@ def domain(comm, request):
 
 
 _fullconfigs = {
-    "NavierStokes": {"beta": 1.0, "Re": 0.0, "bc_outlet": "NoEnd"},
-    "OldroydB": {"beta": 0.59, "Re": 0.0, "Wi": 0.1, "bc_outlet": "NoEnd"},
+    "NavierStokes": {
+        "beta": 1.0,
+        "Re": 0.0,
+        "bc_outlet": "NoEnd",
+        # "bc_outlet": "NoTraction",
+        "scheme": "TH",
+        # "scheme": "CR",
+    },
+    "OldroydB": {
+        "beta": 0.59,
+        "Re": 0.0,
+        "Wi": 0.1,
+        "bc_outlet": "NoEnd",
+        # "bc_outlet": "NoTraction",
+        "scheme": "TH_naive",
+        # "scheme": "TH_stable",
+        # "scheme": "CR_stable",
+    },
 }
 
 

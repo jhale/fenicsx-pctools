@@ -10,6 +10,7 @@ from problem_NavierStokes import Problem as NavierStokesProblem
 class Problem(NavierStokesProblem):
 
     model_parameters = NavierStokesProblem.model_parameters + tuple(["Wi"])
+    discretization_schemes = ("TH_naive", "TH_stable", "CR_stable")
 
     def parse_options(self, **kwargs):
         super().parse_options(**kwargs)
@@ -20,6 +21,9 @@ class Problem(NavierStokesProblem):
         #   the value of the total viscosity.
         self._ns_opts["beta"] = 1.0
 
+        # NOTE: Take only first two letters corresponding to either TH or CR
+        self._ns_opts["scheme"] = self.application_opts["scheme"][:2]
+
     def T(self, v, p, B):
         beta = self.coeff("beta")
         Wi = self.coeff("Wi")
@@ -28,15 +32,28 @@ class Problem(NavierStokesProblem):
     @cached_property
     def _mixed_space(self):
         mesh = self.domain.mesh
-        family = "P" if mesh.ufl_cell() == ufl.triangle else "Q"
         gdim = mesh.geometry.dim
 
-        # FIXME: Set symmetry to True (it's a bit faster)!
-        return [
-            ("v", fem.VectorFunctionSpace(mesh, (family, 2), dim=gdim)),
-            ("p", fem.FunctionSpace(mesh, (family, 1))),
-            ("B", fem.TensorFunctionSpace(mesh, (family, 2), shape=(gdim, gdim), symmetry=None)),
-        ]  # TODO: Which FE combination?
+        if self.application_opts["scheme"] == "CR_stable":
+            scheme = [
+                ("v", fem.VectorFunctionSpace(mesh, ("CR", 1), dim=gdim)),
+                ("p", fem.FunctionSpace(mesh, ("DP", 0))),
+                ("B", fem.TensorFunctionSpace(mesh, ("P", 1), shape=(gdim, gdim), symmetry=True)),
+            ]  # FIXME: Wrong element for B!
+        elif self.application_opts["scheme"] == "TH_stable":
+            scheme = [
+                ("v", fem.VectorFunctionSpace(mesh, ("P", 2), dim=gdim)),
+                ("p", fem.FunctionSpace(mesh, ("P", 1))),
+                ("B", fem.TensorFunctionSpace(mesh, ("P", 2), shape=(gdim, gdim), symmetry=True)),
+            ]  # FIXME: Wrong element for B!
+        else:
+            scheme = [
+                ("v", fem.VectorFunctionSpace(mesh, ("P", 2), dim=gdim)),
+                ("p", fem.FunctionSpace(mesh, ("P", 1))),
+                ("B", fem.TensorFunctionSpace(mesh, ("P", 2), shape=(gdim, gdim), symmetry=True)),
+            ]
+
+        return scheme
 
     @property
     def tensor_components_mapping(self):
@@ -80,11 +97,17 @@ class Problem(NavierStokesProblem):
         dx = ufl.dx
 
         # Volume contributions
-        F_v = ufl.inner(self.T(v, p, B), self.D(v_te)) * dx
+        F_v = ufl.inner(self.T(v, p, B), self.D(v_te)) * dx  # NOTE: Stable scheme uses Laplacian!
+
+        # NOTE: Stabilization required by CR element!
+        if self.application_opts["scheme"] == "CR_stable":
+            h = ufl.FacetArea(self.domain.mesh)
+            F_v += (1.0 / h) * ufl.inner(ufl.jump(v), ufl.jump(v_te)) * ufl.dS
+
         # NOTE: Inertia omitted!
         # F_v += self.coeff("Re") * ufl.inner(ufl.dot(ufl.grad(v), v), v_te) * dx
 
-        F_p = -ufl.div(v) * p_te * dx
+        F_p = -ufl.div(v) * p_te * dx  # NOTE: Stable scheme uses '+'!
 
         F_B = ufl.inner(ufl.dot(ufl.grad(B), v), B_te) * dx
         F_B -= ufl.inner(ufl.dot(ufl.grad(v), B) + ufl.dot(B, ufl.grad(v).T), B_te) * dx
