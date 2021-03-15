@@ -144,6 +144,9 @@ class Problem(object):
         for name, subspace in self._mixed_space:
             functions.append(fem.Function(subspace, name=name))
 
+        # NOTE: Uncomment to set nonzero initial guess for velocity
+        # functions[0].interpolate(self.inlet_velocity_profile)
+
         return tuple(functions)
 
     @cached_property

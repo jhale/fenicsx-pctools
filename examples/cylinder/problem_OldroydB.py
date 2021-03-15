@@ -75,6 +75,9 @@ class Problem(NavierStokesProblem):
         for name, subspace in self._mixed_space:
             functions.append(fem.Function(subspace, name=name))
 
+        # NOTE: Uncomment to set nonzero initial guess for velocity
+        # functions[0].interpolate(self.inlet_velocity_profile)
+
         # Set B to identity tensor
         subindex, value_size = self.tensor_components_mapping
 

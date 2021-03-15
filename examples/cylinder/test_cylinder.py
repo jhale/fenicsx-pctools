@@ -69,6 +69,7 @@ def _set_up_solver(problem, opts, options_prefix=None, options_file=None):
     x0 = fem.create_vector_block(F_form)
 
     solver = PETSc.SNES().create(problem.domain.comm)
+    solver.setInitialGuess(snesctx.functions_to_vec(problem.solution_vars, x0))
     solver.setFunction(snesctx.F_block, Fvec)
     solver.setJacobian(snesctx.J_block, J=Jmat, P=None)
     solver.setMonitor(snesctx.monitor)
