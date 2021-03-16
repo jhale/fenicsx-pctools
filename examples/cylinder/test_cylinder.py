@@ -62,7 +62,13 @@ def _set_up_solver(problem, opts, options_prefix=None, options_file=None):
     J_form = fem.assemble._create_cpp_form(problem.J_form)
 
     # Set up PDE
-    snesctx = SNESContext(F_form, J_form, problem.solution_vars, problem.bcs)
+    snesctx = SNESContext(
+        F_form,
+        J_form,
+        problem.solution_vars,
+        problem.bcs,
+        residual_prehook=problem.update_projected_velocity,
+    )
 
     # Prepare vectors (jitted forms can be used here)
     Fvec = fem.create_vector_block(F_form)
@@ -258,9 +264,9 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
 
         SNESContext.vec_to_functions(x0, problem.solution_vars)
 
-        # FIXME: Use `dolfinx.function.Expression` for direct evaluation (instead of projections)!
-        with PETSc.Log.Stage(f"{model_name}: projection postprocessing step #{counter}"):
-            T_h = problem.projected_stress
+        # # FIXME: Use `dolfinx.function.Expression` for direct evaluation (instead of projections)!
+        # with PETSc.Log.Stage(f"{model_name}: projection postprocessing step #{counter}"):
+        #     T_h = problem.projected_stress
 
         # Save results
         n = problem.facet_normal
@@ -322,7 +328,7 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
 
         # Save ParaView plots
         if not request.config.getoption("noxdmf"):
-            for field in problem.solution_vars + tuple([T_h]):
+            for field in problem.solution_vars:  # + tuple([T_h]):
                 xfile = f"{model_name}_field_{field.name}.xdmf"
                 xfile = os.path.join(results_dir, xfile)
                 mode = "w" if counter == 0 else "a"

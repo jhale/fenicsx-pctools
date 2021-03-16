@@ -6,12 +6,13 @@ from dolfinx import fem
 
 
 class SNESContext:
-    def __init__(self, F, J, solution_vars, bcs, P=None):
+    def __init__(self, F, J, solution_vars, bcs, P=None, residual_prehook=None):
         self.L = F
         self.a = J
         self.a_precon = P
         self.bcs = bcs
         self.solution_vars = solution_vars
+        self.residual_prehook = residual_prehook
 
         self.norm_r = {}
         self.norm_dx = {}
@@ -40,6 +41,9 @@ class SNESContext:
         x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
     def F_block(self, snes, x, F):
+        if self.residual_prehook is not None:
+            self.residual_prehook()
+
         with F.localForm() as f_local:
             f_local.set(0.0)  # NOTE: f_local includes ghosts
 

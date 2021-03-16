@@ -2,6 +2,7 @@ import ufl
 import numpy as np
 
 from functools import cached_property
+from petsc4py import PETSc
 from dolfinx import fem
 
 from problem_NavierStokes import Problem as NavierStokesProblem
@@ -24,6 +25,8 @@ class Problem(NavierStokesProblem):
         # NOTE: Take only first two letters corresponding to either TH or CR
         self._ns_opts["scheme"] = self.application_opts["scheme"][:2]
 
+        self.counter = 0  # FIXME: Remove this temporary variable (used to plot projected velocity)!
+
     def T(self, v, p, B):
         beta = self.coeff("beta")
         Wi = self.coeff("Wi")
@@ -38,7 +41,7 @@ class Problem(NavierStokesProblem):
             scheme = [
                 ("v", fem.VectorFunctionSpace(mesh, ("CR", 1), dim=gdim)),
                 ("p", fem.FunctionSpace(mesh, ("DP", 0))),
-                ("B", fem.TensorFunctionSpace(mesh, ("P", 1), shape=(gdim, gdim), symmetry=True)),
+                ("B", fem.TensorFunctionSpace(mesh, ("DP", 0), shape=(gdim, gdim), symmetry=True)),
             ]  # FIXME: Wrong element for B!
         elif self.application_opts["scheme"] == "TH_stable":
             scheme = [
@@ -94,6 +97,62 @@ class Problem(NavierStokesProblem):
         return tuple(functions)
 
     @cached_property
+    def projected_velocity(self):
+        # space = fem.FunctionSpace(self.domain.mesh, ("RT", 1))
+        space = fem.FunctionSpace(self.domain.mesh, ("BDM", 1))
+        return fem.Function(space, name="v0")
+
+    def update_projected_velocity(self):
+        if self.application_opts["scheme"] != "TH_naive":
+            v = self.solution_vars[0]
+            v0 = self.projected_velocity
+
+            # NOTE: Simple update from previous nonlinear iteration
+            # with v.vector.localForm() as v_loc, v0.vector.localForm() as v0_loc:
+            #     v0_loc.array[:] = v_loc.array_r[:]
+
+            # FIXME: Make use of self._projection utils
+            space = v0.function_space
+            v0_tr = ufl.TrialFunction(space)
+            v0_te = ufl.TestFunction(space)
+            a = ufl.inner(v0_tr, v0_te) * ufl.dx
+            L = ufl.inner(v, v0_te) * ufl.dx
+
+            Amat = fem.assemble_matrix(a)
+            Amat.assemble()
+
+            bvec = fem.create_vector(L)
+            with bvec.localForm() as bloc:
+                bloc.set(0.0)
+            fem.assemble_vector(bvec, L)
+            bvec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+
+            solver = PETSc.KSP().create(self.domain.comm)
+            solver.setOptionsPrefix("velocity_projector_")
+            solver.setOperators(Amat)
+            solver.setType("preonly")
+            solver.getPC().setType("lu")
+            solver.getPC().setFactorSolverType("mumps")
+            solver.setFromOptions()
+
+            solver.solve(bvec, v0.vector)
+            v0.vector.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+
+            # Q = fem.FunctionSpace(self.domain.mesh, ("DP", 0))
+            # q = ufl.TestFunction(Q)
+            # qvec = fem.assemble_vector(ufl.div(v0) * q * ufl.dx)
+            # PETSc.Sys.Print(f"div(v0) ~ {qvec.norm()} (weakly)")
+
+            # from dolfinx.io import XDMFFile
+            # mesh = self.domain.mesh
+            # mode = "w" if self.counter == 0 else "a"
+            # with XDMFFile(mesh.mpi_comm(), "v0.xdmf", mode) as xfile:
+            #     mesh.topology.create_connectivity_all()
+            #     xfile.write_mesh(mesh)
+            #     xfile.write_function(v0, t=self.counter)
+            # self.counter += 1
+
+    @cached_property
     def F_form(self):
         v, p, B = self.solution_vars
         v_te, p_te, B_te = self.test_functions
@@ -112,7 +171,12 @@ class Problem(NavierStokesProblem):
 
         F_p = -ufl.div(v) * p_te * dx  # NOTE: Stable scheme uses '+'!
 
-        F_B = ufl.inner(ufl.dot(ufl.grad(B), v), B_te) * dx
+        if self.application_opts["scheme"] == "TH_naive":
+            F_B = ufl.inner(ufl.dot(ufl.grad(B), v), B_te) * dx
+        else:
+            n = self.facet_normal
+            v0 = self.projected_velocity
+            F_B = ufl.sqrt(ufl.inner(v0("+"), n("+")) ** 2) * ufl.inner(ufl.jump(B), B_te("+")) * ufl.dS
         F_B -= ufl.inner(ufl.dot(ufl.grad(v), B) + ufl.dot(B, ufl.grad(v).T), B_te) * dx
         F_B += ufl.inner((1.0 / self.coeff("Wi")) * (B - self.I), B_te) * dx
 
