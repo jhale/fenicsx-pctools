@@ -476,10 +476,10 @@ def create_splittable_matrix_block(a, bcs=None, appctx=None, comm=None, options_
     method of the returned object.
     """
     ctx = SplittableMatrixBlock(a, bcs, appctx=appctx, comm=comm)
+    ctx.Mat.setOptionsPrefix(options_prefix)
     A = PETSc.Mat().create(comm=ctx.comm)
     A.setType("python")
     A.setPythonContext(ctx)  # NOTE: Set sizes (of matrix A) automatically from ctx.
-    A.setOptionsPrefix(options_prefix)
     A.setUp()
 
     return A
@@ -584,10 +584,10 @@ def create_splittable_matrix_monolithic(a, bcs=None, appctx=None, comm=None, opt
     ``assemble`` method of the returned object.
     """
     ctx = SplittableMatrixMonolithic(a, bcs, appctx=appctx, comm=comm)
+    ctx.Mat.setOptionsPrefix(options_prefix)
     A = PETSc.Mat().create(comm=ctx.comm)
     A.setType("python")
     A.setPythonContext(ctx)  # NOTE: Set sizes (of matrix A) automatically from ctx.
-    A.setOptionsPrefix(options_prefix)
     A.setUp()
 
     return A

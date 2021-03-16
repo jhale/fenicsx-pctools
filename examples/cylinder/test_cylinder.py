@@ -230,7 +230,6 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
     opts = PETSc.Options()
     # opts["options_left"] = None
     # opts["mat_mumps_icntl_4"] = 2
-    # opts["mat_mumps_icntl_14"] = 500
 
     petsc_conf = request.config.getoption("petscconf")
     if petsc_conf is None:
