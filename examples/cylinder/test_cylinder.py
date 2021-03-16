@@ -267,6 +267,7 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
             ns_x0.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
         SNESContext.vec_to_functions(ns_x0, problem.solution_vars[:2])
+        problem.update_projected_velocity()
 
     # Update solution vector with the initial guess from solution variables
     SNESContext.functions_to_vec(problem.solution_vars, x0)

@@ -42,13 +42,13 @@ class Problem(NavierStokesProblem):
                 ("v", fem.VectorFunctionSpace(mesh, ("CR", 1), dim=gdim)),
                 ("p", fem.FunctionSpace(mesh, ("DP", 0))),
                 ("B", fem.TensorFunctionSpace(mesh, ("DP", 0), shape=(gdim, gdim), symmetry=True)),
-            ]  # FIXME: Wrong element for B!
+            ]
         elif self.application_opts["scheme"] == "TH_stable":
             scheme = [
                 ("v", fem.VectorFunctionSpace(mesh, ("P", 2), dim=gdim)),
                 ("p", fem.FunctionSpace(mesh, ("P", 1))),
-                ("B", fem.TensorFunctionSpace(mesh, ("P", 2), shape=(gdim, gdim), symmetry=True)),
-            ]  # FIXME: Wrong element for B!
+                ("B", fem.TensorFunctionSpace(mesh, ("DP", 0), shape=(gdim, gdim), symmetry=True)),
+            ]
         else:
             scheme = [
                 ("v", fem.VectorFunctionSpace(mesh, ("P", 2), dim=gdim)),
@@ -98,7 +98,6 @@ class Problem(NavierStokesProblem):
 
     @cached_property
     def projected_velocity(self):
-        # space = fem.FunctionSpace(self.domain.mesh, ("RT", 1))
         space = fem.FunctionSpace(self.domain.mesh, ("BDM", 1))
         return fem.Function(space, name="v0")
 
@@ -115,8 +114,16 @@ class Problem(NavierStokesProblem):
             space = v0.function_space
             v0_tr = ufl.TrialFunction(space)
             v0_te = ufl.TestFunction(space)
-            a = ufl.inner(v0_tr, v0_te) * ufl.dx
-            L = ufl.inner(v, v0_te) * ufl.dx
+
+            n = self.facet_normal
+            a = (
+                ufl.inner(ufl.inner(v0_tr("+"), n("+")), ufl.inner(v0_te("+"), n("+"))) * ufl.dS
+                + ufl.inner(ufl.inner(v0_tr, n), ufl.inner(v0_te, n)) * ufl.ds
+            )
+            L = (
+                ufl.inner(ufl.inner(v("+"), n("+")), ufl.inner(v0_te("+"), n("+"))) * ufl.dS
+                + ufl.inner(ufl.inner(v, n), ufl.inner(v0_te, n)) * ufl.ds
+            )
 
             Amat = fem.assemble_matrix(a)
             Amat.assemble()
@@ -176,7 +183,12 @@ class Problem(NavierStokesProblem):
         else:
             n = self.facet_normal
             v0 = self.projected_velocity
-            F_B = ufl.sqrt(ufl.inner(v0("+"), n("+")) ** 2) * ufl.inner(ufl.jump(B), B_te("+")) * ufl.dS
+            F_B = (
+                ufl.sqrt(ufl.inner(v0("+"), n("+")) ** 2)
+                * ufl.inner(ufl.jump(B), B_te("+"))
+                * ufl.dS
+            )
+
         F_B -= ufl.inner(ufl.dot(ufl.grad(v), B) + ufl.dot(B, ufl.grad(v).T), B_te) * dx
         F_B += ufl.inner((1.0 / self.coeff("Wi")) * (B - self.I), B_te) * dx
 
