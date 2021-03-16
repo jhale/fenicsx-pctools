@@ -27,23 +27,36 @@ def main(N, scheme="CR"):
 
     def bndry_top(x):
         tol = 1.0 / N / 10.0  # to omit dofs in the corners of the domain
-        return np.logical_and.reduce((np.isclose(x[1], 1.0), x[0] > tol, x[0] < 1.0 - tol))
+        return np.logical_and(np.isclose(x[1], 1.0), x[0] > tol)
 
-    bfacets_all = locate_entities_boundary(mesh, 1, lambda x: np.full(x.shape[1], True))
-    bdofsVv_all = fem.locate_dofs_topological(Vv, 1, bfacets_all)
+    def bndry_bottom(x):
+        tol = 1.0 / N / 10.0  # to omit dofs in the corners of the domain
+        return np.logical_and(np.isclose(x[1], 0.0), x[0] > tol)
+
+    def bndry_left(x):
+        return np.isclose(x[0], 0.0)
+
+    def bndry_right(x):
+        return np.isclose(x[0], 1.0)
+
     bdofsVv_top = fem.locate_dofs_geometrical(Vv, bndry_top)
-    bdofsVv_rest = np.setdiff1d(bdofsVv_all, bdofsVv_top)
+    bdofsVv_bottom = fem.locate_dofs_geometrical(Vv, bndry_bottom)
+    bdofsVv_left = fem.locate_dofs_geometrical(Vv, bndry_left)
+    bdofsVv_right = fem.locate_dofs_geometrical(Vv, bndry_right)
 
-    def v_top_eval(x):
+    def v_left_eval(x):
         values = np.zeros((2, x.shape[1]))
-        values[0] = 0.1
+        values[0] = 0.25 * x[1] * (1.0 - x[1])
         return values
 
     v_zero = fem.Function(Vv, name="v_zero")
-    v_top = fem.Function(Vv, name="v_top")
-    v_top.interpolate(v_top_eval)
+    v_left = fem.Function(Vv, name="v_left")
+    v_left.interpolate(v_left_eval)
 
-    bcs = [fem.DirichletBC(v_top, bdofsVv_top), fem.DirichletBC(v_zero, bdofsVv_rest)]
+    bcs = [
+        fem.DirichletBC(v_left, bdofsVv_left),
+        fem.DirichletBC(v_zero, np.hstack((bdofsVv_top, bdofsVv_bottom))),
+    ]
 
     v_te = ufl.TestFunction(Vv)
     p_te = ufl.TestFunction(Vp)
@@ -95,13 +108,6 @@ def main(N, scheme="CR"):
     Fvec = fem.create_vector_block(F_form)
     x0 = fem.create_vector_block(F_form)
 
-    null_vec = Jmat.createVecLeft()
-    offset_p = Vv.dofmap.index_map.size_local * Vv.dofmap.index_map_bs
-    null_vec.array[offset_p:] = 1.0
-    null_vec.normalize()
-    nsp = PETSc.NullSpace().create(vectors=[null_vec])
-    Jmat.setNullSpace(nsp)
-
     opts = PETSc.Options()
     opts["snes_monitor"] = None
     opts["snes_converged_reason"] = None
@@ -110,7 +116,8 @@ def main(N, scheme="CR"):
     opts["ksp_type"] = "preonly"
     opts["pc_type"] = "lu"
     opts["pc_factor_mat_solver_type"] = "mumps"
-    opts["mat_mumps_icntl_24"] = 1  # null pivot row/column detection
+    opts["mat_mumps_icntl_4"] = 0  # verbosity
+    opts["mat_mumps_icntl_14"] = 50  # % increase in the estimated working space (default: 20)
     solver = PETSc.SNES().create(mesh.mpi_comm())
     solver.setFunction(snesctx_F, Fvec)
     solver.setJacobian(snesctx_J, J=Jmat, P=None)
