@@ -1,5 +1,6 @@
 #!/bin/bash
 set -eo pipefail
+CONTAINER_ENGINE=podman
 image=$1
 target=$2
 tag=${3:-"local/fenics_pctools:${target}"}
@@ -7,9 +8,9 @@ tag=${3:-"local/fenics_pctools:${target}"}
 
 set -u
 script_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-docker build \
-    -t ${tag} \
-    -f ${script_dir}/Dockerfile \
-    --target ${target} \
-    --build-arg IMAGE=${image} \
-    ${script_dir}/..
+${CONTAINER_ENGINE} build \
+		    -t ${tag} \
+		    -f ${script_dir}/Dockerfile \
+		    --target ${target} \
+		    --build-arg IMAGE=${image} \
+		    ${script_dir}/..
