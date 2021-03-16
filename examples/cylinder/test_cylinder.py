@@ -62,12 +62,13 @@ def _set_up_solver(problem, opts, options_prefix=None, options_file=None):
     J_form = fem.assemble._create_cpp_form(problem.J_form)
 
     # Set up PDE
+    residual_prehook = getattr(problem, "update_projected_velocity", None)
     snesctx = SNESContext(
         F_form,
         J_form,
         problem.solution_vars,
         problem.bcs,
-        residual_prehook=problem.update_projected_velocity,
+        residual_prehook=residual_prehook,
     )
 
     # Prepare vectors (jitted forms can be used here)
@@ -246,6 +247,29 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
     solver, x0, snesctx = _set_up_solver(
         problem, opts, options_prefix="main_solver_", options_file=petsc_conf
     )
+
+    # Navier-Stokes solve is done first to to get a good initial guess
+    run_ic_solve = model_name != "NavierStokes"
+    if run_ic_solve:
+        ns_module = _load_problem_module("NavierStokes", module_dir)
+        ns_problem = ns_module.Problem(domain, **problem.reduced_opts_for_NavierStokes)
+
+        ns_petsc_conf = os.path.join(module_dir, "petsc_NavierStokes_lu.conf")
+        assert os.path.isfile(petsc_conf)
+
+        ns_solver, ns_x0, ns_snes_ctx = _set_up_solver(
+            ns_problem, opts, options_prefix="ns_solver_", options_file=ns_petsc_conf
+        )
+
+        PETSc.Sys.Print("\nSolving Navier-Stokes problem to get an initial guess")
+        with PETSc.Log.Stage("Initial NS solve"):
+            ns_solver.solve(None, ns_x0)
+            ns_x0.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+
+        SNESContext.vec_to_functions(ns_x0, problem.solution_vars[:2])
+
+    # Update solution vector with the initial guess from solution variables
+    SNESContext.functions_to_vec(problem.solution_vars, x0)
 
     PETSc.Sys.Print(
         f"\nSolving on mesh with {domain.num_cells:g} cells ({problem.num_dofs:g} DOFs)..."
