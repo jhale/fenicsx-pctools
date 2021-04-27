@@ -51,8 +51,8 @@ class Problem(NavierStokesProblem):
             ]
         else:
             scheme = [
-                ("v", fem.VectorFunctionSpace(mesh, ("P", 2), dim=gdim)),
-                ("p", fem.FunctionSpace(mesh, ("P", 1))),
+                ("v", fem.VectorFunctionSpace(mesh, ("P", 4), dim=gdim)),
+                ("p", fem.FunctionSpace(mesh, ("DP", 3))),
                 ("B", fem.TensorFunctionSpace(mesh, ("P", 2), shape=(gdim, gdim), symmetry=True)),
             ]
 

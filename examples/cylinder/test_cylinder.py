@@ -248,29 +248,29 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
         problem, opts, options_prefix="main_solver_", options_file=petsc_conf
     )
 
-    # Navier-Stokes solve is done first to to get a good initial guess
-    run_ic_solve = model_name != "NavierStokes"
-    if run_ic_solve:
-        ns_module = _load_problem_module("NavierStokes", module_dir)
-        ns_problem = ns_module.Problem(domain, **problem.reduced_opts_for_NavierStokes)
+    # # Navier-Stokes solve is done first to to get a good initial guess
+    # run_ic_solve = model_name != "NavierStokes"
+    # if run_ic_solve:
+    #     ns_module = _load_problem_module("NavierStokes", module_dir)
+    #     ns_problem = ns_module.Problem(domain, **problem.reduced_opts_for_NavierStokes)
 
-        ns_petsc_conf = os.path.join(module_dir, "petsc_NavierStokes_lu.conf")
-        assert os.path.isfile(petsc_conf)
+    #     ns_petsc_conf = os.path.join(module_dir, "petsc_NavierStokes_lu.conf")
+    #     assert os.path.isfile(petsc_conf)
 
-        ns_solver, ns_x0, ns_snes_ctx = _set_up_solver(
-            ns_problem, opts, options_prefix="ns_solver_", options_file=ns_petsc_conf
-        )
+    #     ns_solver, ns_x0, ns_snes_ctx = _set_up_solver(
+    #         ns_problem, opts, options_prefix="ns_solver_", options_file=ns_petsc_conf
+    #     )
 
-        PETSc.Sys.Print("\nSolving Navier-Stokes problem to get an initial guess")
-        with PETSc.Log.Stage("Initial NS solve"):
-            ns_solver.solve(None, ns_x0)
-            ns_x0.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+    #     PETSc.Sys.Print("\nSolving Navier-Stokes problem to get an initial guess")
+    #     with PETSc.Log.Stage("Initial NS solve"):
+    #         ns_solver.solve(None, ns_x0)
+    #         ns_x0.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
-        SNESContext.vec_to_functions(ns_x0, problem.solution_vars[:2])
-        problem.update_projected_velocity()
+    #     SNESContext.vec_to_functions(ns_x0, problem.solution_vars[:2])
+    #     problem.update_projected_velocity()
 
-    # Update solution vector with the initial guess from solution variables
-    SNESContext.functions_to_vec(problem.solution_vars, x0)
+    # # Update solution vector with the initial guess from solution variables
+    # SNESContext.functions_to_vec(problem.solution_vars, x0)
 
     PETSc.Sys.Print(
         f"\nSolving on mesh with {domain.num_cells:g} cells ({problem.num_dofs:g} DOFs)..."
