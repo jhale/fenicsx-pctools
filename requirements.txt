@@ -1,7 +1,7 @@
 # Dependencies
 matplotlib==3.3.4
 pandas==1.1.2
-git+https://github.com/michalhabera/dolfiny.git@306636c#egg=dolfiny
+git+https://github.com/michalhabera/dolfiny.git@bba2a8b#egg=dolfiny
 
 # Development [optional]
 black==19.10b0

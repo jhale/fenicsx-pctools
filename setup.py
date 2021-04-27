@@ -7,7 +7,7 @@ VERSION = re.findall('__version__ = "(.*)"', open("fenics_pctools/__init__.py", 
 REQUIREMENTS = [
     "matplotlib>=3.3.4",
     "pandas>=1.1.2",
-    "dolfiny @ git+https://github.com/michalhabera/dolfiny.git@306636c#egg=dolfiny",
+    "dolfiny @ git+https://github.com/michalhabera/dolfiny.git@bba2a8b#egg=dolfiny",
 ]
 
 REQUIREMENTS_dev = [
