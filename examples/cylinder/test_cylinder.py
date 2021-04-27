@@ -62,13 +62,21 @@ def _set_up_solver(problem, opts, options_prefix=None, options_file=None):
     J_form = fem.assemble._create_cpp_form(problem.J_form)
 
     # Set up PDE
-    snesctx = SNESContext(F_form, J_form, problem.solution_vars, problem.bcs)
+    residual_prehook = getattr(problem, "update_projected_velocity", None)
+    snesctx = SNESContext(
+        F_form,
+        J_form,
+        problem.solution_vars,
+        problem.bcs,
+        residual_prehook=residual_prehook,
+    )
 
     # Prepare vectors (jitted forms can be used here)
     Fvec = fem.create_vector_block(F_form)
     x0 = fem.create_vector_block(F_form)
 
     solver = PETSc.SNES().create(problem.domain.comm)
+    solver.setInitialGuess(snesctx.functions_to_vec(problem.solution_vars, x0))
     solver.setFunction(snesctx.F_block, Fvec)
     solver.setJacobian(snesctx.J_block, J=Jmat, P=None)
     solver.setMonitor(snesctx.monitor)
@@ -177,8 +185,24 @@ def domain(comm, request):
 
 
 _fullconfigs = {
-    "NavierStokes": {"beta": 1.0, "Re": 0.0, "bc_outlet": "NoEnd"},
-    "OldroydB": {"beta": 0.59, "Re": 0.0, "Wi": 0.1, "bc_outlet": "NoEnd"},
+    "NavierStokes": {
+        "beta": 1.0,
+        "Re": 0.0,
+        "bc_outlet": "NoEnd",
+        # "bc_outlet": "NoTraction",
+        "scheme": "TH",
+        # "scheme": "CR",
+    },
+    "OldroydB": {
+        "beta": 0.59,
+        "Re": 0.0,
+        "Wi": 0.1,
+        "bc_outlet": "NoEnd",
+        # "bc_outlet": "NoTraction",
+        "scheme": "TH_naive",
+        # "scheme": "TH_stable",
+        # "scheme": "CR_stable",
+    },
 }
 
 
@@ -213,7 +237,6 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
     opts = PETSc.Options()
     # opts["options_left"] = None
     # opts["mat_mumps_icntl_4"] = 2
-    # opts["mat_mumps_icntl_14"] = 500
 
     petsc_conf = request.config.getoption("petscconf")
     if petsc_conf is None:
@@ -224,6 +247,30 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
     solver, x0, snesctx = _set_up_solver(
         problem, opts, options_prefix="main_solver_", options_file=petsc_conf
     )
+
+    # Navier-Stokes solve is done first to to get a good initial guess
+    run_ic_solve = model_name != "NavierStokes"
+    if run_ic_solve:
+        ns_module = _load_problem_module("NavierStokes", module_dir)
+        ns_problem = ns_module.Problem(domain, **problem.reduced_opts_for_NavierStokes)
+
+        ns_petsc_conf = os.path.join(module_dir, "petsc_NavierStokes_lu.conf")
+        assert os.path.isfile(petsc_conf)
+
+        ns_solver, ns_x0, ns_snes_ctx = _set_up_solver(
+            ns_problem, opts, options_prefix="ns_solver_", options_file=ns_petsc_conf
+        )
+
+        PETSc.Sys.Print("\nSolving Navier-Stokes problem to get an initial guess")
+        with PETSc.Log.Stage("Initial NS solve"):
+            ns_solver.solve(None, ns_x0)
+            ns_x0.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+
+        SNESContext.vec_to_functions(ns_x0, problem.solution_vars[:2])
+        problem.update_projected_velocity()
+
+    # Update solution vector with the initial guess from solution variables
+    SNESContext.functions_to_vec(problem.solution_vars, x0)
 
     PETSc.Sys.Print(
         f"\nSolving on mesh with {domain.num_cells:g} cells ({problem.num_dofs:g} DOFs)..."
@@ -242,9 +289,9 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
 
         SNESContext.vec_to_functions(x0, problem.solution_vars)
 
-        # FIXME: Use `dolfinx.function.Expression` for direct evaluation (instead of projections)!
-        with PETSc.Log.Stage(f"{model_name}: projection postprocessing step #{counter}"):
-            T_h = problem.projected_stress
+        # # FIXME: Use `dolfinx.function.Expression` for direct evaluation (instead of projections)!
+        # with PETSc.Log.Stage(f"{model_name}: projection postprocessing step #{counter}"):
+        #     T_h = problem.projected_stress
 
         # Save results
         n = problem.facet_normal
@@ -306,7 +353,7 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
 
         # Save ParaView plots
         if not request.config.getoption("noxdmf"):
-            for field in problem.solution_vars + tuple([T_h]):
+            for field in problem.solution_vars:  # + tuple([T_h]):
                 xfile = f"{model_name}_field_{field.name}.xdmf"
                 xfile = os.path.join(results_dir, xfile)
                 mode = "w" if counter == 0 else "a"

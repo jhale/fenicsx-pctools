@@ -78,7 +78,7 @@ def _generate_tables(outdir, results_file):
         data_1 = data_0.loc[data_0["pc_approach"] == pc_approach].reset_index(drop=True)
         content = _prepare_table_content(data_1)
 
-        caption = r"Nonliner iteration counts, total linear iterations, total iterations for"
+        caption = r"Nonlinear iteration counts, total linear iterations, total iterations for"
         caption += r" Navier-Stokes and temperature solves (with average iterations"
         caption += r" per outer linear solve in brackets), and time to solution"
         caption += fr" for Rayleigh-Bénard convection with \emph{{{pc_approach}}} preconditioning."

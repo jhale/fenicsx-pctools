@@ -15,6 +15,7 @@ class Problem(object):
     #   Model parameters are coefficients that will be set as class attributes. At the same time,
     #   we store the coefficients wrapped as appropriate DOLFINX/UFL objects in a cache; use `coeff`
     #   member function to access the cached objects.
+    discretization_schemes = ("TH", "CR")
 
     def __init__(self, domain, **kwargs):
         self.domain = domain
@@ -23,15 +24,11 @@ class Problem(object):
         self.I = ufl.Identity(domain.mesh.geometry.dim)  # noqa: E741
         self.facet_normal = ufl.FacetNormal(domain.mesh)
 
-        # Parse application-specific options
+        # Application-specific options
         self.application_opts = {}
-        bc_outlet = kwargs.pop("bc_outlet", "NoTraction")
-        assert bc_outlet in ["NoTraction", "NoEnd"]
-        self.application_opts["bc_outlet"] = bc_outlet
 
-        # Keep options for reduced Navier-Stokes (NS) problem as a special variable
-        # NOTE: NS problem is often solved to get a good initial guess for more complicated models.
-        self._ns_opts = self.application_opts.copy()
+        # Options for reduced Navier-Stokes (NS) problem
+        self._ns_opts = {}
 
         # Init cache
         self._coeffs = {}  # for UFL coefficients
@@ -54,9 +51,19 @@ class Problem(object):
             if value is None:
                 raise ValueError(f"Missing parameter '{prm}'")
             setattr(self, prm, value)
+
+        bc_outlet = kwargs.pop("bc_outlet", "NoTraction")
+        assert bc_outlet in ["NoTraction", "NoEnd"]
+        self.application_opts["bc_outlet"] = bc_outlet
+
+        scheme = kwargs.pop("scheme", "TH")
+        assert scheme in self.discretization_schemes
+        self.application_opts["scheme"] = scheme
+
         if kwargs:
             raise RuntimeError(f"Unused parameters passed to {type(self).__name__}: {kwargs}")
 
+        self._ns_opts.update(self.application_opts)
         for prm in Problem.model_parameters:
             self._ns_opts[prm] = getattr(self, prm, None)
 
@@ -85,12 +92,19 @@ class Problem(object):
     @cached_property
     def _mixed_space(self):
         mesh = self.domain.mesh
-        family = "P" if mesh.ufl_cell() == ufl.triangle else "Q"
 
-        return [
-            ("v", fem.VectorFunctionSpace(mesh, (family, 2), dim=mesh.geometry.dim)),
-            ("p", fem.FunctionSpace(mesh, (family, 1))),
-        ]
+        if self.application_opts["scheme"] == "CR":
+            space = [
+                ("v", fem.VectorFunctionSpace(mesh, ("CR", 1), dim=mesh.geometry.dim)),
+                ("p", fem.FunctionSpace(mesh, ("DP", 0))),
+            ]
+        else:
+            space = [
+                ("v", fem.VectorFunctionSpace(mesh, ("P", 2), dim=mesh.geometry.dim)),
+                ("p", fem.FunctionSpace(mesh, ("P", 1))),
+            ]
+
+        return space
 
     @property
     def function_names(self):
@@ -130,6 +144,9 @@ class Problem(object):
         for name, subspace in self._mixed_space:
             functions.append(fem.Function(subspace, name=name))
 
+        # NOTE: Uncomment to set nonzero initial guess for velocity
+        # functions[0].interpolate(self.inlet_velocity_profile)
+
         return tuple(functions)
 
     @cached_property
@@ -140,6 +157,12 @@ class Problem(object):
 
         # Volume contributions
         F_v = ufl.inner(self.T(v, p), self.D(v_te)) * dx
+
+        # NOTE: Stabilization required by CR element - NOT WORKING as it gives NaNs!
+        if self.application_opts["scheme"] == "CR":
+            h = ufl.FacetArea(self.domain.mesh)
+            F_v += (1.0 / h) * ufl.inner(ufl.jump(v), ufl.jump(v_te)) * ufl.dS
+
         # NOTE: Inertia omitted!
         # F_v += self.coeff("Re") * ufl.inner(ufl.dot(ufl.grad(v), v), v_te) * dx
 
