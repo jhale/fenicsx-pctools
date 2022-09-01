@@ -88,6 +88,7 @@ Authors
 =======
 
 - Martin Řehoř <martin.rehor@rafinex.com>
+- Jack S. Hale <mail@jackhale.co.uk>
 
 License
 =======
