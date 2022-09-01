@@ -1,7 +1,8 @@
 import ufl
 
 from petsc4py import PETSc
-from dolfinx import fem, Function
+import dolfinx.fem
+from dolfinx.fem import Function
 
 from fenics_pctools.pc.base import PCBase
 

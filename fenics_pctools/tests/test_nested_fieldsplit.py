@@ -4,9 +4,9 @@ import numpy as np
 import ufl
 
 from petsc4py import PETSc
-from dolfinx.generation import UnitSquareMesh
-from dolfinx.fem.function import Function, FunctionSpace
 from dolfinx import cpp, fem
+from dolfinx.mesh import create_unit_square, CellType
+from dolfinx.fem import Function, FunctionSpace
 
 from fenics_pctools.mat.splittable import (
     create_splittable_matrix_monolithic,
@@ -18,7 +18,7 @@ from fenics_pctools.mat.splittable import (
     params=itertools.product(
         # ["block", "nest", "monolithic"],
         ["block"],
-        [cpp.mesh.CellType.triangle, cpp.mesh.CellType.quadrilateral],
+        [CellType.triangle, CellType.quadrilateral],
     )
 )
 def space(request, comm):
@@ -63,7 +63,7 @@ def space(request, comm):
 
     ghost_mode = cpp.mesh.GhostMode.shared_facet
     # ghost_mode = cpp.mesh.GhostMode.none
-    mesh = UnitSquareMesh(comm, 4, 4, cell_type=cell_type, ghost_mode=ghost_mode)
+    mesh = create_unit_square(comm, 4, 4, cell_type=cell_type, ghost_mode=ghost_mode)
     return MixedSpace(mesh, structure)
 
 

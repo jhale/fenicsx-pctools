@@ -2,7 +2,7 @@ import pytest
 import ufl
 
 from petsc4py import PETSc
-from dolfinx.generation import UnitSquareMesh
+from dolfinx.mesh import create_unit_square
 from dolfinx.fem.function import Function, FunctionSpace
 from dolfinx import fem
 
@@ -39,7 +39,7 @@ def get_vector_space():
     ids=["equal subspaces", "different subspaces"],
 )
 def test_nested_fieldsplit(get_vector_space, equal_discretization, comm):
-    mesh = UnitSquareMesh(comm, 4, 4)
+    mesh = create_unit_square(comm, 4, 4)
     V = get_vector_space(mesh, equal_discretization)
     bs = V.dofmap.dof_layout.block_size()
     if equal_discretization:
