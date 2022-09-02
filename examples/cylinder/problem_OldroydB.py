@@ -233,7 +233,7 @@ class Problem(NavierStokesProblem):
         B_inlet = fem.Function(VB, name="B_inlet")
         B_inlet.interpolate(self.inlet_stress_profile)
 
-        bcs.append(fem.DirichletBC(B_inlet, inlet_dofsVB))
+        bcs.append(fem.dirichletbc(B_inlet, inlet_dofsVB))
 
         return tuple(bcs)
 

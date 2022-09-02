@@ -8,9 +8,10 @@ import ufl
 
 from mpi4py import MPI
 from petsc4py import PETSc
-from dolfinx import cpp, fem, MeshTags
+from dolfinx import cpp, fem
 from dolfinx.io import XDMFFile
 from dolfinx.common import list_timings, TimingType
+from dolfinx.mesh import meshtags
 from dolfiny.mesh import gmsh_to_dolfin, merge_meshtags
 
 from fenics_pctools.mat.splittable import create_splittable_matrix_block
@@ -58,8 +59,8 @@ def _set_up_solver(problem, opts, options_prefix=None, options_file=None):
     )
 
     # Compile each UFL Form into dolfinx Form for better assembly performance
-    F_form = fem.assemble._create_cpp_form(problem.F_form)
-    J_form = fem.assemble._create_cpp_form(problem.J_form)
+    F_form = fem.form(problem.F_form)
+    J_form = fem.form(problem.J_form)
 
     # Set up PDE
     residual_prehook = getattr(problem, "update_projected_velocity", None)
@@ -72,8 +73,8 @@ def _set_up_solver(problem, opts, options_prefix=None, options_file=None):
     )
 
     # Prepare vectors (jitted forms can be used here)
-    Fvec = fem.create_vector_block(F_form)
-    x0 = fem.create_vector_block(F_form)
+    Fvec = fem.petsc.create_vector_block(F_form)
+    x0 = fem.petsc.create_vector_block(F_form)
 
     solver = PETSc.SNES().create(problem.domain.comm)
     solver.setInitialGuess(snesctx.functions_to_vec(problem.solution_vars, x0))
@@ -125,7 +126,7 @@ def domain(comm, request):
     imap = mesh.topology.index_map(facetdim)
     indices = np.arange(0, imap.size_local + imap.num_ghosts)
     values = np.zeros_like(indices, dtype=np.intc)
-    mesh_tags_facets = MeshTags(mesh, facetdim, indices, values)
+    mesh_tags_facets = meshtags(mesh, facetdim, indices, values)
     mesh_tags_facets.values[mts_merged.indices] = mts_merged.values
 
     class Domain:
@@ -139,7 +140,7 @@ def domain(comm, request):
 
         @property
         def comm(self):
-            return self.mesh.mpi_comm()
+            return self.mesh.comm
 
         @property
         def num_vertices(self):
@@ -302,9 +303,7 @@ def test_cylinder(domain, model_name, results_dir, timestamp, request):
             "F_drag": -ufl.inner(2.0 * ufl.dot(T, n), e_x) * ds("cylinder"),
         }
         for key, val in integrals.items():
-            if counter == 0:
-                integrals[key] = fem.form.Form(val)
-            integrals[key] = comm.allreduce(fem.assemble_scalar(integrals[key]), op=MPI.SUM)
+            integrals[key] = comm.allreduce(fem.assemble_scalar(fem.form(integrals[key])), op=MPI.SUM)
 
         filename = f"{os.path.splitext(module_name[5:])[0]}_{model_name}.csv"
         results_file = os.path.join(results_dir, filename)

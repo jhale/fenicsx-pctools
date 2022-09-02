@@ -18,7 +18,7 @@ class SNESContext:
         self.norm_dx = {}
         self.norm_x = {}
 
-        self.comm = self.solution_vars[0].function_space.mesh.mpi_comm()
+        self.comm = self.solution_vars[0].function_space.mesh.comm
 
     @staticmethod
     def vec_to_functions(x, u):
@@ -50,18 +50,18 @@ class SNESContext:
         x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
         self.vec_to_functions(x, self.solution_vars)
 
-        fem.assemble_vector_block(F, self.L, self.a, self.bcs, x0=x, scale=-1.0)
+        fem.petsc.assemble_vector_block(F, self.L, self.a, self.bcs, x0=x, scale=-1.0)
         F.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
     def J_block(self, snes, x, J, P):
         J.zeroEntries()
         if J.getType() != "python":
-            fem.assemble_matrix_block(J, self.a, self.bcs, diagonal=1.0)
+            fem.petsc.assemble_matrix_block(J, self.a, self.bcs, diagonal=1.0)
         J.assemble()
         if self.a_precon is not None:
             P.zeroEntries()
             if P.getType() != "python":
-                fem.assemble_matrix_block(P, self.a_precon, self.bcs, diagonal=1.0)
+                fem.petsc.assemble_matrix_block(P, self.a_precon, self.bcs, diagonal=1.0)
             P.assemble()
 
     def compute_norms(self, snes):

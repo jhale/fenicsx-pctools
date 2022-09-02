@@ -225,8 +225,8 @@ class Problem(object):
         bf["cylinder"] = np.where(domain.mesh_tags_facets.values == bnd_cylinder)[0]
 
         inlet_dofsVv = fem.locate_dofs_topological(Vv, facetdim, bf["in"])
-        outlet_dofsVv_y = fem.locate_dofs_topological((Vv.sub(1), Vv_y), facetdim, bf["out"])
-        symm_dofsVv_y = fem.locate_dofs_topological((Vv.sub(1), Vv_y), facetdim, bf["symm"])
+        outlet_dofsVv_y = fem.locate_dofs_topological((Vv.sub(1), Vv_y[0]), facetdim, bf["out"])
+        symm_dofsVv_y = fem.locate_dofs_topological((Vv.sub(1), Vv_y[0]), facetdim, bf["symm"])
         wall_dofsVv = fem.locate_dofs_topological(Vv, facetdim, bf["wall"])
         cylinder_dofsVv = fem.locate_dofs_topological(Vv, facetdim, bf["cylinder"])
 
@@ -268,16 +268,16 @@ class Problem(object):
         v_zero = fem.Function(Vv, name="v_zero")
         v_inlet = fem.Function(Vv, name="v_inlet")
         v_inlet.interpolate(self.inlet_velocity_profile)
-        v_y_zero = fem.Function(Vv_y, name="v_y_zero")
+        v_y_zero = fem.Function(Vv_y[0], name="v_y_zero")
 
         bcs = [
-            fem.DirichletBC(v_inlet, inlet_dofsVv),
-            fem.DirichletBC(v_zero, walls_dofsVv),
-            fem.DirichletBC(v_y_zero, symm_dofsVv_y, Vv.sub(1)),
+            fem.dirichletbc(v_inlet, inlet_dofsVv),
+            fem.dirichletbc(v_zero, walls_dofsVv),
+            fem.dirichletbc(v_y_zero, symm_dofsVv_y, Vv.sub(1)),
         ]
 
         if self.application_opts["bc_outlet"] == "NoEnd":
-            bcs.append(fem.DirichletBC(v_y_zero, outlet_dofsVv_y, Vv.sub(1)))
+            bcs.append(fem.dirichletbc(v_y_zero, outlet_dofsVv_y, Vv.sub(1)))
 
         return tuple(bcs)
 
