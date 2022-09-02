@@ -66,7 +66,7 @@ def _analyse_block_structure(space):
         set to 1. The block size is set correctly only for spaces with components from the same
         subspace (e.g. those created with `dfx.VectorFunctionSpace` or `dfx.TensorFunctionSpace`).
     """
-    num_blocks = space.element.num_sub_elements() or 1  # no/zero subspaces -> single block
+    num_blocks = space.element.num_sub_elements or 1  # no/zero subspaces -> single block
     bs = space.dofmap.index_map_bs  # 1 for "truly" mixed function spaces
 
     if bs < num_blocks:
@@ -537,7 +537,7 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
         self._comm = _extract_comm(test_space, trial_space)
 
     def _create_mat_object(self):
-        A = fem.create_matrix(self._a)
+        A = fem.petsc.create_matrix(self.jitted_form)
 
         return A
 
@@ -546,7 +546,7 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
         return ([], [])
 
     def assemblyBegin(self, mat, assembly=None):
-        fem.assemble_matrix(self.Mat, self._a, self._bcs, diagonal=1.0)
+        fem.petsc.assemble_matrix(self.Mat, self.jitted_form, self._bcs)
 
     def assemblyEnd(self, mat, assembly=None):
         self.Mat.assemble()
