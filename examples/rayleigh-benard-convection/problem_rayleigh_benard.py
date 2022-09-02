@@ -5,8 +5,9 @@ from functools import cached_property
 from collections import OrderedDict
 from petsc4py import PETSc
 from ufl import dot, inner, grad, div, dx
-from dolfinx import cpp, fem, UnitCubeMesh, Constant, Function, FunctionSpace, VectorFunctionSpace
-from dolfinx.mesh import MeshTags, locate_entities, locate_entities_boundary
+
+from dolfinx.mesh import create_unit_cube, meshtags, locate_entities, locate_entities_boundary, CellType, GhostMode
+from dolfinx.fem import Constant, Function, FunctionSpace, VectorFunctionSpace, locate_dofs_topological, dirichletbc
 
 
 def get_boundary_mask(mesh):
@@ -31,15 +32,15 @@ class Problem(object):
 
     @cached_property
     def domain_data(self):
-        cell_type = cpp.mesh.CellType.tetrahedron
+        cell_type = CellType.tetrahedron
         # cell_type = cpp.mesh.CellType.hexahedron
-        ghost_mode = cpp.mesh.GhostMode.shared_facet
+        ghost_mode = GhostMode.shared_facet
 
-        mesh = UnitCubeMesh(self.comm, self.N, self.N, self.N, cell_type, ghost_mode)
-        mesh.topology.create_connectivity_all()
+        mesh = create_unit_cube(self.comm, self.N, self.N, self.N, cell_type, ghost_mode)
+        mesh.topology.create_connectivity(2, 2)
         imap = mesh.topology.index_map(2)
         indices = np.arange(0, imap.size_local + imap.num_ghosts)
-        mesh_tags_facets = MeshTags(mesh, 2, indices, np.zeros_like(indices, dtype=np.intc))
+        mesh_tags_facets = meshtags(mesh, 2, indices, np.zeros_like(indices, dtype=np.intc))
         bndry_tag_map = {"left": 1, "right": 2, "rest": 3}
 
         bndry_mask = get_boundary_mask(mesh)
@@ -171,30 +172,30 @@ class Problem(object):
 
         left_id = bndry_tag_map["left"]
         left_facets = np.where(mesh_tags_facets.values == left_id)[0]
-        leftdofsV_v = fem.locate_dofs_topological(V_v, facetdim, left_facets)
-        leftdofsV_T = fem.locate_dofs_topological(V_T, facetdim, left_facets)
+        leftdofsV_v = locate_dofs_topological(V_v, facetdim, left_facets)
+        leftdofsV_T = locate_dofs_topological(V_T, facetdim, left_facets)
 
         right_id = bndry_tag_map["right"]
         right_facets = np.where(mesh_tags_facets.values == right_id)[0]
-        rightdofsV_v = fem.locate_dofs_topological(V_v, facetdim, right_facets)
-        rightdofsV_T = fem.locate_dofs_topological(V_T, facetdim, right_facets)
+        rightdofsV_v = locate_dofs_topological(V_v, facetdim, right_facets)
+        rightdofsV_T = locate_dofs_topological(V_T, facetdim, right_facets)
 
         rest_id = bndry_tag_map["rest"]
         rest_facets = np.where(mesh_tags_facets.values == rest_id)[0]
-        restdofsV_v = fem.locate_dofs_topological(V_v, facetdim, rest_facets)
+        restdofsV_v = locate_dofs_topological(V_v, facetdim, rest_facets)
 
         bcs = []
 
         v_walls = Function(V_v)
         wallsdofsV_v = np.unique(np.hstack((leftdofsV_v, rightdofsV_v, restdofsV_v)))
-        bcs.append(fem.DirichletBC(v_walls, wallsdofsV_v))
+        bcs.append(dirichletbc(v_walls, wallsdofsV_v))
 
         T_left = Function(V_T)
         with T_left.vector.localForm() as T_local:
             T_local.set(1.0)
-        bcs.append(fem.DirichletBC(T_left, leftdofsV_T))
+        bcs.append(dirichletbc(T_left, leftdofsV_T))
 
         T_right = Function(V_T)
-        bcs.append(fem.DirichletBC(T_right, rightdofsV_T))
+        bcs.append(dirichletbc(T_right, rightdofsV_T))
 
         return tuple(bcs)

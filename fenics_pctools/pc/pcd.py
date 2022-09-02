@@ -1,7 +1,7 @@
 import ufl
 
 from petsc4py import PETSc
-import dolfinx.fem
+from dolfinx import fem
 from dolfinx.fem import Function
 
 from fenics_pctools.pc.base import PCBase
@@ -35,18 +35,18 @@ class PCDPCBase(PCBase):
         p_tr = ufl.TrialFunction(V_p)
         p_te = ufl.TestFunction(V_p)
 
-        self.ghosted_workvec = fem.create_vector(p_te * ufl.dx)  # aux. vector used to apply BCs
+        self.ghosted_workvec = fem.petsc.create_vector(fem.form(p_te * ufl.dx))  # aux. vector used to apply BCs
 
         ufl_form_Mp = Pctx.appctx.get("ufl_form_Mp", None)
         if ufl_form_Mp is None:
             nu = Pctx.appctx.get("nu", 1.0)
             ufl_form_Mp = (1.0 / nu) * ufl.inner(p_tr, p_te) * ufl.dx
-        form_Mp = fem.assemble._create_cpp_form(ufl_form_Mp)
+        form_Mp = fem.form(ufl_form_Mp)
 
-        Mp = fem.create_matrix(form_Mp)
+        Mp = fem.petsc.create_matrix(form_Mp)
         Mp.setOption(PETSc.Mat.Option.SPD, True)
         Mp.setOptionsPrefix(prefix + "Mp_")
-        fem.assemble_matrix(Mp, form_Mp, bcs=[], diagonal=1.0)
+        fem.petsc.assemble_matrix(Mp, form_Mp, bcs=[], diagonal=1.0)
         Mp.assemble()
 
         # TODO: Is this needed?
@@ -71,13 +71,13 @@ class PCDPCBase(PCBase):
             # TODO: Add stabilization term so we don't need to think about nullspaces anymore?
             # from dolfinx import Constant
             # ufl_form_Ap += Constant(V_p.mesh, 1e-6) * p_tr * p_te * ufl.dx
-        self.form_Ap = fem.assemble._create_cpp_form(ufl_form_Ap)
+        self.form_Ap = fem.form(ufl_form_Ap)
 
         self.bcs_pcd = bcs_pcd = Pctx.appctx.get("bcs_pcd", [])
 
-        Ap = fem.create_matrix(self.form_Ap)
+        Ap = fem.petsc.create_matrix(self.form_Ap)
         Ap.setOptionsPrefix(prefix + "Ap_")
-        fem.assemble_matrix(Ap, self.form_Ap, bcs=bcs_pcd, diagonal=1.0)
+        fem.petsc.assemble_matrix(Ap, self.form_Ap, bcs=bcs_pcd, diagonal=1.0)
         Ap.assemble()
 
         if not bcs_pcd:
@@ -113,16 +113,16 @@ class PCDPCBase(PCBase):
             if type(self).__name__ == "PCDPC_vY" and ds_in is not None:
                 n = ufl.FacetNormal(ds_in.subdomain_data().mesh)
                 ufl_form_Kp -= (1.0 / nu) * ufl.dot(v, n) * p_tr * p_te * ds_in
-        self.form_Kp = fem.assemble._create_cpp_form(ufl_form_Kp)
+        self.form_Kp = fem.form(ufl_form_Kp)
 
-        self.Kp = Kp = fem.create_matrix(self.form_Kp)
+        self.Kp = Kp = fem.petsc.create_matrix(self.form_Kp)
         Kp.setOptionsPrefix(prefix + "Kp_")
-        fem.assemble_matrix(Kp, self.form_Kp, bcs=[], diagonal=1.0)
+        fem.petsc.assemble_matrix(Kp, self.form_Kp, bcs=[], diagonal=1.0)
         Kp.assemble()
 
     def update(self, pc):
         self.Kp.zeroEntries()
-        fem.assemble_matrix(self.Kp, self.form_Kp, bcs=[], diagonal=1.0)
+        fem.petsc.assemble_matrix(self.Kp, self.form_Kp, bcs=[], diagonal=1.0)
         self.Kp.assemble()
 
     def get_work_vecs(self, v, num):

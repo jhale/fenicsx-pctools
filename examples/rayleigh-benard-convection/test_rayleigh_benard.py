@@ -224,7 +224,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
             x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
             self.vec_to_functions(x, self.solution_vars)
 
-            fem.assemble_vector_block(F, self.L, self.a, self.bcs, x0=x, scale=-1.0)
+            fem.petsc.assemble_vector_block(F, self.L, self.a, self.bcs, x0=x, scale=-1.0)
             F.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
         def J_block(self, snes, x, J, P):
@@ -255,13 +255,13 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
     Jmat.setNullSpace(nsp)
 
     # Compile each UFL Form into dolfinx Form for better assembly performance
-    F_form = fem.assemble._create_cpp_form(problem.F_form)
-    J_form = fem.assemble._create_cpp_form(problem.J_form)
+    F_form = fem.form(problem.F_form)
+    J_form = fem.form(problem.J_form)
     pdeproblem = PDEProblem(F_form, J_form, problem.u, problem.bcs)
 
     # Prepare vectors (jitted forms can be used here)
-    Fvec = fem.create_vector_block(F_form)
-    x0 = fem.create_vector_block(F_form)
+    Fvec = fem.petsc.create_vector_block(F_form)
+    x0 = fem.petsc.create_vector_block(F_form)
 
     solver = PETSc.SNES().create(comm)
     solver.setFunction(pdeproblem.F_block, Fvec)
