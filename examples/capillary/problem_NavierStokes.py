@@ -6,7 +6,7 @@ from functools import cached_property
 from mpi4py import MPI
 from petsc4py import PETSc
 from dolfinx import fem, cpp
-from dolfinx.mesh import locate_entities_boundary, create_meshtags
+from dolfinx.mesh import locate_entities_boundary, meshtags
 
 
 class Problem(object):
@@ -128,7 +128,7 @@ class Problem(object):
             entities = cpp.graph.AdjacencyList_int32(e_to_v[facets])
             values = np.full(facets.shape[0], 1, dtype=np.int32)
 
-            mt = create_meshtags(domain.mesh, facetdim, entities, values)
+            mt = meshtags(domain.mesh, facetdim, entities, values)
             ds = ufl.Measure("ds", domain=domain.mesh, subdomain_data=mt, subdomain_id=1)
             size = domain.comm.allreduce(fem.assemble_scalar(1.0 * ds), op=MPI.SUM)
 
@@ -347,8 +347,8 @@ class Problem(object):
         bf["w3"] = np.where(domain.mesh_tags_facets.values == bnd_w3)[0]
 
         inlet_dofsVv = fem.locate_dofs_topological(Vv, facetdim, bf["in"])
-        outlet_dofsVv_r = fem.locate_dofs_topological((Vv.sub(r_index), Vv_r), facetdim, bf["out"])
-        symm_dofsVv_r = fem.locate_dofs_topological((Vv.sub(r_index), Vv_r), facetdim, bf["symm"])
+        outlet_dofsVv_r = fem.locate_dofs_topological((Vv.sub(r_index), Vv_r[0]), facetdim, bf["out"])
+        symm_dofsVv_r = fem.locate_dofs_topological((Vv.sub(r_index), Vv_r[0]), facetdim, bf["symm"])
         w1_dofsVv = fem.locate_dofs_topological(Vv, facetdim, bf["w1"])
         w2_dofsVv = fem.locate_dofs_topological(Vv, facetdim, bf["w2"])
         w3_dofsVv = fem.locate_dofs_topological(Vv, facetdim, bf["w3"])
@@ -382,23 +382,23 @@ class Problem(object):
         v_zero = fem.Function(Vv, name="v_zero")
         v_inlet = fem.Function(Vv, name="v_inlet")
         v_inlet.interpolate(self.inlet_velocity_profile)
-        v_r_zero = fem.Function(Vv_r, name="v_r_zero")
+        v_r_zero = fem.Function(Vv_r[0], name="v_r_zero")
 
         bcs = [
-            fem.DirichletBC(v_inlet, inlet_dofsVv),
-            fem.DirichletBC(v_zero, walls_dofsVv),
-            fem.DirichletBC(v_r_zero, symm_dofsVv_r, Vv.sub(r_index)),
+            fem.dirichletbc(v_inlet, inlet_dofsVv),
+            fem.dirichletbc(v_zero, walls_dofsVv),
+            fem.dirichletbc(v_r_zero, symm_dofsVv_r, Vv.sub(r_index)),
         ]
 
         if self.application_opts["bc_outlet"] == "NoEnd":
-            bcs.append(fem.DirichletBC(v_r_zero, outlet_dofsVv_r, Vv.sub(r_index)))
+            bcs.append(fem.dirichletbc(v_r_zero, outlet_dofsVv_r, Vv.sub(r_index)))
 
         # Enforce zero azimuthal velocity
         axisymm_dofsVv_phi = fem.locate_dofs_geometrical(
-            (Vv.sub(phi_index), Vv_phi), lambda x: np.full((x.shape[1],), True)
+            (Vv.sub(phi_index), Vv_phi[0]), lambda x: np.full((x.shape[1],), True)
         )
-        v_phi_zero = fem.Function(Vv_phi)
-        bcs.append(fem.DirichletBC(v_phi_zero, axisymm_dofsVv_phi, Vv.sub(phi_index)))
+        v_phi_zero = fem.Function(Vv_phi[0])
+        bcs.append(fem.dirichletbc(v_phi_zero, axisymm_dofsVv_phi, Vv.sub(phi_index)))
 
         return tuple(bcs)
 
@@ -408,7 +408,7 @@ class Problem(object):
         facetdim = self.domain.mesh.topology.dim - 1
         inlet_dofsVp = fem.locate_dofs_topological(Vp, facetdim, self._bndry_facets["in"])
 
-        return [fem.DirichletBC(fem.Function(Vp), inlet_dofsVp)]
+        return [fem.dirichletbc(fem.Function(Vp), inlet_dofsVp)]
 
     @cached_property
     def pcd_bcs_outlet(self):
@@ -424,7 +424,7 @@ class Problem(object):
         cornerdofs = np.intersect1d(outlet_dofsVp, symm_dofsVp)
         outlet_dofsVp = np.setdiff1d(outlet_dofsVp, cornerdofs).reshape((-1, 1))
 
-        return [fem.DirichletBC(fem.Function(Vp), outlet_dofsVp)]
+        return [fem.dirichletbc(fem.Function(Vp), outlet_dofsVp)]
 
     @cached_property
     def pcd_forms(self):

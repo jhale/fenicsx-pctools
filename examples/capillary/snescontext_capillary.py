@@ -17,7 +17,7 @@ class SNESContext:
         self.norm_dx = {}
         self.norm_x = {}
 
-        self.comm = self.solution_vars[0].function_space.mesh.mpi_comm()
+        self.comm = self.solution_vars[0].function_space.mesh.comm
 
     @staticmethod
     def vec_to_functions(x, u):

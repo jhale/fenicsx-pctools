@@ -8,7 +8,8 @@ import gmsh
 
 from mpi4py import MPI
 from petsc4py import PETSc
-from dolfinx import cpp, fem, MeshTags
+from dolfinx import cpp, fem
+from dolfinx.mesh import meshtags
 from dolfinx.io import XDMFFile
 from dolfiny.mesh import gmsh_to_dolfin, merge_meshtags
 
@@ -57,15 +58,15 @@ def _set_up_solver(problem, opts, options_prefix=None, options_file=None):
     )
 
     # Compile each UFL Form into dolfinx Form for better assembly performance
-    F_form = fem.assemble._create_cpp_form(problem.F_form)
-    J_form = fem.assemble._create_cpp_form(problem.J_form)
+    F_form = fem.form(problem.F_form)
+    J_form = fem.form(problem.J_form)
 
     # Set up PDE
     snesctx = SNESContext(F_form, J_form, problem.solution_vars, problem.bcs)
 
     # Prepare vectors (jitted forms can be used here)
-    Fvec = fem.create_vector_block(F_form)
-    x0 = fem.create_vector_block(F_form)
+    Fvec = fem.petsc.create_vector_block(F_form)
+    x0 = fem.petsc.create_vector_block(F_form)
 
     solver = PETSc.SNES().create(problem.domain.comm)
     solver.setFunction(snesctx.F_block, Fvec)
@@ -135,7 +136,7 @@ def domain(comm, request):
     imap = mesh.topology.index_map(facetdim)
     indices = np.arange(0, imap.size_local + imap.num_ghosts)
     values = np.zeros_like(indices, dtype=np.intc)
-    mesh_tags_facets = MeshTags(mesh, facetdim, indices, values)
+    mesh_tags_facets = meshtags(mesh, facetdim, indices, values)
     mesh_tags_facets.values[mts_merged.indices] = mts_merged.values
 
     class Domain:
@@ -149,7 +150,7 @@ def domain(comm, request):
 
         @property
         def comm(self):
-            return self.mesh.mpi_comm()
+            return self.mesh.comm
 
         @property
         def num_vertices(self):
@@ -291,6 +292,7 @@ def test_capillary(domain, model_name, results_dir, timestamp, request):
         ns_problem.mean_inlet_velocity = shear_rate_to_velocity(dgamma_app)
         for bc in ns_problem.bcs:
             if bc.value.name == "v_inlet":
+                # TODO: Stuck here, I guess this is no longer a Python Function
                 bc.value.interpolate(ns_problem.inlet_velocity_profile)
 
         PETSc.Sys.Print("\nSolving Navier-Stokes problem to get an initial guess")
