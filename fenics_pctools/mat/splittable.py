@@ -11,7 +11,7 @@ from dolfinx import cpp, fem
 def _extract_spaces(a):
     """Extract test and trial function spaces from given bilinear form."""
 
-    if isinstance(a, cpp.fem.Form):
+    if isinstance(a, fem.FormMetaClass):
         test_space, trial_space = a.function_spaces
     else:
         test_space, trial_space = map(lambda arg: arg.ufl_function_space(), a.arguments())
@@ -23,8 +23,8 @@ def _extract_comm(test_space, trial_space):
     and return the single communicator.
     """
 
-    comm = test_space.mesh.mpi_comm()
-    assert MPI.Comm.Compare(trial_space.mesh.mpi_comm(), comm) == MPI.IDENT
+    comm = test_space.mesh.comm
+    assert MPI.Comm.Compare(trial_space.mesh.comm, comm) == MPI.IDENT
 
     return comm
 
@@ -199,7 +199,7 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
     def jitted_form(self):
         """Return jitted bilinear form."""
         if self._a_cpp is None:
-            self._a_cpp = fem.assemble._create_cpp_form(self._a)
+            self._a_cpp = fem.form(self._a)
         return self._a_cpp
 
     @cached_property
@@ -350,7 +350,7 @@ class SplittableMatrixBlock(SplittableMatrixBase):
                     assert MPI.Comm.Compare(comm, self._comm) == MPI.IDENT
 
     def _create_mat_object(self):
-        A = fem.create_matrix_block(self.jitted_form)
+        A = fem.petsc.create_matrix_block(self.jitted_form)
 
         return A
 
@@ -370,10 +370,10 @@ class SplittableMatrixBlock(SplittableMatrixBase):
                 owned_is = PETSc.IS(self.comm).createGeneral(local_is.indices[:size])
                 return lgmap.applyIS(owned_is)
 
-        isrows = cpp.la.create_petsc_index_sets(
+        isrows = cpp.la.petsc.create_index_sets(
             [(Vsub.dofmap.index_map, Vsub.dofmap.index_map_bs) for Vsub in self._spaces[0]]
         )
-        iscols = cpp.la.create_petsc_index_sets(
+        iscols = cpp.la.petsc.create_index_sets(
             [(Vsub.dofmap.index_map, Vsub.dofmap.index_map_bs) for Vsub in self._spaces[1]]
         )
         global_isrows = [
@@ -388,7 +388,7 @@ class SplittableMatrixBlock(SplittableMatrixBase):
         return (global_isrows, global_iscols)
 
     def assemblyBegin(self, mat, assembly=None):
-        fem.assemble_matrix_block(self.Mat, self.jitted_form, self._bcs, diagonal=1.0)
+        fem.petsc.assemble_matrix_block(self.Mat, self.jitted_form, self._bcs, diagonal=1.0)
 
     def assemblyEnd(self, mat, assembly=None):
         self.Mat.assemble()
