@@ -83,7 +83,7 @@ def A(space):
     A = {
         "monolithic": create_splittable_matrix_monolithic,
         "block": create_splittable_matrix_block,
-        "nest": fem.assemble_matrix_nest,
+        "nest": fem.petsc.assemble_matrix_nest,
     }[space.structure](a)
     A.assemble()
 
@@ -106,13 +106,13 @@ def target(space):
         f = tuple(map(lambda V_sub: Function(V_sub), V))
         v0, v1, v2, v3 = f
 
-    v0.sub(0).interpolate(space.create_constant(V[0].sub(0).collapse(), 1.0))
-    v0.sub(1).interpolate(space.create_constant(V[0].sub(1).collapse(), 2.0))
+    v0.sub(0).interpolate(space.create_constant(V[0].sub(0).collapse()[0], 1.0))
+    v0.sub(1).interpolate(space.create_constant(V[0].sub(1).collapse()[0], 2.0))
     v1.interpolate(space.create_constant(V[1], 3.0))
     v2.interpolate(space.create_constant(V[2], 4.0))
-    v3.sub(0).interpolate(space.create_constant(V[3].sub(0).collapse(), 5.0))
-    v3.sub(1).interpolate(space.create_constant(V[3].sub(1).collapse(), 6.0))
-    v3.sub(2).interpolate(space.create_constant(V[3].sub(2).collapse(), 7.0))
+    v3.sub(0).interpolate(space.create_constant(V[3].sub(0).collapse()[0], 5.0))
+    v3.sub(1).interpolate(space.create_constant(V[3].sub(1).collapse()[0], 6.0))
+    v3.sub(2).interpolate(space.create_constant(V[3].sub(2).collapse()[0], 7.0))
 
     return f
 
@@ -141,14 +141,14 @@ def b(space, target):
                     form.function_spaces[0].dofmap.index_map,
                     form.function_spaces[0].dofmap.index_map_bs,
                 )
-                for form in fem.assemble._create_cpp_form(L)
+                for form in fem.form(L)
             ]
-            b = cpp.fem.create_vector_block(imaps)
+            b = cpp.fem.petsc.create_vector_block(imaps)
             b.set(0.0)
-            b_local = cpp.la.get_local_vectors(b, imaps)
+            b_local = cpp.la.petsc.get_local_vectors(b, imaps)
             for b_sub, L_sub in zip(b_local, L):
-                cpp.fem.assemble_vector(b_sub, fem.assemble._create_cpp_form(L_sub))
-            cpp.la.scatter_local_vectors(b, b_local, imaps)
+                fem.assemble_vector(b_sub, fem.form(L_sub))
+            cpp.la.petsc.scatter_local_vectors(b, b_local, imaps)
             b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
         else:
             b = fem.assemble_vector_nest(L)
@@ -183,7 +183,7 @@ def b(space, target):
     ),
 )
 def test_nested_fieldsplit(space, A, b, target, variant):
-    comm = space.mesh.mpi_comm()
+    comm = space.mesh.comm
 
     ksp = PETSc.KSP()
     ksp.create(comm)
@@ -387,9 +387,9 @@ def test_nested_fieldsplit(space, A, b, target, variant):
     else:
         V = space()
         imaps = [(V_sub.dofmap.index_map, V_sub.dofmap.index_map_bs) for V_sub in V]
-        target_vec = cpp.fem.create_vector_block(imaps)
+        target_vec = cpp.fem.petsc.create_vector_block(imaps)
         target_vec.set(0.0)
-        cpp.la.scatter_local_vectors(
+        cpp.la.petsc.scatter_local_vectors(
             target_vec, list(map(lambda f_sub: f_sub.vector.array, target)), imaps
         )
 
