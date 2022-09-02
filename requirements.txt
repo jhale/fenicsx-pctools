@@ -1,5 +1,5 @@
 pandas
-git+https://github.com/michalhabera/dolfiny.git#egg=dolfiny
+git+https://github.com/jhale/dolfiny.git@jhale/fix-gmsh-tools#egg=dolfiny
 
 # Development [optional]
 black
