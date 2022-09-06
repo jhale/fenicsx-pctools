@@ -125,12 +125,13 @@ class Problem(object):
             e_to_v = domain.mesh.topology.connectivity(facetdim, 0).array.reshape(-1, 2)
             # NOTE: entity -> vertex map is used to determine ghost entities in `create_meshtags`
 
-            entities = cpp.graph.AdjacencyList_int32(e_to_v[facets])
-            values = np.full(facets.shape[0], 1, dtype=np.int32)
+            entities = e_to_v[facets]
+            values = np.full(entities.size, 1, dtype=np.int32)
 
             mt = meshtags(domain.mesh, facetdim, entities, values)
             ds = ufl.Measure("ds", domain=domain.mesh, subdomain_data=mt, subdomain_id=1)
-            size = domain.comm.allreduce(fem.assemble_scalar(1.0 * ds), op=MPI.SUM)
+            # NOTE: This always seems to return zero!
+            size = domain.comm.allreduce(fem.assemble_scalar(fem.form(1.0 * ds(1))), op=MPI.SUM)
 
             return {"mt": mt, "ds": ds, "size": size}
 
@@ -487,9 +488,9 @@ class Problem(object):
 
             r = self.coord_r
             q_te, q_tr = ufl.TestFunction(V), ufl.TrialFunction(V)
-            dummy_rhs_form = fem.form.Form(ufl.inner(dummy_tensor, q_te) * ufl.dx)
-            projection_form = fem.form.Form(ufl.inner(r * q_tr, q_te) * ufl.dx)
-            Amat = fem.assemble_matrix(projection_form)
+            dummy_rhs_form = fem.form(ufl.inner(dummy_tensor, q_te) * ufl.dx)
+            projection_form = fem.form(ufl.inner(r * q_tr, q_te) * ufl.dx)
+            Amat = fem.petsc.assemble_matrix(projection_form)
             Amat.assemble()
 
             solver = PETSc.KSP().create(self.domain.comm)
@@ -502,7 +503,7 @@ class Problem(object):
 
             projection_utils["function_space"] = V
             projection_utils["solver"] = solver
-            projection_utils["rhs_vec"] = fem.create_vector(dummy_rhs_form)
+            projection_utils["rhs_vec"] = fem.petsc.create_vector(dummy_rhs_form)
 
         return self._projection_utils[tensor_order]
 
@@ -514,7 +515,7 @@ class Problem(object):
         with bvec.localForm() as bloc:
             bloc.set(0.0)
 
-        fem.assemble_vector(bvec, L)
+        fem.petsc.assemble_vector(bvec, L)
         bvec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
         solver.solve(bvec, q.vector)
         q.vector.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
@@ -524,7 +525,7 @@ class Problem(object):
         V = self._get_projection_utils(tensor_order=2)["function_space"]
         T = fem.Function(V, name="T")
         T_te = ufl.TestFunction(V)
-        projection_rhs = fem.form.Form(ufl.inner(self.rT(*self.solution_vars), T_te) * ufl.dx)
+        projection_rhs = fem.form(ufl.inner(self.rT(*self.solution_vars), T_te) * ufl.dx)
 
         return T, projection_rhs
 
@@ -541,7 +542,7 @@ class Problem(object):
         D = fem.Function(V, name="D")
         D_te = ufl.TestFunction(V)
         v = self.solution_vars[0]
-        projection_rhs = fem.form.Form(ufl.inner(self.rD(v), D_te) * ufl.dx)
+        projection_rhs = fem.form(ufl.inner(self.rD(v), D_te) * ufl.dx)
 
         return D, projection_rhs
 
@@ -559,7 +560,7 @@ class Problem(object):
         dgamma_te = ufl.TestFunction(V)
         v = self.solution_vars[0]
         r = self.coord_r
-        projection_rhs = fem.form.Form(
+        projection_rhs = fem.form(
             r * ufl.sqrt(2.0 * ufl.inner(self.D(v), self.D(v))) * dgamma_te * ufl.dx
         )
 

@@ -46,7 +46,7 @@ class SNESContext:
         x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
         self.vec_to_functions(x, self.solution_vars)
 
-        fem.assemble_vector_block(F, self.L, self.a, self.bcs, x0=x, scale=-1.0)
+        fem.petsc.assemble_vector_block(F, self.L, self.a, self.bcs, x0=x, scale=-1.0)
         F.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
     def J_block(self, snes, x, J, P):
