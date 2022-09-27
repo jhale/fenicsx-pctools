@@ -1,5 +1,6 @@
+matplotlib
 pandas
-git+https://github.com/jhale/dolfiny.git@jhale/fix-gmsh-tools#egg=dolfiny
+dolfiny@git+https://github.com/jhale/dolfiny.git@jhale/fix-gmsh-tools#egg=dolfiny
 
 # Development [optional]
 black
