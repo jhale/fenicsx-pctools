@@ -14,7 +14,7 @@ from dolfinx.mesh import meshtags
 from dolfinx.io import XDMFFile
 from dolfiny.mesh import gmsh_to_dolfin, merge_meshtags
 
-from fenics_pctools.mat.splittable import create_splittable_matrix_block
+from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 
 from gmsh_capillary import model_setter
 from snescontext_capillary import SNESContext

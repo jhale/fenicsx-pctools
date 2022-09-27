@@ -2,7 +2,7 @@ import re
 
 from setuptools import setup, find_packages
 
-VERSION = re.findall('__version__ = "(.*)"', open("fenics_pctools/__init__.py", "r").read())[0]
+VERSION = re.findall('__version__ = "(.*)"', open("fenicsx_pctools/__init__.py", "r").read())[0]
 
 REQUIREMENTS = [
     "matplotlib",
@@ -15,7 +15,7 @@ REQUIREMENTS_dev = [
 ]
 
 setup(
-    name="fenics_pctools",
+    name="fenicsx_pctools",
     description="FEniCS Preconditioning Tools",
     version=VERSION,
     python_requires=">=3.7",
