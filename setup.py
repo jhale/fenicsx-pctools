@@ -19,7 +19,7 @@ setup(
     description="FEniCS Preconditioning Tools",
     version=VERSION,
     python_requires=">=3.8.5",
-    author="Martin Řehoř",
+    authors="Martin Řehoř, Jack S. Hale",
     author_email="martin.rehor@rafinex.com",
     packages=find_packages(),
     install_requires=REQUIREMENTS,

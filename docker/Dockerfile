@@ -1,4 +1,4 @@
-ARG IMAGE=dolfinx/dolfinx:v0.5.0
+ARG IMAGE=dolfinx/dolfinx:v0.5.1-r1
 FROM ${IMAGE} as dev
 LABEL description="FEniCS PC Tools development image with all FEniCS components installed"
 
