@@ -63,12 +63,3 @@ def comm():
 def module_dir(request):
     """Return the directory of the current test file."""
     return request.node.fspath.dirname
-
-
-# TODO: Keep large data files in a common directory. The data do not have to be part of the
-#       repository, but can be downloaded from elsewhere via a script.
-# @pytest.fixture(scope="module")
-# def data_dir():
-#     """Return the directory of the shared test data."""
-#     path = os.path.join(os.path.dirname(__file__), "data")
-#     return os.path.realpath(path)
