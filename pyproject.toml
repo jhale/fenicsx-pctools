@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools ~= 65.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fenicsx_pctools"
+version = "0.5.0.dev0"
+description = "FEniCSx Preconditioning Tools"
+authors = [
+    {name = "Martin Rehor", email="martin.rehor@rafinex.com"},
+    {name = "Jack S. Hale", email = "jack.hale@uni.lu"}
+]
+license = {file = "COPYING"}
+readme = "README.rst"
+requires-python = ">=3.7"
+
+keywords = ["FEniCS", "preconditioning", "PETSc", "block systems"]
+
+classifiers = [
+    "Topic :: Software Development"
+]
+
+dependencies = [
+    "fenics-dolfinx>=0.5<0.6",
+    "petsc4py"
+]
+
+[project.optional-dependencies]
+lint = [
+    "black",
+    "flake8"
+]
+examples = [
+    "matplotlib",
+    "pandas",
+    "dolfiny @ git+https://github.com/mhabera/dolfiny.git#egg=dolfiny"
+]
+
+[tool.setuptools]
+packages = ["fenicsx_pctools"]
+
+[project.urls]
+repository = "https://gitlab.com/rafinex-external-rifle/fenicsx_pctools"
