@@ -3,7 +3,7 @@ import numpy as np
 
 from petsc4py import PETSc
 
-from fenics_pctools.pc.base import PCBase
+from fenicsx_pctools.pc.base import PCBase
 
 
 class WrappedPC(PCBase):

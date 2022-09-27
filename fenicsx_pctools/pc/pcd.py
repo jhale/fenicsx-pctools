@@ -4,7 +4,7 @@ from petsc4py import PETSc
 from dolfinx import fem
 from dolfinx.fem import Function
 
-from fenics_pctools.pc.base import PCBase
+from fenicsx_pctools.pc.base import PCBase
 
 
 class PCDPCBase(PCBase):
@@ -208,7 +208,7 @@ class PCDPC_vX(PCDPCBase):
         on matrix :math:`A_p` and RHS :math:`x` (but only in that term). The subfield BC, together
         with other necessary information, should be provided via an application context `appctx`
         attached to the preconditioner matrix of type `'python'`, e.g.
-        :py:class:`fenics_pctools.mat.splittable.SplittableMatrixBlock`.
+        :py:class:`fenicsx_pctools.mat.splittable.SplittableMatrixBlock`.
         The expected application context is a dictionary with the following items:
 
             + `"nu"` : kinematic viscosity :math:`\nu` used to scale :math:`M_p` and :math:`K_p`,
@@ -285,7 +285,7 @@ class PCDPC_vY(PCDPCBase):
         on matrix :math:`A_p` and RHS :math:`x` (but only in that term). The subfield BC, together
         with other necessary information, should be provided via an application context `appctx`
         attached to the preconditioner matrix of type `'python'`, e.g.
-        :py:class:`fenics_pctools.mat.splittable.SplittableMatrixBlock`.
+        :py:class:`fenicsx_pctools.mat.splittable.SplittableMatrixBlock`.
         The expected application context is a dictionary with the following items:
 
             + `"nu"` : kinematic viscosity :math:`\nu` used to scale :math:`M_p` and :math:`K_p`,

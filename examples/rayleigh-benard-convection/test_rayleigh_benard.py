@@ -34,7 +34,7 @@ from dolfinx import fem
 from dolfinx.io import XDMFFile
 from dolfinx.common import list_timings, TimingType
 
-from fenics_pctools.mat.splittable import create_splittable_matrix_block
+from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 
 from problem_rayleigh_benard import Problem
 
@@ -115,7 +115,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
     if pc_approach == "LU":
         opts["ksp_type"] = "preonly"
         opts["pc_type"] = "python"
-        opts["pc_python_type"] = "fenics_pctools.WrappedPC"
+        opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
         opts["wrapped_pc_type"] = "lu"
         opts["wrapped_pc_factor_mat_solver_type"] = "mumps"
     elif pc_approach == "PCD-AMG":
@@ -125,7 +125,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
         opts["ksp_monitor"] = None
         opts["ksp_max_it"] = 1000
         opts["pc_type"] = "python"
-        opts["pc_python_type"] = "fenics_pctools.WrappedPC"
+        opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
         opts.prefixPush("wrapped_")
         opts["pc_type"] = "fieldsplit"
         opts["pc_fieldsplit_type"] = "multiplicative"
@@ -139,7 +139,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
         # opts["ksp_monitor_true_residual"] = None
         # opts["ksp_monitor"] = None
         opts["pc_type"] = "python"
-        opts["pc_python_type"] = "fenics_pctools.WrappedPC"
+        opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
         opts.prefixPush("wrapped_")
         opts["pc_type"] = "fieldsplit"
         opts["pc_fieldsplit_type"] = "schur"
@@ -149,14 +149,14 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
         # -- HYPRE on velocity block
         opts["fieldsplit_0_ksp_type"] = "preonly"
         opts["fieldsplit_0_pc_type"] = "python"
-        opts["fieldsplit_0_pc_python_type"] = "fenics_pctools.WrappedPC"
+        opts["fieldsplit_0_pc_python_type"] = "fenicsx_pctools.WrappedPC"
         opts["fieldsplit_0_wrapped_pc_type"] = "hypre"
         for key, val in hypre_common_settings.items():
             opts[f"fieldsplit_0_wrapped_{key}"] = val
         # -- PCD on pressure block
         opts["fieldsplit_1_ksp_type"] = "preonly"
         opts["fieldsplit_1_pc_type"] = "python"
-        opts["fieldsplit_1_pc_python_type"] = "fenics_pctools.PCDPC_vY"
+        opts["fieldsplit_1_pc_python_type"] = "fenicsx_pctools.PCDPC_vY"
         # ---- SOR on mass matrix
         opts["fieldsplit_1_pcd_Mp_ksp_type"] = "richardson"
         opts["fieldsplit_1_pcd_Mp_ksp_max_it"] = 2
@@ -176,7 +176,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
         # opts["ksp_monitor_true_residual"] = None
         # opts["ksp_monitor"] = None
         opts["pc_type"] = "python"
-        opts["pc_python_type"] = "fenics_pctools.WrappedPC"
+        opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
         opts.prefixPush("wrapped_")
         opts["pc_type"] = "hypre"
         for key, val in hypre_common_settings.items():

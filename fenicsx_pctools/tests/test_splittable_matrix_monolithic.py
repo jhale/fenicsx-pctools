@@ -6,7 +6,7 @@ from dolfinx.mesh import create_unit_square
 from dolfinx.fem.function import Function, FunctionSpace
 from dolfinx import fem
 
-from fenics_pctools.mat.splittable import create_splittable_matrix_monolithic
+from fenicsx_pctools.mat.splittable import create_splittable_matrix_monolithic
 
 
 def _create_constant(function_space, value):

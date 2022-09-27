@@ -8,7 +8,7 @@ from dolfinx import cpp, fem
 from dolfinx.mesh import create_unit_square, CellType
 from dolfinx.fem import Function, FunctionSpace
 
-from fenics_pctools.mat.splittable import (
+from fenicsx_pctools.mat.splittable import (
     create_splittable_matrix_monolithic,
     create_splittable_matrix_block,
 )
@@ -198,14 +198,14 @@ def test_nested_fieldsplit(space, A, b, target, variant):
             pytest.skip("Direct solver cannot be used with 'nest' structures")
         else:
             opts["pc_type"] = "python"
-            opts["pc_python_type"] = "fenics_pctools.WrappedPC"
+            opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
             opts["wrapped_pc_type"] = "lu"
 
     elif variant == "FS 0_1_2_3":
 
         if space.structure == "block":
             opts["pc_type"] = "python"
-            opts["pc_python_type"] = "fenics_pctools.WrappedPC"
+            opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
             opts.prefixPush("wrapped_")
             opts["pc_type"] = "fieldsplit"
             opts["pc_fieldsplit_type"] = "additive"
@@ -256,7 +256,7 @@ def test_nested_fieldsplit(space, A, b, target, variant):
 
         if space.structure == "block":
             opts["pc_type"] = "python"
-            opts["pc_python_type"] = "fenics_pctools.WrappedPC"
+            opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
             opts.prefixPush("wrapped_")
             opts["pc_type"] = "fieldsplit"
             opts["pc_fieldsplit_type"] = "additive"
@@ -273,7 +273,7 @@ def test_nested_fieldsplit(space, A, b, target, variant):
 
         if space.structure == "block":
             opts["pc_type"] = "python"
-            opts["pc_python_type"] = "fenics_pctools.WrappedPC"
+            opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
             opts.prefixPush("wrapped_")
             opts["pc_type"] = "fieldsplit"
             opts["pc_fieldsplit_type"] = "additive"
@@ -311,7 +311,7 @@ def test_nested_fieldsplit(space, A, b, target, variant):
 
         if space.structure == "block":
             opts["pc_type"] = "python"
-            opts["pc_python_type"] = "fenics_pctools.WrappedPC"
+            opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
             opts.prefixPush("wrapped_")
             opts["pc_type"] = "fieldsplit"
             opts["pc_fieldsplit_type"] = "additive"
@@ -319,7 +319,7 @@ def test_nested_fieldsplit(space, A, b, target, variant):
             opts["pc_fieldsplit_1_fields"] = "1"
             opts["fieldsplit_0_ksp_type"] = "preonly"
             opts["fieldsplit_0_pc_type"] = "python"
-            opts["fieldsplit_0_pc_python_type"] = "fenics_pctools.WrappedPC"
+            opts["fieldsplit_0_pc_python_type"] = "fenicsx_pctools.WrappedPC"
             opts.prefixPush("fieldsplit_0_wrapped_")
             opts["pc_type"] = "fieldsplit"
             opts["pc_fieldsplit_type"] = "additive"
@@ -339,7 +339,7 @@ def test_nested_fieldsplit(space, A, b, target, variant):
 
         if space.structure == "block":
             opts["pc_type"] = "python"
-            opts["pc_python_type"] = "fenics_pctools.WrappedPC"
+            opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
             opts.prefixPush("wrapped_")
             opts["pc_type"] = "fieldsplit"
             opts["pc_fieldsplit_type"] = "additive"
@@ -347,7 +347,7 @@ def test_nested_fieldsplit(space, A, b, target, variant):
             opts["pc_fieldsplit_1_fields"] = "1"
             opts["fieldsplit_0_ksp_type"] = "preonly"
             opts["fieldsplit_0_pc_type"] = "python"
-            opts["fieldsplit_0_pc_python_type"] = "fenics_pctools.WrappedPC"
+            opts["fieldsplit_0_pc_python_type"] = "fenicsx_pctools.WrappedPC"
             opts.prefixPush("fieldsplit_0_wrapped_")
             opts["pc_type"] = "fieldsplit"
             opts["pc_fieldsplit_type"] = "additive"
@@ -357,7 +357,7 @@ def test_nested_fieldsplit(space, A, b, target, variant):
             opts["fieldsplit_0_pc_type"] = "jacobi"
             opts["fieldsplit_1_ksp_type"] = "preonly"
             opts["fieldsplit_1_pc_type"] = "python"
-            opts["fieldsplit_1_pc_python_type"] = "fenics_pctools.WrappedPC"
+            opts["fieldsplit_1_pc_python_type"] = "fenicsx_pctools.WrappedPC"
             opts.prefixPush("fieldsplit_1_wrapped_")
             opts["pc_type"] = "fieldsplit"
             opts["pc_fieldsplit_type"] = "schur"

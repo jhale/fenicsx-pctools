@@ -7,7 +7,7 @@ from dolfinx.mesh import create_unit_square
 from dolfinx.fem.function import Function, FunctionSpace
 from dolfinx import cpp, fem
 
-from fenics_pctools.mat.splittable import create_splittable_matrix_block
+from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 
 
 @pytest.fixture
