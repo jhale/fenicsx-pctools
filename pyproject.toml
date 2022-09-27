@@ -34,7 +34,7 @@ lint = [
 examples = [
     "matplotlib",
     "pandas",
-    "dolfiny @ git+https://github.com/mhabera/dolfiny.git#egg=dolfiny"
+    "dolfiny @ git+https://github.com/michalhabera/dolfiny.git#egg=dolfiny"
 ]
 ci = [
     "fenicsx_pctools[lint]",
