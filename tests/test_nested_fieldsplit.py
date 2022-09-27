@@ -1,17 +1,16 @@
-import pytest
 import itertools
+
 import numpy as np
+import pytest
+
 import ufl
+from dolfinx import cpp, fem
+from dolfinx.fem import Function, FunctionSpace
+from dolfinx.mesh import CellType, create_unit_square
+from fenicsx_pctools.mat.splittable import (
+    create_splittable_matrix_block, create_splittable_matrix_monolithic)
 
 from petsc4py import PETSc
-from dolfinx import cpp, fem
-from dolfinx.mesh import create_unit_square, CellType
-from dolfinx.fem import Function, FunctionSpace
-
-from fenicsx_pctools.mat.splittable import (
-    create_splittable_matrix_monolithic,
-    create_splittable_matrix_block,
-)
 
 
 @pytest.fixture(

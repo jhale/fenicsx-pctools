@@ -1,11 +1,13 @@
 import abc
 import enum
+from functools import cached_property
+
 import numpy as np
 
-from functools import cached_property
+from dolfinx import cpp, fem
+
 from mpi4py import MPI
 from petsc4py import PETSc
-from dolfinx import cpp, fem
 
 
 def _extract_spaces(a):

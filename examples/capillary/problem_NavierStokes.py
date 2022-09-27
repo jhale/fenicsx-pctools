@@ -1,12 +1,14 @@
 import os
-import ufl
+from functools import cached_property
+
 import numpy as np
 
-from functools import cached_property
+import ufl
+from dolfinx import cpp, fem
+from dolfinx.mesh import locate_entities_boundary, meshtags
+
 from mpi4py import MPI
 from petsc4py import PETSc
-from dolfinx import fem, cpp
-from dolfinx.mesh import locate_entities_boundary, meshtags
 
 
 class Problem(object):

@@ -1,8 +1,9 @@
 import numpy as np
 
+from dolfinx import fem
+
 from mpi4py import MPI
 from petsc4py import PETSc
-from dolfinx import fem
 
 
 class SNESContext:

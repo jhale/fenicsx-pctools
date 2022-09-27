@@ -1,8 +1,8 @@
-import ufl
-
 from functools import cached_property
 
 from problem_NavierStokes import Problem as NavierStokesProblem
+
+import ufl
 
 
 class CarreauYasudaViscosity(object):

@@ -1,9 +1,10 @@
 import re
+
 import numpy as np
 
-from petsc4py import PETSc
-
 from fenicsx_pctools.pc.base import PCBase
+
+from petsc4py import PETSc
 
 
 class WrappedPC(PCBase):

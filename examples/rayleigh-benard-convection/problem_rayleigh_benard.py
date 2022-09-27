@@ -1,13 +1,17 @@
-import numpy as np
-import ufl
-
-from functools import cached_property
 from collections import OrderedDict
-from petsc4py import PETSc
-from ufl import dot, inner, grad, div, dx
+from functools import cached_property
 
-from dolfinx.mesh import create_unit_cube, meshtags, locate_entities, locate_entities_boundary, CellType, GhostMode
-from dolfinx.fem import Constant, Function, FunctionSpace, VectorFunctionSpace, locate_dofs_topological, dirichletbc
+import numpy as np
+
+import ufl
+from dolfinx.fem import (Constant, Function, FunctionSpace,
+                         VectorFunctionSpace, dirichletbc,
+                         locate_dofs_topological)
+from dolfinx.mesh import (CellType, GhostMode, create_unit_cube,
+                          locate_entities, locate_entities_boundary, meshtags)
+from ufl import div, dot, dx, grad, inner
+
+from petsc4py import PETSc
 
 
 def get_boundary_mask(mesh):

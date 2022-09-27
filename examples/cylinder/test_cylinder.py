@@ -1,24 +1,24 @@
-import gmsh
 import itertools
-import numpy as np
 import os
+
+import gmsh
+import numpy as np
 import pandas
 import pytest
+from dolfiny.mesh import gmsh_to_dolfin, merge_meshtags
+from gmsh_cylinder import model_setter
+from output_cylinder import main as generate_output
+from snescontext_cylinder import SNESContext
+
 import ufl
+from dolfinx import cpp, fem
+from dolfinx.common import TimingType, list_timings
+from dolfinx.io import XDMFFile
+from dolfinx.mesh import meshtags
+from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 
 from mpi4py import MPI
 from petsc4py import PETSc
-from dolfinx import cpp, fem
-from dolfinx.io import XDMFFile
-from dolfinx.common import list_timings, TimingType
-from dolfinx.mesh import meshtags
-from dolfiny.mesh import gmsh_to_dolfin, merge_meshtags
-
-from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
-
-from gmsh_cylinder import model_setter
-from snescontext_cylinder import SNESContext
-from output_cylinder import main as generate_output
 
 
 def _load_problem_module(model_name, module_dir):

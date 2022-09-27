@@ -1,11 +1,12 @@
-import ufl
-import numpy as np
-
 from functools import cached_property
-from petsc4py import PETSc
+
+import numpy as np
+from problem_NavierStokes import Problem as NavierStokesProblem
+
+import ufl
 from dolfinx import fem
 
-from problem_NavierStokes import Problem as NavierStokesProblem
+from petsc4py import PETSc
 
 
 class Problem(NavierStokesProblem):

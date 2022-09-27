@@ -1,10 +1,12 @@
 import os
-import ufl
+from functools import cached_property
+
 import numpy as np
 
-from functools import cached_property
-from petsc4py import PETSc
+import ufl
 from dolfinx import fem
+
+from petsc4py import PETSc
 
 
 class Problem(object):

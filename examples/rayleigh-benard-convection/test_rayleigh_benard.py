@@ -11,7 +11,6 @@
 
 import socket
 
-
 if socket.gethostname().startswith("iris"):
     import os
     import platform
@@ -24,19 +23,19 @@ if socket.gethostname().startswith("iris"):
 
 
 import os
+
+import numpy as np
 import pandas
 import pytest
-import numpy as np
+from problem_rayleigh_benard import Problem
+
+from dolfinx import fem
+from dolfinx.common import TimingType, list_timings
+from dolfinx.io import XDMFFile
+from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 
 from mpi4py import MPI
 from petsc4py import PETSc
-from dolfinx import fem
-from dolfinx.io import XDMFFile
-from dolfinx.common import list_timings, TimingType
-
-from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
-
-from problem_rayleigh_benard import Problem
 
 
 def target_mesh_size():

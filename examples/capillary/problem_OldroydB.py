@@ -1,10 +1,10 @@
-import ufl
-import numpy as np
-
 from functools import cached_property
-from dolfinx import fem
 
+import numpy as np
 from problem_NavierStokes import Problem as NavierStokesProblem
+
+import ufl
+from dolfinx import fem
 
 
 class Problem(NavierStokesProblem):

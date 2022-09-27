@@ -1,10 +1,9 @@
 import ufl
-
-from petsc4py import PETSc
 from dolfinx import fem
 from dolfinx.fem import Function
-
 from fenicsx_pctools.pc.base import PCBase
+
+from petsc4py import PETSc
 
 
 class PCDPCBase(PCBase):

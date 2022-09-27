@@ -1,13 +1,13 @@
-import pytest
-import ufl
 import numpy as np
+import pytest
+
+import ufl
+from dolfinx import cpp, fem
+from dolfinx.fem.function import Function, FunctionSpace
+from dolfinx.mesh import create_unit_square
+from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 
 from petsc4py import PETSc
-from dolfinx.mesh import create_unit_square
-from dolfinx.fem.function import Function, FunctionSpace
-from dolfinx import cpp, fem
-
-from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 
 
 @pytest.fixture

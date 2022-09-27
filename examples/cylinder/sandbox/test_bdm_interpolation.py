@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
+import dolfinx
+import ufl
+from dolfinx import fem
+from ufl import dot, inner
+
 from mpi4py import MPI
 from petsc4py import PETSc
-
-import dolfinx
-from dolfinx import fem
-import ufl
-from ufl import inner, dot
 
 mesh = dolfinx.mesh.create_unit_square(MPI.COMM_WORLD, 64, 64)
 

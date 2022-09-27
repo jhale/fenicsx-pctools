@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 
-import ufl
 import numpy as np
+
+import ufl
+from dolfinx import fem
+from dolfinx.cpp.mesh import CellType, GhostMode
+from dolfinx.io import XDMFFile
+from dolfinx.mesh import create_unit_square, locate_entities_boundary
 
 from mpi4py import MPI
 from petsc4py import PETSc
-from dolfinx import fem
-from dolfinx.mesh import locate_entities_boundary, create_unit_square
-from dolfinx.cpp.mesh import CellType, GhostMode
-from dolfinx.io import XDMFFile
 
 
 def main(N, scheme="CR"):

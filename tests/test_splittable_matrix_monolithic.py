@@ -1,12 +1,12 @@
 import pytest
+
 import ufl
+from dolfinx import fem
+from dolfinx.fem.function import Function, FunctionSpace
+from dolfinx.mesh import create_unit_square
+from fenicsx_pctools.mat.splittable import create_splittable_matrix_monolithic
 
 from petsc4py import PETSc
-from dolfinx.mesh import create_unit_square
-from dolfinx.fem.function import Function, FunctionSpace
-from dolfinx import fem
-
-from fenicsx_pctools.mat.splittable import create_splittable_matrix_monolithic
 
 
 def _create_constant(function_space, value):
