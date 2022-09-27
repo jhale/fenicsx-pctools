@@ -5,14 +5,14 @@ import numpy as np
 
 from mpi4py import MPI
 from petsc4py import PETSc
-from dolfinx import fem, UnitSquareMesh
-from dolfinx.mesh import locate_entities_boundary
+from dolfinx import fem
+from dolfinx.mesh import locate_entities_boundary, create_unit_square
 from dolfinx.cpp.mesh import CellType, GhostMode
 from dolfinx.io import XDMFFile
 
 
 def main(N, scheme="CR"):
-    mesh = UnitSquareMesh(MPI.COMM_WORLD, N, 2 * N, CellType.triangle, GhostMode.shared_facet)
+    mesh = create_unit_square(MPI.COMM_WORLD, N, 2 * N, CellType.triangle, GhostMode.shared_facet)
 
     if scheme == "CR":
         FEv = ufl.VectorElement("CR", ufl.triangle, 1)
