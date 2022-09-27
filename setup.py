@@ -5,20 +5,20 @@ from setuptools import setup, find_packages
 VERSION = re.findall('__version__ = "(.*)"', open("fenics_pctools/__init__.py", "r").read())[0]
 
 REQUIREMENTS = [
-    "matplotlib>=3.3.4",
-    "pandas>=1.1.2",
-    "dolfiny @ git+https://github.com/michalhabera/dolfiny.git@bba2a8b#egg=dolfiny",
+    "matplotlib",
+    "pandas",
+    "dolfiny@git+https://github.com/jhale/dolfiny.git@jhale/fix-gmsh-tools#egg=dolfiny"
 ]
 
 REQUIREMENTS_dev = [
-    "black>=19.10b0",
+    "black",
 ]
 
 setup(
     name="fenics_pctools",
     description="FEniCS Preconditioning Tools",
     version=VERSION,
-    python_requires=">=3.8.5",
+    python_requires=">=3.7",
     authors="Martin Řehoř, Jack S. Hale",
     author_email="martin.rehor@rafinex.com",
     packages=find_packages(),
