@@ -28,12 +28,18 @@ dependencies = [
 [project.optional-dependencies]
 lint = [
     "black",
-    "flake8"
+    "flake8",
+    "isort"
 ]
 examples = [
     "matplotlib",
     "pandas",
     "dolfiny @ git+https://github.com/mhabera/dolfiny.git#egg=dolfiny"
+]
+ci = [
+    "fenicsx_pctools[lint]",
+    "fenicsx_pctools[examples]",
+    "pytest"
 ]
 
 [tool.setuptools]
@@ -41,3 +47,10 @@ packages = ["fenicsx_pctools"]
 
 [project.urls]
 repository = "https://gitlab.com/rafinex-external-rifle/fenicsx_pctools"
+
+[tool.isort]
+src_paths = ["demo", "examples", "fenicsx_pctools"]
+known_first_party = ["basix", "dolfinx", "fenicsx_pctools", "ffcx", "ufl"]
+known_third_party = ["gmsh", "numpy", "pytest"]
+known_mpi = ["mpi4py", "petsc4py"]
+sections= ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "MPI", "LOCALFOLDER"]
