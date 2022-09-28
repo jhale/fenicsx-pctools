@@ -40,7 +40,7 @@ Assuming that the current working directory is the root of this repository.
 
    .. code-block:: console
 
-      python3 -m pytest .
+      python3 -m pytest tests/
 
 3. Run an example:
 
