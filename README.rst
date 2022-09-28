@@ -7,12 +7,13 @@ Description
 
 This repository contains various tools for preconditioning of systems of linear
 algebraic equations in `DOLFINx <https://github.com/FEniCS/dolfinx>`_, the
-computational environment of `FEniCS <https://fenicsproject.org/>`_. These
-tools, delivered as a Python library ``fenics_pctools``, aim to facilitate the
-specification of problems that can be tackled by means of composable linear
-solvers offered by `PETSc <https://www.mcs.anl.gov/petsc/>`_. The idea is
-inspired by the work of Kirby and Mitchell [1]_ that was originally implemented
-in the `Firedrake Project <https://firedrakeproject.org/>`_.
+computational environment of the `FEniCS Project
+<https://fenicsproject.org/>`_. These tools, delivered as a Python library
+``fenics_pctools``, aim to facilitate the specification of problems that can be
+tackled by means of composable linear solvers offered by `PETSc
+<https://www.mcs.anl.gov/petsc/>`_. The idea is inspired by the work of Kirby
+and Mitchell [1]_ that was originally implemented in the `Firedrake Project
+<https://firedrakeproject.org/>`_.
 
 Implementation of chosen advanced preconditioners is part of the library, e.g.
 variants of the pressure-convection-diffusion (PCD) preconditioner for the
@@ -89,7 +90,7 @@ You should have received a copy of the GNU Lesser General Public
 License along with fenicsx-pctools. If not, see
 <http://www.gnu.org/licenses/>.
 
-In addition to the LGPLv3 license detailed above, the rights under which the
-University of Luxembourg and Rafinex can use this work are detailed in the
-*Collaboration Agreement in the frame of FNR Industrial Fellowships* concluded
-between both parties.
+In addition to the LGPLv3 license detailed above, the additional rights under
+which the University of Luxembourg and Rafinex can use this work are detailed
+in the *Collaboration Agreement in the frame of FNR Industrial Fellowships*
+concluded between both parties.
