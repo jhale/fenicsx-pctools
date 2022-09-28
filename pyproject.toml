@@ -26,19 +26,25 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-lint = [
-    "black",
-    "flake8",
-    "isort"
+docs = [
+    "jupytext",
+    "sphinx",
+    "myst-parser"
 ]
 examples = [
     "matplotlib",
     "pandas",
     "dolfiny @ git+https://github.com/michalhabera/dolfiny.git#egg=dolfiny"
 ]
+lint = [
+    "black",
+    "flake8",
+    "isort"
+]
 ci = [
-    "fenicsx_pctools[lint]",
+    "fenicsx_pctools[docs]",
     "fenicsx_pctools[examples]",
+    "fenicsx_pctools[lint]",
     "pytest"
 ]
 

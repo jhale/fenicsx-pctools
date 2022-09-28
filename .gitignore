@@ -17,3 +17,6 @@ __pycache__/
 *.csv
 *.tex
 *.png
+
+# doc builds
+doc/build/
