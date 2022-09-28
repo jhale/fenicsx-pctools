@@ -1,13 +1,13 @@
-import pytest
-import ufl
 import numpy as np
+import pytest
+
+import ufl
+from dolfinx import cpp, fem
+from dolfinx.fem.function import Function, FunctionSpace
+from dolfinx.mesh import create_unit_square
+from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 
 from petsc4py import PETSc
-from dolfinx.generation import UnitSquareMesh
-from dolfinx.fem.function import Function, FunctionSpace
-from dolfinx import cpp, fem
-
-from fenics_pctools.mat.splittable import create_splittable_matrix_block
 
 
 @pytest.fixture
@@ -27,7 +27,8 @@ def get_block_space():
     "equal_discretization", [True, False], ids=["equal subspaces", "different subspaces"]
 )
 def test_nested_fieldsplit(get_block_space, equal_discretization, comm):
-    mesh = UnitSquareMesh(comm, 4, 4)
+    mesh = create_unit_square(comm, 4, 4)
+
     V = get_block_space(mesh, equal_discretization)
 
     v_target = tuple([Function(Vsub) for Vsub in V])
@@ -45,16 +46,15 @@ def test_nested_fieldsplit(get_block_space, equal_discretization, comm):
     A = create_splittable_matrix_block(a)
     A.assemble()
 
-    imaps = [
-        (form.function_spaces[0].dofmap.index_map, form.function_spaces[0].dofmap.index_map_bs)
-        for form in fem.assemble._create_cpp_form(L)
-    ]
-    b = cpp.fem.create_vector_block(imaps)
+    L_dolfinx = [fem.form(L) for L in L]
+    imaps = [(form.function_spaces[0].dofmap.index_map,
+             form.function_spaces[0].dofmap.index_map_bs) for form in L_dolfinx]
+    b = fem.petsc.create_vector_block(L_dolfinx)
     b.set(0.0)
-    b_local = cpp.la.get_local_vectors(b, imaps)
-    for b_sub, L_sub in zip(b_local, L):
-        cpp.fem.assemble_vector(b_sub, fem.assemble._create_cpp_form(L_sub))
-    cpp.la.scatter_local_vectors(b, b_local, imaps)
+    b_local = cpp.la.petsc.get_local_vectors(b, imaps)
+    for b_sub, L_sub in zip(b_local, L_dolfinx):
+        fem.assemble_vector(b_sub, L_sub)
+    cpp.la.petsc.scatter_local_vectors(b, b_local, imaps)
     b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
 
     ksp = PETSc.KSP()
@@ -100,9 +100,9 @@ def test_nested_fieldsplit(get_block_space, equal_discretization, comm):
     ksp.solve(b, x)
 
     imaps = [(V_sub.dofmap.index_map, V_sub.dofmap.index_map_bs) for V_sub in V]
-    target_vec = cpp.fem.create_vector_block(imaps)
+    target_vec = cpp.fem.petsc.create_vector_block(imaps)
     target_vec.set(0.0)
-    cpp.la.scatter_local_vectors(
+    cpp.la.petsc.scatter_local_vectors(
         target_vec, list(map(lambda f_sub: f_sub.vector.array, v_target)), imaps
     )
 

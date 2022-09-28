@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 
 import os
-import pandas
-import numpy as np
-import matplotlib.pyplot as plt
-
-from matplotlib.figure import Figure as MPLFigure
-from matplotlib import rcParams
 from shutil import which
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas
+from matplotlib import rcParams
+from matplotlib.figure import Figure as MPLFigure
 
 rcParams.update({"figure.autolayout": True, "axes.titlesize": "medium", "legend.fontsize": "small"})
 if which("latex") is not None:
@@ -258,14 +257,14 @@ def main(results_file, groupby="model"):
     outdir = os.path.dirname(results_file)
     basename = os.path.splitext(os.path.basename(results_file))[0]
 
-    drawn_figs = _generate_plots(results_file, groupby)
+    #drawn_figs = _generate_plots(results_file, groupby)
 
-    print("Generated output:")
-    for name, fig in drawn_figs:
-        plotfile = os.path.join(outdir, f"fig_{basename}_{name}.png")
-        fig.savefig(plotfile)
-        plt.close(fig)
-        print(f"  + {plotfile}")
+    #print("Generated output:")
+    #for name, fig in drawn_figs:
+    #    plotfile = os.path.join(outdir, f"fig_{basename}_{name}.png")
+    #    fig.savefig(plotfile)
+    #    plt.close(fig)
+    #    print(f"  + {plotfile}")
 
 
 if __name__ == "__main__":

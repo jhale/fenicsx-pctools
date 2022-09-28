@@ -1,7 +1,7 @@
 import os
 import sys
-import numpy as np
 
+import numpy as np
 
 TEXMFDIST_DIR = os.getenv("TEXMFDIST_DIR")
 _special_font = f"{TEXMFDIST_DIR}/fonts/truetype/google/tinos/Tinos-Regular.ttf"

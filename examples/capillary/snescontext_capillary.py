@@ -1,8 +1,9 @@
 import numpy as np
 
+from dolfinx import fem
+
 from mpi4py import MPI
 from petsc4py import PETSc
-from dolfinx import fem
 
 
 class SNESContext:
@@ -17,7 +18,7 @@ class SNESContext:
         self.norm_dx = {}
         self.norm_x = {}
 
-        self.comm = self.solution_vars[0].function_space.mesh.mpi_comm()
+        self.comm = self.solution_vars[0].function_space.mesh.comm
 
     @staticmethod
     def vec_to_functions(x, u):
@@ -46,7 +47,7 @@ class SNESContext:
         x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
         self.vec_to_functions(x, self.solution_vars)
 
-        fem.assemble_vector_block(F, self.L, self.a, self.bcs, x0=x, scale=-1.0)
+        fem.petsc.assemble_vector_block(F, self.L, self.a, self.bcs, x0=x, scale=-1.0)
         F.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
     def J_block(self, snes, x, J, P):

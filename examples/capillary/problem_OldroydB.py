@@ -1,10 +1,10 @@
-import ufl
-import numpy as np
-
 from functools import cached_property
-from dolfinx import fem
 
+import numpy as np
 from problem_NavierStokes import Problem as NavierStokesProblem
+
+import ufl
+from dolfinx import fem
 
 
 class Problem(NavierStokesProblem):
@@ -162,7 +162,7 @@ class Problem(NavierStokesProblem):
 
             facetdim = self.domain.mesh.topology.dim - 1
             inlet_dofsVB1 = fem.locate_dofs_topological(VB1, facetdim, self._bndry_facets["in"])
-            bcs.append(fem.DirichletBC(B1_inlet, inlet_dofsVB1))
+            bcs.append(fem.dirichletbc(B1_inlet, inlet_dofsVB1))
 
         return tuple(bcs)
 

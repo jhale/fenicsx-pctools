@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 
 import os
-import pandas
-import numpy as np
-import matplotlib.pyplot as plt
-
-from matplotlib.figure import Figure as MPLFigure
-from matplotlib import rcParams
 from shutil import which
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas
+from matplotlib import rcParams
+from matplotlib.figure import Figure as MPLFigure
 
 rcParams.update({"figure.autolayout": True, "axes.titlesize": "medium", "legend.fontsize": "small"})
 if which("latex") is not None:

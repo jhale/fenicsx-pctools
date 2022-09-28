@@ -1,11 +1,12 @@
-import ufl
-import numpy as np
-
 from functools import cached_property
-from petsc4py import PETSc
+
+import numpy as np
+from problem_NavierStokes import Problem as NavierStokesProblem
+
+import ufl
 from dolfinx import fem
 
-from problem_NavierStokes import Problem as NavierStokesProblem
+from petsc4py import PETSc
 
 
 class Problem(NavierStokesProblem):
@@ -233,7 +234,7 @@ class Problem(NavierStokesProblem):
         B_inlet = fem.Function(VB, name="B_inlet")
         B_inlet.interpolate(self.inlet_stress_profile)
 
-        bcs.append(fem.DirichletBC(B_inlet, inlet_dofsVB))
+        bcs.append(fem.dirichletbc(B_inlet, inlet_dofsVB))
 
         return tuple(bcs)
 

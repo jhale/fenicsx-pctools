@@ -11,7 +11,6 @@
 
 import socket
 
-
 if socket.gethostname().startswith("iris"):
     import os
     import platform
@@ -24,19 +23,19 @@ if socket.gethostname().startswith("iris"):
 
 
 import os
+
+import numpy as np
 import pandas
 import pytest
-import numpy as np
+from problem_rayleigh_benard import Problem
+
+from dolfinx import fem
+from dolfinx.common import TimingType, list_timings
+from dolfinx.io import XDMFFile
+from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 
 from mpi4py import MPI
 from petsc4py import PETSc
-from dolfinx import fem
-from dolfinx.io import XDMFFile
-from dolfinx.common import list_timings, TimingType
-
-from fenics_pctools.mat.splittable import create_splittable_matrix_block
-
-from problem_rayleigh_benard import Problem
 
 
 def target_mesh_size():
@@ -115,7 +114,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
     if pc_approach == "LU":
         opts["ksp_type"] = "preonly"
         opts["pc_type"] = "python"
-        opts["pc_python_type"] = "fenics_pctools.WrappedPC"
+        opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
         opts["wrapped_pc_type"] = "lu"
         opts["wrapped_pc_factor_mat_solver_type"] = "mumps"
     elif pc_approach == "PCD-AMG":
@@ -125,7 +124,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
         opts["ksp_monitor"] = None
         opts["ksp_max_it"] = 1000
         opts["pc_type"] = "python"
-        opts["pc_python_type"] = "fenics_pctools.WrappedPC"
+        opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
         opts.prefixPush("wrapped_")
         opts["pc_type"] = "fieldsplit"
         opts["pc_fieldsplit_type"] = "multiplicative"
@@ -139,7 +138,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
         # opts["ksp_monitor_true_residual"] = None
         # opts["ksp_monitor"] = None
         opts["pc_type"] = "python"
-        opts["pc_python_type"] = "fenics_pctools.WrappedPC"
+        opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
         opts.prefixPush("wrapped_")
         opts["pc_type"] = "fieldsplit"
         opts["pc_fieldsplit_type"] = "schur"
@@ -149,14 +148,14 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
         # -- HYPRE on velocity block
         opts["fieldsplit_0_ksp_type"] = "preonly"
         opts["fieldsplit_0_pc_type"] = "python"
-        opts["fieldsplit_0_pc_python_type"] = "fenics_pctools.WrappedPC"
+        opts["fieldsplit_0_pc_python_type"] = "fenicsx_pctools.WrappedPC"
         opts["fieldsplit_0_wrapped_pc_type"] = "hypre"
         for key, val in hypre_common_settings.items():
             opts[f"fieldsplit_0_wrapped_{key}"] = val
         # -- PCD on pressure block
         opts["fieldsplit_1_ksp_type"] = "preonly"
         opts["fieldsplit_1_pc_type"] = "python"
-        opts["fieldsplit_1_pc_python_type"] = "fenics_pctools.PCDPC_vY"
+        opts["fieldsplit_1_pc_python_type"] = "fenicsx_pctools.PCDPC_vY"
         # ---- SOR on mass matrix
         opts["fieldsplit_1_pcd_Mp_ksp_type"] = "richardson"
         opts["fieldsplit_1_pcd_Mp_ksp_max_it"] = 2
@@ -176,7 +175,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
         # opts["ksp_monitor_true_residual"] = None
         # opts["ksp_monitor"] = None
         opts["pc_type"] = "python"
-        opts["pc_python_type"] = "fenics_pctools.WrappedPC"
+        opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
         opts.prefixPush("wrapped_")
         opts["pc_type"] = "hypre"
         for key, val in hypre_common_settings.items():
@@ -224,7 +223,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
             x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
             self.vec_to_functions(x, self.solution_vars)
 
-            fem.assemble_vector_block(F, self.L, self.a, self.bcs, x0=x, scale=-1.0)
+            fem.petsc.assemble_vector_block(F, self.L, self.a, self.bcs, x0=x, scale=-1.0)
             F.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
         def J_block(self, snes, x, J, P):
@@ -255,13 +254,13 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
     Jmat.setNullSpace(nsp)
 
     # Compile each UFL Form into dolfinx Form for better assembly performance
-    F_form = fem.assemble._create_cpp_form(problem.F_form)
-    J_form = fem.assemble._create_cpp_form(problem.J_form)
+    F_form = fem.form(problem.F_form)
+    J_form = fem.form(problem.J_form)
     pdeproblem = PDEProblem(F_form, J_form, problem.u, problem.bcs)
 
     # Prepare vectors (jitted forms can be used here)
-    Fvec = fem.create_vector_block(F_form)
-    x0 = fem.create_vector_block(F_form)
+    Fvec = fem.petsc.create_vector_block(F_form)
+    x0 = fem.petsc.create_vector_block(F_form)
 
     solver = PETSc.SNES().create(comm)
     solver.setFunction(pdeproblem.F_block, Fvec)

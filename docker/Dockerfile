@@ -1,24 +1,5 @@
-ARG IMAGE=dolfinx/dolfinx-onbuild:latest
-FROM ${IMAGE} as dev
-LABEL description="FEniCS PC Tools development image with all FEniCS components installed"
+FROM dolfinx/dolfinx:v0.5.1-r1 as dev
+LABEL description="fenicsx-pctools development image with all FEniCS components installed"
 
-# Install dependencies available via apt-get
-RUN export DEBIAN_FRONTEND=noninteractive && \
-    apt-get -qq update && \
-    apt-get -yq --with-new-pkgs -o Dpkg::Options::="--force-confold" upgrade && \
-    apt-get -y install \
-        htop \
-        screen \
-        sudo \
-        rsync && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
-
-# Install required Python packages (via pip)
-COPY requirements.txt /tmp/requirements.txt
-RUN pip3 install -r /tmp/requirements.txt && \
-    rm -rf /tmp/requirements.txt
-
-# TODO: Add production image which will be used within CI pipeline!
-# FROM dev as prod
-# LABEL description="FEniCS PC Tools production image with complete installation"
+# https://github.com/pypa/setuptools/issues/3269#issuecomment-1254507377
+ENV DEB_PYTHON_INSTALL_LAYOUT=deb_system

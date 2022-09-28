@@ -1,12 +1,14 @@
 import os
-import ufl
+from functools import cached_property
+
 import numpy as np
 
-from functools import cached_property
+import ufl
+from dolfinx import cpp, fem
+from dolfinx.mesh import locate_entities_boundary, meshtags
+
 from mpi4py import MPI
 from petsc4py import PETSc
-from dolfinx import fem, cpp
-from dolfinx.mesh import locate_entities_boundary, create_meshtags
 
 
 class Problem(object):
@@ -125,12 +127,13 @@ class Problem(object):
             e_to_v = domain.mesh.topology.connectivity(facetdim, 0).array.reshape(-1, 2)
             # NOTE: entity -> vertex map is used to determine ghost entities in `create_meshtags`
 
-            entities = cpp.graph.AdjacencyList_int32(e_to_v[facets])
-            values = np.full(facets.shape[0], 1, dtype=np.int32)
+            entities = e_to_v[facets]
+            values = np.full(entities.size, 1, dtype=np.int32)
 
-            mt = create_meshtags(domain.mesh, facetdim, entities, values)
+            mt = meshtags(domain.mesh, facetdim, entities, values)
             ds = ufl.Measure("ds", domain=domain.mesh, subdomain_data=mt, subdomain_id=1)
-            size = domain.comm.allreduce(fem.assemble_scalar(1.0 * ds), op=MPI.SUM)
+            # NOTE: This always seems to return zero!
+            size = domain.comm.allreduce(fem.assemble_scalar(fem.form(1.0 * ds(1))), op=MPI.SUM)
 
             return {"mt": mt, "ds": ds, "size": size}
 
@@ -347,8 +350,8 @@ class Problem(object):
         bf["w3"] = np.where(domain.mesh_tags_facets.values == bnd_w3)[0]
 
         inlet_dofsVv = fem.locate_dofs_topological(Vv, facetdim, bf["in"])
-        outlet_dofsVv_r = fem.locate_dofs_topological((Vv.sub(r_index), Vv_r), facetdim, bf["out"])
-        symm_dofsVv_r = fem.locate_dofs_topological((Vv.sub(r_index), Vv_r), facetdim, bf["symm"])
+        outlet_dofsVv_r = fem.locate_dofs_topological((Vv.sub(r_index), Vv_r[0]), facetdim, bf["out"])
+        symm_dofsVv_r = fem.locate_dofs_topological((Vv.sub(r_index), Vv_r[0]), facetdim, bf["symm"])
         w1_dofsVv = fem.locate_dofs_topological(Vv, facetdim, bf["w1"])
         w2_dofsVv = fem.locate_dofs_topological(Vv, facetdim, bf["w2"])
         w3_dofsVv = fem.locate_dofs_topological(Vv, facetdim, bf["w3"])
@@ -382,23 +385,23 @@ class Problem(object):
         v_zero = fem.Function(Vv, name="v_zero")
         v_inlet = fem.Function(Vv, name="v_inlet")
         v_inlet.interpolate(self.inlet_velocity_profile)
-        v_r_zero = fem.Function(Vv_r, name="v_r_zero")
+        v_r_zero = fem.Function(Vv_r[0], name="v_r_zero")
 
         bcs = [
-            fem.DirichletBC(v_inlet, inlet_dofsVv),
-            fem.DirichletBC(v_zero, walls_dofsVv),
-            fem.DirichletBC(v_r_zero, symm_dofsVv_r, Vv.sub(r_index)),
+            fem.dirichletbc(v_inlet, inlet_dofsVv),
+            fem.dirichletbc(v_zero, walls_dofsVv),
+            fem.dirichletbc(v_r_zero, symm_dofsVv_r, Vv.sub(r_index)),
         ]
 
         if self.application_opts["bc_outlet"] == "NoEnd":
-            bcs.append(fem.DirichletBC(v_r_zero, outlet_dofsVv_r, Vv.sub(r_index)))
+            bcs.append(fem.dirichletbc(v_r_zero, outlet_dofsVv_r, Vv.sub(r_index)))
 
         # Enforce zero azimuthal velocity
         axisymm_dofsVv_phi = fem.locate_dofs_geometrical(
-            (Vv.sub(phi_index), Vv_phi), lambda x: np.full((x.shape[1],), True)
+            (Vv.sub(phi_index), Vv_phi[0]), lambda x: np.full((x.shape[1],), True)
         )
-        v_phi_zero = fem.Function(Vv_phi)
-        bcs.append(fem.DirichletBC(v_phi_zero, axisymm_dofsVv_phi, Vv.sub(phi_index)))
+        v_phi_zero = fem.Function(Vv_phi[0])
+        bcs.append(fem.dirichletbc(v_phi_zero, axisymm_dofsVv_phi, Vv.sub(phi_index)))
 
         return tuple(bcs)
 
@@ -408,7 +411,7 @@ class Problem(object):
         facetdim = self.domain.mesh.topology.dim - 1
         inlet_dofsVp = fem.locate_dofs_topological(Vp, facetdim, self._bndry_facets["in"])
 
-        return [fem.DirichletBC(fem.Function(Vp), inlet_dofsVp)]
+        return [fem.dirichletbc(fem.Function(Vp), inlet_dofsVp)]
 
     @cached_property
     def pcd_bcs_outlet(self):
@@ -424,7 +427,7 @@ class Problem(object):
         cornerdofs = np.intersect1d(outlet_dofsVp, symm_dofsVp)
         outlet_dofsVp = np.setdiff1d(outlet_dofsVp, cornerdofs).reshape((-1, 1))
 
-        return [fem.DirichletBC(fem.Function(Vp), outlet_dofsVp)]
+        return [fem.dirichletbc(fem.Function(Vp), outlet_dofsVp)]
 
     @cached_property
     def pcd_forms(self):
@@ -487,9 +490,9 @@ class Problem(object):
 
             r = self.coord_r
             q_te, q_tr = ufl.TestFunction(V), ufl.TrialFunction(V)
-            dummy_rhs_form = fem.form.Form(ufl.inner(dummy_tensor, q_te) * ufl.dx)
-            projection_form = fem.form.Form(ufl.inner(r * q_tr, q_te) * ufl.dx)
-            Amat = fem.assemble_matrix(projection_form)
+            dummy_rhs_form = fem.form(ufl.inner(dummy_tensor, q_te) * ufl.dx)
+            projection_form = fem.form(ufl.inner(r * q_tr, q_te) * ufl.dx)
+            Amat = fem.petsc.assemble_matrix(projection_form)
             Amat.assemble()
 
             solver = PETSc.KSP().create(self.domain.comm)
@@ -502,7 +505,7 @@ class Problem(object):
 
             projection_utils["function_space"] = V
             projection_utils["solver"] = solver
-            projection_utils["rhs_vec"] = fem.create_vector(dummy_rhs_form)
+            projection_utils["rhs_vec"] = fem.petsc.create_vector(dummy_rhs_form)
 
         return self._projection_utils[tensor_order]
 
@@ -514,7 +517,7 @@ class Problem(object):
         with bvec.localForm() as bloc:
             bloc.set(0.0)
 
-        fem.assemble_vector(bvec, L)
+        fem.petsc.assemble_vector(bvec, L)
         bvec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
         solver.solve(bvec, q.vector)
         q.vector.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
@@ -524,7 +527,7 @@ class Problem(object):
         V = self._get_projection_utils(tensor_order=2)["function_space"]
         T = fem.Function(V, name="T")
         T_te = ufl.TestFunction(V)
-        projection_rhs = fem.form.Form(ufl.inner(self.rT(*self.solution_vars), T_te) * ufl.dx)
+        projection_rhs = fem.form(ufl.inner(self.rT(*self.solution_vars), T_te) * ufl.dx)
 
         return T, projection_rhs
 
@@ -541,7 +544,7 @@ class Problem(object):
         D = fem.Function(V, name="D")
         D_te = ufl.TestFunction(V)
         v = self.solution_vars[0]
-        projection_rhs = fem.form.Form(ufl.inner(self.rD(v), D_te) * ufl.dx)
+        projection_rhs = fem.form(ufl.inner(self.rD(v), D_te) * ufl.dx)
 
         return D, projection_rhs
 
@@ -559,7 +562,7 @@ class Problem(object):
         dgamma_te = ufl.TestFunction(V)
         v = self.solution_vars[0]
         r = self.coord_r
-        projection_rhs = fem.form.Form(
+        projection_rhs = fem.form(
             r * ufl.sqrt(2.0 * ufl.inner(self.D(v), self.D(v))) * dgamma_te * ufl.dx
         )
 
