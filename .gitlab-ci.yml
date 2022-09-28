@@ -1,0 +1,40 @@
+default:
+  image: 
+    name: dolfinx/dolfinx:v0.5.1-r1
+    pull_policy: always # Not possible to use if-not-present on public runner.
+
+stages:
+  - build
+  - lint
+  - test
+  - pages
+
+build:
+  stage: build
+  script:
+    - export DEB_PYTHON_INSTALL_LAYOUT='deb_system'
+    - python3 -m pip install .[ci]
+
+lint:
+  stage: lint
+  script:
+    - python3 -m flake8 fenicsx_pctools/
+    - python3 -m black --check fenicsx_pctools/
+  allow_failure: true
+
+unit-tests:
+  stage: test
+  script:
+    - python3 -m pytest tests/
+
+pages:
+  stage: pages
+  script:
+    - cd doc && make html && cd ../
+    - cp -r doc/build/html public
+  artifacts:
+    public: true
+    paths:
+      - public
+  only:
+    - main

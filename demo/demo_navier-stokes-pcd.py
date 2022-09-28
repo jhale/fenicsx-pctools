@@ -8,4 +8,6 @@
 #       jupytext_version: 1.14.1
 # ---
 
-# # Navier-Stokes equations with a PCD-based preconditioner 
+# # Navier-Stokes equations with a PCD-based preconditioner
+
+from dolfinx import mesh
