@@ -20,7 +20,7 @@ variants of the pressure-convection-diffusion (PCD) preconditioner for the
 system of incompressible Navier-Stokes equations originally implemented in the
 work of Blechta and Řehoř [2]_.
 
-Requirements
+Dependencies
 ============
 
 fenicsx-pctools depends on the Python interface to DOLFINx.
