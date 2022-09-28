@@ -23,7 +23,7 @@ work of Blechta and Řehoř [2]_.
 Dependencies
 ============
 
-fenicsx-pctools depends on the Python interface to DOLFINx.
+``fenicsx-pctools`` depends on the Python interface to DOLFINx.
 
 Quickstart
 ==========
@@ -76,12 +76,12 @@ License
 
 Copyright |(C)| 2021-2022 Rafinex S. á r. l. <info@rafinex.com>
 
-fenicsx-pctools is free software: you can redistribute it and/or modify it
+``fenicsx-pctools`` is free software: you can redistribute it and/or modify it
 under the terms of the GNU Lesser General Public License as published
 by the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-fenicsx-pctools is distributed in the hope that it will be useful, but
+``fenicsx-pctools`` is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 Lesser General Public License for more details.
@@ -90,7 +90,7 @@ You should have received a copy of the GNU Lesser General Public
 License along with fenicsx-pctools. If not, see
 <http://www.gnu.org/licenses/>.
 
-In addition to the LGPLv3 license detailed above, the additional rights under
+In addition to the LGPL license detailed above, the additional rights under
 which the University of Luxembourg and Rafinex can use this work are detailed
 in the *Collaboration Agreement in the frame of FNR Industrial Fellowships*
 concluded between both parties.
