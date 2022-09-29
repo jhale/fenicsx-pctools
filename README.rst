@@ -9,7 +9,7 @@ This repository contains various tools for preconditioning of systems of linear
 algebraic equations in `DOLFINx <https://github.com/FEniCS/dolfinx>`_, the
 computational environment of the `FEniCS Project
 <https://fenicsproject.org/>`_. These tools, delivered as a Python library
-``fenics_pctools``, aim to facilitate the specification of problems that can be
+``fenicsx_pctools``, aim to facilitate the specification of problems that can be
 tackled by means of composable linear solvers offered by `PETSc
 <https://www.mcs.anl.gov/petsc/>`_. The idea is inspired by the work of Kirby
 and Mitchell [1]_ that was originally implemented in the `Firedrake Project
@@ -30,7 +30,7 @@ Quickstart
 
 Assuming that the current working directory is the root of this repository.
 
-1. Install ``fenics_pctools``:
+1. Install ``fenicsx_pctools``:
 
    .. code-block:: console
 
@@ -40,7 +40,7 @@ Assuming that the current working directory is the root of this repository.
 
    .. code-block:: console
 
-      python3 -m pytest .
+      python3 -m pytest tests/
 
 3. Run an example:
 
