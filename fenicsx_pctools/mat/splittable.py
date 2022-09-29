@@ -239,7 +239,10 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
         index_sets = self.ISes  # calls self._create_index_sets
 
         # Check that index sets have correct lengths
-        if self._layouts == (MatrixLayout.BLOCK, MatrixLayout.BLOCK):  # FIXME: Always check!
+        if self._layouts == (
+            MatrixLayout.BLOCK,
+            MatrixLayout.BLOCK,
+        ):  # FIXME: Always check!
             assert sum([iset.getSize() for iset in index_sets[0]]) == wrapped_mat.getSize()[0]
             assert sum([iset.getSize() for iset in index_sets[1]]) == wrapped_mat.getSize()[1]
 

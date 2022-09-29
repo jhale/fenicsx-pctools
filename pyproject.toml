@@ -51,6 +51,9 @@ ci = [
 [tool.setuptools]
 packages = ["fenicsx_pctools", "fenicsx_pctools.mat", "fenicsx_pctools.pc"]
 
+[tool.black]
+line_length = 100
+
 [project.urls]
 repository = "https://gitlab.com/rafinex-external-rifle/fenicsx_pctools"
 

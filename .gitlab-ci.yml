@@ -4,27 +4,21 @@ default:
     pull_policy: always # Not possible to use if-not-present on public runner.
 
 stages:
-  - build
-  - lint
-  - test
+  - build-lint-and-test
   - pages
 
-build:
-  stage: build
+build-lint-and-test:
+  stage: build-lint-and-test
   script:
     - export DEB_PYTHON_INSTALL_LAYOUT='deb_system'
-    - python3 -m pip install .[ci]
+    - python3 -m pip install '.[ci]'
 
-lint:
-  stage: lint
-  script:
     - python3 -m flake8 fenicsx_pctools/
     - python3 -m black --check fenicsx_pctools/
-  allow_failure: true
-
-unit-tests:
-  stage: test
-  script:
+    - python3 -m flake8 demo/
+    - python3 -m black --check demo/
+ 
+    - python3 -m pytest examples/rayleigh-benard-convection/
     - python3 -m pytest tests/
 
 pages:
