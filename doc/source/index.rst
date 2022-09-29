@@ -6,8 +6,10 @@
 .. toctree::
    :maxdepth: 1
    :titlesonly:
+   :hidden:
 
-   Demos <demos>
+   demos
+   api
 
 .. include:: ../../README.rst
 

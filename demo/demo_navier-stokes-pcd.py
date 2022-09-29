@@ -9,5 +9,3 @@
 # ---
 
 # # Navier-Stokes equations with a PCD-based preconditioner
-
-from dolfinx import mesh
