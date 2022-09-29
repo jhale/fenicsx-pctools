@@ -2,6 +2,12 @@
 ``fenicsx-pctools``: FEniCSx Preconditioning Tools
 ==================================================
 
+.. image:: https://img.shields.io/badge/docs-ready-success
+   :target: https://rafinex-external-rifle.gitlab.io/fenicsx-pctools/
+
+.. image:: https://gitlab.com/rafinex-external-rifle/fenicsx-pctools/badges/main/pipeline.svg
+   :target: https://gitlab.com/rafinex-external-rifle/fenicsx-pctools/-/pipelines
+
 Description
 ===========
 
