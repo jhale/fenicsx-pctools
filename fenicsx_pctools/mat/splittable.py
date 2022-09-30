@@ -96,33 +96,33 @@ def find_block_indices(iset, isets):
     """
     block_ids = []
     comm = iset.comm.tompi4py()
-    master_indices = iset.indices
+    parent_indices = iset.indices
     search_space = {k: v for k, v in enumerate(isets)}
 
     # NOTE:
     #   In the following loop, we repeatedly iterate over the search space taking one index set
-    #   after the other (slave IS) and trying to find it at the beginning of the master IS.
-    #   If there is a match between the two, the respective indices are removed from the master IS,
-    #   the slave IS is removed from the search space and the corresponding block ID is remembered.
-    #   No indices should remain in the master IS at the end of this process.
+    #   after the other (child IS) and trying to find it at the beginning of the parent IS.
+    #   If there is a match between the two, the respective indices are removed from the parent IS,
+    #   the child IS is removed from the search space and the corresponding block ID is remembered.
+    #   No indices should remain in the parent IS at the end of this process.
     while True:
         found = False
-        for i, slave in list(search_space.items()):
-            slave_indices = slave.indices
-            slave_size = slave_indices.shape[0]
-            master_size = master_indices.shape[0]
-            local_match = slave_size <= master_size and np.array_equal(
-                master_indices[:slave_size], slave_indices
+        for i, child in list(search_space.items()):
+            child_indices = child.indices
+            child_size = child_indices.shape[0]
+            parent_size = parent_indices.shape[0]
+            local_match = child_size <= parent_size and np.array_equal(
+                parent_indices[:child_size], child_indices
             )
             if comm.allreduce(local_match, op=MPI.LAND):
                 found = True
-                master_indices = master_indices[slave_size:]  # remove indices from master IS
-                search_space.pop(i)  # remove slave IS from search space
+                parent_indices = parent_indices[child_size:]  # remove indices from parent IS
+                search_space.pop(i)  # remove child IS from search space
                 block_ids.append(i)  # remember the position
         if not found:
             break
 
-    if comm.allreduce(len(master_indices), op=MPI.SUM) > 0:
+    if comm.allreduce(len(parent_indices), op=MPI.SUM) > 0:
         raise ValueError(f"Unable to identify {iset} as a subset of {isets}")
 
     return tuple(block_ids)
