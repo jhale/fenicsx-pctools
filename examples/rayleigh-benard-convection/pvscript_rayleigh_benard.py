@@ -10,7 +10,7 @@ _special_font = f"{TEXMFDIST_DIR}/fonts/truetype/google/tinos/Tinos-Regular.ttf"
 assert len(sys.argv[1:]) == 4
 output_file = sys.argv[1]
 
-# trace generated using paraview version 5.8.1
+# This script requires paraview version 5.10.0
 #
 # To ensure correct image size when batch processing, please search
 # for and uncomment the line `# renderView*.ViewSize = [*,*]`
@@ -87,7 +87,7 @@ vLUTColorBar.LabelFontFamily = "File"
 vLUTColorBar.LabelFontFile = _special_font
 
 # create a new 'Stream Tracer'
-streamTracer1 = StreamTracer(Input=field_vxdmf, SeedType="Point Source")
+streamTracer1 = StreamTracer(Input=field_vxdmf, SeedType="Point Cloud")
 streamTracer1.Vectors = ["POINTS", "v"]
 streamTracer1.SeedType.NumberOfPoints = 75
 streamTracer1.SeedType.Radius = 0.5
