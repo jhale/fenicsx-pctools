@@ -51,7 +51,8 @@ Assuming that the current working directory is the root of this repository.
 
    .. code-block:: console
 
-      TODO
+      cd demo/navier-stokes-pcd
+      python3 demo_navier-stokes-pcd.py
 
 
 Authors
