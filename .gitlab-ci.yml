@@ -32,5 +32,5 @@ pages:
     public: true
     paths:
       - public
-  # only:
-  #   - main
+  only:
+    - main
