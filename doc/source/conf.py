@@ -19,6 +19,14 @@ jupytext_process.process()
 project = "fenicsx-pctools"
 copyright = "2022, FEniCSx-pctools Authors"
 author = "FEniCSx-pctools Authors"
+
+# The version info for the project you're documenting, acts as replacement for
+# |version| and |release|, also used in various other places throughout the
+# built documents.
+#
+# The short X.Y version.
+version = fenicsx_pctools.__version__
+# The full version, including alpha/beta/rc tags.
 release = fenicsx_pctools.__version__
 
 # -- General configuration ---------------------------------------------------
