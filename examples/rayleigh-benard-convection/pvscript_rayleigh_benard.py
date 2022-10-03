@@ -210,7 +210,10 @@ renderView1.CameraParallelScale = 0.8660254037844386
 
 # save screenshot
 SaveScreenshot(
-    output_file, renderView1, ImageResolution=[1125, 736], OverrideColorPalette="WhiteBackground",
+    output_file,
+    renderView1,
+    ImageResolution=[1125, 736],
+    OverrideColorPalette="WhiteBackground",
 )
 
 #### uncomment the following to render all views

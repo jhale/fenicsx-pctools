@@ -377,7 +377,8 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
     # Save XDMF data
     if not request.config.getoption("noxdmf"):
         pvscript_args = [
-            "pvscript_rayleigh_benard.py", os.path.join(results_dir, "fig_rayleigh_benard.png")
+            "pvscript_rayleigh_benard.py",
+            os.path.join(results_dir, "fig_rayleigh_benard.png"),
         ]
         basename = os.path.splitext(os.path.basename(results_file))[0]
         for field, name in [(s0, "v"), (s1, "p"), (s2, "T")]:

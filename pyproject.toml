@@ -27,9 +27,11 @@ dependencies = [
 
 [project.optional-dependencies]
 docs = [
+    "myst-parser",
     "jupytext",
     "sphinx",
-    "myst-parser"
+    "sphinx_rtd_theme",
+    "sphinxcontrib-bibtex",
 ]
 examples = [
     "matplotlib",

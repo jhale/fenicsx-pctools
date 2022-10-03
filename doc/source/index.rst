@@ -10,6 +10,7 @@
 
    demos
    api
+   references
 
 .. include:: ../../README.rst
 

@@ -176,17 +176,7 @@ class PCDPCBase(PCBase):
 
 class PCDPC_vX(PCDPCBase):
     r"""This class implements a modification of PCD variant similar to the one by
-    [1]_, see also Blechta [2]_.
-
-
-    .. [1] \ M. A. Olshanskii and Y. V. Vassilevski, "Pressure Schur Complement Preconditioners
-             for the Discrete Oseen Problem,” SIAM J. Sci. Comput., vol. 29, no. 6, pp. 2686–2704,
-             2007, doi: 10.1137/070679776.
-
-    .. [2] \ J. Blechta, “Towards efficient numerical computation of flows of non-Newtonian fluids,”
-             Jun. 2019, Accessed: Feb. 26, 2021. [Online].
-             Available: https://dspace.cuni.cz/handle/20.500.11956/108384.
-
+    :cite:t:`olshanskii_pressure_2007`, see also :cite:t:`blechta_towards_2019`.
     """
 
     def initialize(self, pc):
@@ -256,14 +246,7 @@ class PCDPC_vX(PCDPCBase):
 
 class PCDPC_vY(PCDPCBase):
     r"""This class implements a modification of steady variant of PCD discussed in the book
-    by Elman et al. [1]_, see also Blechta [2]_.
-
-    .. [1] \ H. C. Elman, D. J. Silvester, and A. J. Wathen, Finite elements and fast iterative
-             solvers: with applications in incompressible fluid dynamics. 2014.
-
-    .. [2] \ J. Blechta, “Towards efficient numerical computation of flows of non-Newtonian fluids,”
-             Jun. 2019, Accessed: Feb. 26, 2021. [Online].
-             Available: https://dspace.cuni.cz/handle/20.500.11956/108384.
+    by :cite:t:`elman_finite_2014`, see also :cite:t:`blechta_towards_2019`.
     """
 
     def initialize(self, pc):

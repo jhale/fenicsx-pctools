@@ -82,7 +82,7 @@ def _generate_tables(outdir, results_file):
         caption = r"Nonlinear iteration counts, total linear iterations, total iterations for"
         caption += r" Navier-Stokes and temperature solves (with average iterations"
         caption += r" per outer linear solve in brackets), and time to solution"
-        caption += fr" for Rayleigh-Bénard convection with \emph{{{pc_approach}}} preconditioning."
+        caption += rf" for Rayleigh-Bénard convection with \emph{{{pc_approach}}} preconditioning."
         label = f"boussinesq_steady_rayleigh_benard_tab_{pc_approach}"
         table = get_latex_table(content, caption, label)
 
