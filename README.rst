@@ -17,14 +17,13 @@ computational environment of the `FEniCS Project
 <https://fenicsproject.org/>`_. These tools, delivered as a Python library
 ``fenicsx_pctools``, aim to facilitate the specification of problems that can be
 tackled by means of composable linear solvers offered by `PETSc
-<https://www.mcs.anl.gov/petsc/>`_. The idea is inspired by the work of Kirby
-and Mitchell [1]_ that was originally implemented in the `Firedrake Project
-<https://firedrakeproject.org/>`_.
+<https://www.mcs.anl.gov/petsc/>`_. The idea is inspired by the work of :cite:t:`kirby_solver_2018`
+that was originally implemented in the `Firedrake Project <https://firedrakeproject.org/>`_.
 
 Implementation of chosen advanced preconditioners is part of the library, e.g.
 variants of the pressure-convection-diffusion (PCD) preconditioner for the
 system of incompressible Navier-Stokes equations originally implemented in the
-work of Blechta and Řehoř [2]_.
+work of :cite:t:`blechta_fenapack_2018`.
 
 Dependencies
 ============
@@ -66,14 +65,6 @@ This package was developed by `Rafinex <https://www.rafinex.com/>`_ within the
 <https://www.fnr.lu/projects/robust-incompressible-flow-solver-enhancement/>`_
 (Host Institution: `Rafinex S.à r.l. <https://www.rafinex.com/>`_, Academic
 Partner: `University of Luxembourg <https://wwwen.uni.lu/>`_).
-
-References
-==========
-
-.. [1] \ R. C. Kirby and L. Mitchell, "Solver Composition Across the PDE/Linear Algebra Barrier,"
-         SIAM J. Sci. Comput., vol. 40, no. 1, pp. C76–C98, 2017, doi: 10.1137/17M1133208.
-
-.. [2] \ J. Blechta and M. Řehoř, Fenapack 2018.1.0. Zenodo, 2018, doi: 10.5281/zenodo.1308015.
 
 License
 =======
