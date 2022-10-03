@@ -24,13 +24,13 @@ release = '0.5.0.dev0'
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
 extensions = [
+    'myst_parser',
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.mathjax',
     'sphinx.ext.napoleon',
     'sphinx.ext.todo',
     'sphinx.ext.viewcode',
-    'myst_parser',
     'sphinxcontrib.bibtex',
 ]
 
@@ -39,11 +39,14 @@ exclude_patterns = []
 
 source_suffix = ['.rst', '.md']
 
-html_theme = "sphinx_rtd_theme"
-
 myst_enable_extensions = ["dollarmath"]
 
-autodoc_default_options = {'members': True, 'show-inheritance': True, 'imported-members': True, 'undoc-members': True}
+autodoc_default_options = {
+    'members': True,
+    'show-inheritance': True,
+    'imported-members': True,
+    'undoc-members': True,
+}
 autosummary_generate = True
 autoclass_content = "both"
 
