@@ -10,6 +10,8 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath("."))
+
+import fenicsx_pctools
 import jupytext_process
 
 jupytext_process.process()
@@ -17,7 +19,7 @@ jupytext_process.process()
 project = "fenicsx-pctools"
 copyright = "2022, FEniCSx-pctools Authors"
 author = "FEniCSx-pctools Authors"
-release = "0.5.0.dev0"
+release = fenicsx_pctools.__version__
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
