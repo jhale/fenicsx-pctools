@@ -4,11 +4,22 @@ from functools import cached_property
 import numpy as np
 
 import ufl
-from dolfinx.fem import (Constant, Function, FunctionSpace,
-                         VectorFunctionSpace, dirichletbc,
-                         locate_dofs_topological)
-from dolfinx.mesh import (CellType, GhostMode, create_unit_cube,
-                          locate_entities, locate_entities_boundary, meshtags)
+from dolfinx.fem import (
+    Constant,
+    Function,
+    FunctionSpace,
+    VectorFunctionSpace,
+    dirichletbc,
+    locate_dofs_topological,
+)
+from dolfinx.mesh import (
+    CellType,
+    GhostMode,
+    create_unit_cube,
+    locate_entities,
+    locate_entities_boundary,
+    meshtags,
+)
 from ufl import div, dot, dx, grad, inner
 
 from petsc4py import PETSc

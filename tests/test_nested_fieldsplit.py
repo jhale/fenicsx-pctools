@@ -8,7 +8,9 @@ from dolfinx import cpp, fem
 from dolfinx.fem import Function, FunctionSpace
 from dolfinx.mesh import CellType, create_unit_square
 from fenicsx_pctools.mat.splittable import (
-    create_splittable_matrix_block, create_splittable_matrix_monolithic)
+    create_splittable_matrix_block,
+    create_splittable_matrix_monolithic,
+)
 
 from petsc4py import PETSc
 
@@ -156,6 +158,7 @@ def b(space, target):
 
     return b
 
+
 # NOTE:
 #   For the discussion around recursive field splits with Matnest refer to:
 #   - https://petsc-users.mcs.anl.narkive.com/daEIQkM8/recursive-fieldsplit-pcs
@@ -169,6 +172,7 @@ def b(space, target):
 #     of FieldSplit that you want. The DM version maintains
 #     the field identity at the next level so that we can split hierarchically.
 #     So, for the above to work, I think you must use a DM."
+
 
 @pytest.mark.parametrize(
     "variant",

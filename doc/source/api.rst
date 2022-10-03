@@ -2,5 +2,9 @@
 API documentation
 =================
 
-.. automodule:: fenicsx_pctools
-   :members:
+.. autosummary::
+   :toctree: generated
+
+   fenicsx_pctools
+   fenicsx_pctools.mat
+   fenicsx_pctools.pc

@@ -47,8 +47,10 @@ def test_nested_fieldsplit(get_block_space, equal_discretization, comm):
     A.assemble()
 
     L_dolfinx = [fem.form(L) for L in L]
-    imaps = [(form.function_spaces[0].dofmap.index_map,
-             form.function_spaces[0].dofmap.index_map_bs) for form in L_dolfinx]
+    imaps = [
+        (form.function_spaces[0].dofmap.index_map, form.function_spaces[0].dofmap.index_map_bs)
+        for form in L_dolfinx
+    ]
     b = fem.petsc.create_vector_block(L_dolfinx)
     b.set(0.0)
     b_local = cpp.la.petsc.get_local_vectors(b, imaps)
@@ -74,7 +76,8 @@ def test_nested_fieldsplit(get_block_space, equal_discretization, comm):
     )
     assert np.all(composed_is_row.indices == composed_is_col.indices)
     pc.setFieldSplitIS(
-        ["0", composed_is_row], ["1", A_ctx.ISes[0][1]],
+        ["0", composed_is_row],
+        ["1", A_ctx.ISes[0][1]],
     )
     pc.setUp()
 
@@ -88,7 +91,8 @@ def test_nested_fieldsplit(get_block_space, equal_discretization, comm):
     Asub = pc_sub[0].getOperators()[0]
     Asub_ctx = Asub.getPythonContext()
     pc_sub[0].setFieldSplitIS(
-        ["0", Asub_ctx.ISes[0][1]], ["1", Asub_ctx.ISes[0][0]],
+        ["0", Asub_ctx.ISes[0][1]],
+        ["1", Asub_ctx.ISes[0][0]],
     )
     for i, ksp_i in enumerate(pc_sub[0].getFieldSplitSubKSP()):
         assert ksp_i.prefix == f"fieldsplit_0_fieldsplit_{i}_"
