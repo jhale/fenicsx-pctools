@@ -1,5 +1,5 @@
 default:
-  image: 
+  image:
     name: dolfinx/dolfinx:v0.5.1-r1
     pull_policy: always # Not possible to use if-not-present on public runner.
 
@@ -17,13 +17,15 @@ build-lint-and-test:
     - python3 -m black --check fenicsx_pctools/
     - python3 -m flake8 demo/
     - python3 -m black --check demo/
- 
+
     - python3 -m pytest examples/rayleigh-benard-convection/
     - python3 -m pytest tests/
 
 pages:
   stage: pages
   script:
+    - export DEB_PYTHON_INSTALL_LAYOUT='deb_system'
+    - python3 -m pip install '.[docs]'
     - cd doc && make html && cd ../
     - cp -r doc/build/html public
   artifacts:
