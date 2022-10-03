@@ -49,6 +49,9 @@ autodoc_default_options = {
 autosummary_generate = True
 autoclass_content = "both"
 
+napoleon_google_docstring = True
+napoleon_use_admonition_for_notes = False
+
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
