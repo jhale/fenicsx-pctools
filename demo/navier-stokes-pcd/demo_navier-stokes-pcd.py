@@ -68,7 +68,7 @@ def get_mesh_data(refinement_level=0, mesh_comm=MPI.COMM_WORLD):
         model.setPhysicalName(1, 3, "wall")
 
         # Set uniform mesh size at all points
-        size = (0.5 ** refinement_level) * 0.2
+        size = (0.5**refinement_level) * 0.2
         model.mesh.setSize(model.getEntities(0), size)
 
         # Generate 2D mesh
@@ -86,8 +86,7 @@ def get_mesh_data(refinement_level=0, mesh_comm=MPI.COMM_WORLD):
 
 
 # +
-# FIXME: Run this with PCD!
-def test_navier_stokes(mesh_data=None, pc_approach="ILU", linearization="Newton"):
+def test_navier_stokes(mesh_data=None, pc_approach="PCDPC_vY", linearization="Newton", Re=1e1):
     mesh, mts = mesh_data or get_mesh_data()
     mesh_comm = mesh.comm
 # -
@@ -105,7 +104,6 @@ def test_navier_stokes(mesh_data=None, pc_approach="ILU", linearization="Newton"
     v_te = ufl.TestFunction(V_v)
     p_te = ufl.TestFunction(V_p)
 
-    Re = 10  # Reynolds number
     V_char = 1.0  # characteristic length
     L_char = 2.0  # characteristic velocity
     nu = fem.Constant(mesh, V_char * L_char / Re)  # kinematic viscosity
@@ -181,45 +179,53 @@ def test_navier_stokes(mesh_data=None, pc_approach="ILU", linearization="Newton"
 # TODO: Comment on the use of _splittable_ matrix when evaluating the Jacobian!
 
 # +
-    # Prepare solver context
-    class SNESContext(object):
-        def __init__(self, u, bcs, F_form, J_form, appctx, options_prefix):
-            self.u = u
-            self.bcs = bcs
-            self.F = create_vector_block(F_form)
+    # Wrap PDEs, BCs and solution variables into a class that can assemble Jacobian and residual
+    class PDEProblem:
+        def __init__(self, F_form, J_form, solution_vars, bcs, P_form=None):
             self.F_form = F_form
-            self.J = create_splittable_matrix_block(
-                J_form, bcs, appctx, options_prefix=options_prefix
-            )
             self.J_form = J_form
-            self.x = self.F.copy()
-            self.solution = [fem.Function(u_i.function_space, name=u_i.name) for u_i in u]
-            self.options_prefix = options_prefix
+            self.P_form = P_form
+            self.bcs = bcs
+            self.solution_vars = solution_vars
 
-        def update_functions(self, x):
-            vec_to_functions(x, self.u)
-            x.copy(self.x)
-            self.x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+        def F_block(self, snes, x, F):
+            with F.localForm() as f_local:
+                f_local.set(0.0)  # NOTE: f_local includes ghosts
 
-        def eval_residual(self, snes, x, F):
-            with self.F.localForm() as f_local:
-                f_local.set(0.0)
-            self.update_functions(x)
-            assemble_vector_block(self.F, self.F_form, self.J_form, self.bcs, x0=self.x, scale=-1.0)
+            x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+            vec_to_functions(x, self.solution_vars)
 
-        def eval_jacobian(self, snes, x, J, P):
-            self.J.zeroEntries()
-            self.update_functions(x)
-            if self.J.getType() != "python":
-                assemble_matrix_block(self.J, self.J_form, self.bcs, diagonal=1.0)
-            self.J.assemble()
+            fem.petsc.assemble_vector_block(F, self.F_form, self.J_form, self.bcs, x0=x, scale=-1.0)
+            F.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
-    regions = merge_meshtags(mts, fdim)
-    tag_inlet = np.unique(mts["inlet"].values)[0]
-    ds_in = ufl.Measure("ds", domain=mesh, subdomain_data=regions, subdomain_id=tag_inlet)
+        def J_block(self, snes, x, J, P):
+            J.zeroEntries()
+            if J.getType() != "python":
+                fem.assemble_matrix_block(J, self.J_form, self.bcs, diagonal=1.0)
+            J.assemble()
+            if self.P_form is not None:
+                P.zeroEntries()
+                if P.getType() != "python":
+                    fem.assemble_matrix_block(P, self.P_form, self.bcs, diagonal=1.0)
+                P.assemble()
 
+    problem_prefix = "ns_"
+    regions, tag_id_map = merge_meshtags(mts, fdim)
+    ds_in = ufl.Measure("ds", domain=mesh, subdomain_data=regions, subdomain_id=tag_id_map["inlet"])
     appctx = {"nu": nu, "v": v, "bcs_pcd": bcs_pcd, "ds_in": ds_in}
-    snesctx = SNESContext([v, p], bcs, fem.form(F_form), fem.form(J_form), appctx, "ns_")
+
+    # Prepare Jacobian matrix (UFL form is required in this step)
+    Jmat = create_splittable_matrix_block(
+        J_form, bcs, appctx, comm=mesh_comm, options_prefix=problem_prefix
+    )
+
+    F_form = fem.form(F_form)
+    J_form = fem.form(J_form)
+    pdeproblem = PDEProblem(F_form, J_form, [v, p], bcs)
+
+    # Prepare vectors (DOLFINx form is required here)
+    Fvec = fem.petsc.create_vector_block(F_form)
+    x0 = fem.petsc.create_vector_block(F_form)
 # -
 
 # Configure the solver depending on the chosen preconditioning approach.
@@ -232,7 +238,7 @@ def test_navier_stokes(mesh_data=None, pc_approach="ILU", linearization="Newton"
     opts = PETSc.Options()
     opts["options_left"] = None
 
-    opts.prefixPush(snesctx.options_prefix)
+    opts.prefixPush(problem_prefix)
     opts["snes_type"] = "newtonls"
     opts["snes_linesearch_type"] = "basic"
     opts["snes_rtol"] = 1.0e-05
@@ -285,9 +291,9 @@ def test_navier_stokes(mesh_data=None, pc_approach="ILU", linearization="Newton"
 
     # Set up nonlinear solver
     solver = PETSc.SNES().create(mesh_comm)
-    solver.setFunction(snesctx.eval_residual, snesctx.F)
-    solver.setJacobian(snesctx.eval_jacobian, snesctx.J)
-    solver.setOptionsPrefix(snesctx.options_prefix)
+    solver.setFunction(pdeproblem.F_block, Fvec)
+    solver.setJacobian(pdeproblem.J_block, J=Jmat, P=None)
+    solver.setOptionsPrefix(problem_prefix)
     solver.setFromOptions()
 # -
 
@@ -299,7 +305,7 @@ def test_navier_stokes(mesh_data=None, pc_approach="ILU", linearization="Newton"
     solver.setConvergenceHistory()
     solver.ksp.setConvergenceHistory()
     with PETSc.Log.Stage(f"SNES solve with {pc_approach} ({linearization}), Re = {Re}"):
-        solver.solve(None, snesctx.x)
+        solver.solve(None, x0)
         its_snes = solver.getIterationNumber()
         its_ksp = solver.getLinearSolveIterations()
     PETSc.Sys.Print(
@@ -307,11 +313,11 @@ def test_navier_stokes(mesh_data=None, pc_approach="ILU", linearization="Newton"
         f" (with total number of {its_ksp} linear iterations)"
     )
 
-    vec_to_functions(snesctx.x, snesctx.solution)
-    s0, s1 = snesctx.solution
+    # Update solution variables
+    vec_to_functions(x0, pdeproblem.solution_vars)
 
     results = {
-        "fields_names": [(s0, "v"), (s1, "p")],
+        "fields": pdeproblem.solution_vars,
         "its_snes": its_snes,
         "its_ksp": its_ksp,
     }
@@ -335,11 +341,11 @@ def test_navier_stokes(mesh_data=None, pc_approach="ILU", linearization="Newton"
 if __name__ == "__main__":
     mesh_comm = MPI.COMM_WORLD
     mesh_data = get_mesh_data(refinement_level=0, mesh_comm=mesh_comm)
-    results = test_navier_stokes(mesh_data, pc_approach="ILU", linearization="Newton")
+    results = test_navier_stokes(mesh_data, pc_approach="PCDPC_vY", linearization="Newton", Re=1e2)
 
     # Save ParaView plots
-    for field, name in results["fields_names"]:
-        xfile = f"solution_{name}.xdmf"
+    for field in results["fields"]:
+        xfile = f"solution_{field.name}.xdmf"
         with XDMFFile(mesh_comm, xfile, "w") as f:
             f.write_mesh(field.function_space.mesh)
             f.write_function(field)
