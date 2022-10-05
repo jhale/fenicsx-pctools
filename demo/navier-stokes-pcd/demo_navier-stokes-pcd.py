@@ -236,7 +236,7 @@ x0 = fem.petsc.create_vector_block(F_form)
 # Set up PETSc options
 PETSc.Log.begin()
 opts = PETSc.Options()
-opts["options_left"] = None
+# opts["options_left"] = None  # NOTE: Uncomment to reveal if there are any unused options.
 
 opts.prefixPush(problem_prefix)
 opts["snes_type"] = "newtonls"
@@ -316,31 +316,20 @@ PETSc.Sys.Print(
 
 # Update solution variables
 vec_to_functions(x0, pdeproblem.solution_vars)
-
-results = {
-    "fields": pdeproblem.solution_vars,
-    "its_snes": its_snes,
-    "its_ksp": its_ksp,
-}
-
-# Clean up options database
-for opt in opts.getAll().keys():
-    opts.delValue(opt)
 # -
 
-# Users are encouraged to experiment with different preconditioning and linearization schemas.
-
-# TODO: Possibly write a short loop taking into account mesh refinements and/or different Reynolds
-# numbers to demonstrate robustness of PCD preconditioner.
-#
-# TODO: We may want to run this demo as part of CI pipeline.
+# Visualize the resulting fields and do the cleanup.
 
 
 # +
 # Save ParaView plots
-for field in results["fields"]:
+for field in pdeproblem.solution_vars:
     xfile = f"solution_{field.name}.xdmf"
     with XDMFFile(mesh_comm, xfile, "w") as f:
         f.write_mesh(field.function_space.mesh)
         f.write_function(field)
+
+# Destroy PETSc objects
+solver.destroy()
+Jmat.destroy()
 # -
