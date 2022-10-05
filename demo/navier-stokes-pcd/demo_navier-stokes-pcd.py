@@ -10,6 +10,8 @@
 
 # # Navier-Stokes equations with a PCD-based preconditioner
 
+# TODO: We may want to run this demo as part of CI pipeline.
+
 # TODO: Add problem description with references!
 
 # Start with usual imports.
@@ -25,7 +27,6 @@ from petsc4py import PETSc
 import ufl
 from dolfinx import fem
 from dolfinx.io import XDMFFile
-from dolfinx.fem.petsc import assemble_matrix_block, assemble_vector_block, create_vector_block
 from dolfiny.mesh import gmsh_to_dolfin, merge_meshtags
 from dolfiny.function import vec_to_functions
 from ufl import inner, grad, div, dot, dx
@@ -79,8 +80,8 @@ mesh, mts = gmsh_to_dolfin(model, 2, prune_z=True, comm=mesh_comm)
 gmsh.finalize()
 # -
 
-# Build function spaces, define non-linear variational forms representing the Navier-Stokes,
-# and calculate the matrix blocks for the linearized problem.
+# Build function spaces, define non-linear variational forms representing the incompressible
+# Navier-Stokes equations, and calculate the matrix blocks for the linearized problem.
 
 
 # +
@@ -176,7 +177,7 @@ except KeyError:
 
 
 # +
-    # Wrap PDEs, BCs and solution variables into a class that can assemble Jacobian and residual
+# Wrap PDEs, BCs and solution variables into a class that can assemble Jacobian and residual
 class PDEProblem:
     def __init__(self, F_form, J_form, solution_vars, bcs, P_form=None):
         self.F_form = F_form
@@ -192,18 +193,18 @@ class PDEProblem:
         x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
         vec_to_functions(x, self.solution_vars)
 
-        assemble_vector_block(F, self.F_form, self.J_form, self.bcs, x0=x, scale=-1.0)
+        fem.petsc.assemble_vector_block(F, self.F_form, self.J_form, self.bcs, x0=x, scale=-1.0)
         F.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
     def J_block(self, snes, x, J, P):
         J.zeroEntries()
         if J.getType() != "python":
-            assemble_matrix_block(J, self.J_form, self.bcs, diagonal=1.0)
+            fem.petsc.assemble_matrix_block(J, self.J_form, self.bcs, diagonal=1.0)
         J.assemble()
         if self.P_form is not None:
             P.zeroEntries()
             if P.getType() != "python":
-                assemble_matrix_block(P, self.P_form, self.bcs, diagonal=1.0)
+                fem.petsc.assemble_matrix_block(P, self.P_form, self.bcs, diagonal=1.0)
             P.assemble()
 
 
@@ -222,8 +223,8 @@ J_form = fem.form(J_form)
 pdeproblem = PDEProblem(F_form, J_form, [v, p], bcs)
 
 # Prepare vectors (DOLFINx form is required here)
-Fvec = create_vector_block(F_form)
-x0 = create_vector_block(F_form)
+Fvec = fem.petsc.create_vector_block(F_form)
+x0 = fem.petsc.create_vector_block(F_form)
 # -
 
 # Configure the solver depending on the chosen preconditioning approach.
