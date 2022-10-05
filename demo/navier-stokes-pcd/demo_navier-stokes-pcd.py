@@ -105,22 +105,10 @@ F0 = (
 )
 F1 = -div(v) * p_te * dx
 
-# FIXME: Get rid of the follwing opts!
-linearization = "Newton"
-pc_approach = "PCDPC_vY"
-
-v_tr, p_tr = ufl.TrialFunction(V_v), ufl.TrialFunction(V_p)
-if linearization == "Newton":
-    a00 = ufl.derivative(F0, v)
-    a01 = ufl.derivative(F0, p)
-    a10 = ufl.derivative(F1, v)
-elif linearization == "Picard":
-    a00 = nu * inner(grad(v_tr), grad(v_te)) * dx + inner(dot(grad(v_tr), v), v_te) * dx
-    a01 = -p_tr * div(v_te) * dx
-    a10 = -div(v_tr) * p_te * dx
-else:
-    raise NotImplementedError(f"Unknown type of linearization '{linearization}'")
-a11 = fem.Function(V_p, name="zero_p") * p_tr * p_te * dx if pc_approach == "ILU" else None
+a00 = ufl.derivative(F0, v)
+a01 = ufl.derivative(F0, p)
+a10 = ufl.derivative(F1, v)
+a11 = None
 
 F_form = [F0, F1]
 J_form = [[a00, a01], [a10, a11]]
@@ -161,14 +149,12 @@ outlet_dofs_p = np.setdiff1d(outlet_dofs_p, outlet_cdofs_p)
 # Collect primary boundary condtions
 bcs = [fem.dirichletbc(v_inflow, inlet_dofs_v), fem.dirichletbc(v_wall, wall_dofs_v)]
 
-# Collect secondary boundary condtions (only active with PCD-based preconditioning)
-try:
-    bcs_pcd = {
-        "PCDPC_vX": [fem.dirichletbc(fem.Function(V_p), inlet_dofs_p)],
-        "PCDPC_vY": [fem.dirichletbc(fem.Function(V_p), outlet_dofs_p)],
-    }[pc_approach]
-except KeyError:
-    bcs_pcd = []
+# Collect secondary boundary condtions for PCD preconditioners
+pcd_type = "PCDPC_vY"  # pick one of the two versions specified in the dictionary below
+bcs_pcd = {
+    "PCDPC_vX": [fem.dirichletbc(fem.Function(V_p), inlet_dofs_p)],
+    "PCDPC_vY": [fem.dirichletbc(fem.Function(V_p), outlet_dofs_p)],
+}[pcd_type]
 # -
 
 # Define the context for the nonlinear SNES solver that will be used to solve the problem.
@@ -236,57 +222,38 @@ x0 = fem.petsc.create_vector_block(F_form)
 # Set up PETSc options
 PETSc.Log.begin()
 opts = PETSc.Options()
-# opts["options_left"] = None  # NOTE: Uncomment to reveal if there are any unused options.
-
 opts.prefixPush(problem_prefix)
 opts["snes_type"] = "newtonls"
 opts["snes_linesearch_type"] = "basic"
 opts["snes_rtol"] = 1.0e-05
 opts["snes_max_it"] = 25
-
-# -- linear solver configuration
 opts["ksp_converged_reason"] = None
 opts["ksp_rtol"] = 1e-06
 opts["ksp_max_it"] = 1000
-if pc_approach == "LU":
-    opts["ksp_type"] = "preonly"
-    opts["pc_type"] = "python"
-    opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
-    opts["wrapped_pc_type"] = "lu"
-    opts["wrapped_pc_factor_mat_solver_type"] = "mumps"
-if pc_approach == "ILU":
-    opts["ksp_type"] = "gmres"
-    opts["pc_type"] = "python"
-    opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
-    opts["wrapped_pc_type"] = "hypre"
-    opts["wrapped_pc_hypre_type"] = "euclid"
-elif pc_approach.startswith("PCD"):
-    opts["ksp_type"] = "gmres"
-    opts["ksp_gmres_restart"] = 150
-    opts["ksp_pc_side"] = "right"
-    opts["pc_type"] = "python"
-    opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
-    opts.prefixPush("wrapped_")
-    opts["pc_type"] = "fieldsplit"
-    opts["pc_fieldsplit_type"] = "schur"
-    opts["pc_fieldsplit_schur_fact_type"] = "upper"
-    opts["pc_fieldsplit_schur_precondition"] = "user"
-    opts["pc_fieldsplit_0_fields"] = 0
-    opts["pc_fieldsplit_1_fields"] = 1
-    opts["fieldsplit_0_ksp_type"] = "preonly"
-    opts["fieldsplit_0_pc_type"] = "python"
-    opts["fieldsplit_0_pc_python_type"] = "fenicsx_pctools.WrappedPC"
-    opts["fieldsplit_0_wrapped_pc_type"] = "lu"
-    opts["fieldsplit_1_ksp_type"] = "preonly"
-    opts["fieldsplit_1_pc_type"] = "python"
-    opts["fieldsplit_1_pc_python_type"] = f"fenicsx_pctools.{pc_approach}"
-    opts["fieldsplit_1_pcd_Mp_ksp_type"] = "preonly"
-    opts["fieldsplit_1_pcd_Mp_pc_type"] = "lu"
-    opts["fieldsplit_1_pcd_Ap_ksp_type"] = "preonly"
-    opts["fieldsplit_1_pcd_Ap_pc_type"] = "lu"
-    opts.prefixPop()  # wrapped_
-else:
-    raise NotImplementedError(f"Unknown type of preconditioner '{pc_approach}'")
+opts["ksp_type"] = "gmres"
+opts["ksp_gmres_restart"] = 150
+opts["ksp_pc_side"] = "right"
+opts["pc_type"] = "python"
+opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
+opts.prefixPush("wrapped_")
+opts["pc_type"] = "fieldsplit"
+opts["pc_fieldsplit_type"] = "schur"
+opts["pc_fieldsplit_schur_fact_type"] = "upper"
+opts["pc_fieldsplit_schur_precondition"] = "user"
+opts["pc_fieldsplit_0_fields"] = 0
+opts["pc_fieldsplit_1_fields"] = 1
+opts["fieldsplit_0_ksp_type"] = "preonly"
+opts["fieldsplit_0_pc_type"] = "python"
+opts["fieldsplit_0_pc_python_type"] = "fenicsx_pctools.WrappedPC"
+opts["fieldsplit_0_wrapped_pc_type"] = "lu"
+opts["fieldsplit_1_ksp_type"] = "preonly"
+opts["fieldsplit_1_pc_type"] = "python"
+opts["fieldsplit_1_pc_python_type"] = f"fenicsx_pctools.{pcd_type}"
+opts["fieldsplit_1_pcd_Mp_ksp_type"] = "preonly"
+opts["fieldsplit_1_pcd_Mp_pc_type"] = "lu"
+opts["fieldsplit_1_pcd_Ap_ksp_type"] = "preonly"
+opts["fieldsplit_1_pcd_Ap_pc_type"] = "lu"
+opts.prefixPop()  # wrapped_
 opts.prefixPop()  # ns_
 
 # Set up nonlinear solver
@@ -302,13 +269,10 @@ solver.setFromOptions()
 
 # +
 # Solve the problem
-PETSc.Sys.Print("Solving the nonlinear problem using SNES")
-solver.setConvergenceHistory()
-solver.ksp.setConvergenceHistory()
-with PETSc.Log.Stage(f"SNES solve with {pc_approach} ({linearization}), Re = {Re}"):
-    solver.solve(None, x0)
-    its_snes = solver.getIterationNumber()
-    its_ksp = solver.getLinearSolveIterations()
+PETSc.Sys.Print("Solving the nonlinear problem with SNES")
+solver.solve(None, x0)
+its_snes = solver.getIterationNumber()
+its_ksp = solver.getLinearSolveIterations()
 PETSc.Sys.Print(
     f"Solver converged in {its_snes} nonlinear iterations"
     f" (with total number of {its_ksp} linear iterations)"
