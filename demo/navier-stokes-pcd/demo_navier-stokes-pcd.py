@@ -10,9 +10,21 @@
 
 # # Navier-Stokes equations with a PCD-based preconditioner
 
+# TODO: Add problem description with references!
+
+# The type of PCD preconditioner that will be applied to the liearized algebraic system can be
+# specified as a positional argument on the command line.
+
 # TODO: We may want to run this demo as part of CI pipeline.
 
-# TODO: Add problem description with references!
+# +
+import sys
+
+supported_pcd = ["PCDPC_vX", "PCDPC_vY"]  # TODO: Rename the preconditioners!
+pcd_type = "PCDPC_vY" if len(sys.argv) == 1 else sys.argv[1]
+if pcd_type not in supported_pcd:
+    raise NotImplementedError(f"Unknown PCD type <'{pcd_type}'> (supported: <{supported_pcd}>)")
+# -
 
 # Start with usual imports.
 
@@ -112,7 +124,7 @@ J_form = [[a00, a01], [a10, a11]]
 # -
 
 # Define primary and secondary boundary conditions.
-# The latter are important for the performance of PCD preconditioners.
+# The latter are important for the performance of PCD preconditioners (see API documentation).
 
 
 # +
@@ -130,24 +142,14 @@ v_inflow.interpolate(v_inflow_eval)
 # Localize boundary dofs
 fdim = mesh.topology.dim - 1
 wall_dofs_v = fem.locate_dofs_topological(V_v, fdim, mts["wall"].indices)
-wall_dofs_p = fem.locate_dofs_topological(V_p, fdim, mts["wall"].indices)
 inlet_dofs_v = fem.locate_dofs_topological(V_v, fdim, mts["inlet"].indices)
 inlet_dofs_p = fem.locate_dofs_topological(V_p, fdim, mts["inlet"].indices)
 outlet_dofs_p = fem.locate_dofs_topological(V_p, fdim, mts["outlet"].indices)
 
-# Find common dofs at corners and remove them for consistency
-inlet_cdofs_v = np.intersect1d(inlet_dofs_v, wall_dofs_v)
-inlet_dofs_v = np.setdiff1d(inlet_dofs_v, inlet_cdofs_v)
-inlet_cdofs_p = np.intersect1d(inlet_dofs_p, wall_dofs_p)
-inlet_dofs_p = np.setdiff1d(inlet_dofs_p, inlet_cdofs_p)
-outlet_cdofs_p = np.intersect1d(outlet_dofs_p, wall_dofs_p)
-outlet_dofs_p = np.setdiff1d(outlet_dofs_p, outlet_cdofs_p)
-
 # Collect primary boundary condtions
 bcs = [fem.dirichletbc(v_inflow, inlet_dofs_v), fem.dirichletbc(v_wall, wall_dofs_v)]
 
-# Collect secondary boundary condtions for PCD preconditioners
-pcd_type = "PCDPC_vY"  # pick one of the two versions specified in the dictionary below
+# Collect secondary boundary condtions for PCD preconditioner
 bcs_pcd = {
     "PCDPC_vX": [fem.dirichletbc(fem.Function(V_p), inlet_dofs_p)],
     "PCDPC_vY": [fem.dirichletbc(fem.Function(V_p), outlet_dofs_p)],
@@ -212,7 +214,8 @@ x0 = fem.petsc.create_vector_block(F_form)
 
 # Configure the solver depending on the chosen preconditioning approach.
 
-# TODO: Comment on the use of ``WrappedPC``!
+# TODO: Comment on the use of ``WrappedPC``, as well as on the use of innner LU solves (fully
+#       iterative config can be found in Rayleigh-Bénard example).
 
 
 # +
