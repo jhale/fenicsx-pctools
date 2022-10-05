@@ -32,6 +32,7 @@ from dolfiny.function import vec_to_functions
 from ufl import inner, grad, div, dot, dx
 
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
+
 # -
 
 # Create a distributed (parallel) mesh using the Gmsh API and mark exterior facets.
@@ -98,11 +99,7 @@ Re = 10  # Reynolds number
 V_char = 1.0  # characteristic length
 L_char = 2.0  # characteristic velocity
 nu = fem.Constant(mesh, V_char * L_char / Re)  # kinematic viscosity
-F0 = (
-    inner(dot(grad(v), v), v_te) * dx
-    + nu * inner(grad(v), grad(v_te)) * dx
-    - p * div(v_te) * dx
-)
+F0 = inner(dot(grad(v), v), v_te) * dx + nu * inner(grad(v), grad(v_te)) * dx - p * div(v_te) * dx
 F1 = -div(v) * p_te * dx
 
 a00 = ufl.derivative(F0, v)
