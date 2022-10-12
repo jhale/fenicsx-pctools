@@ -147,6 +147,7 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
         "createVecRight",
         "diagonalScale",
         "getDiagonal",
+        "getDiagonalBlock",
         "mult",
         "multTranspose",
         "norm",
@@ -551,7 +552,7 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
         return ([], [])
 
     def assemblyBegin(self, mat, assembly=None):
-        fem.petsc.assemble_matrix(self.Mat, self.jitted_form, self._bcs)
+        fem.petsc.assemble_matrix(self.Mat, self.jitted_form, self._bcs, diagonal=1.0)
 
     def assemblyEnd(self, mat, assembly=None):
         self.Mat.assemble()
