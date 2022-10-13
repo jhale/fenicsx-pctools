@@ -64,4 +64,5 @@ src_paths = ["demo", "examples", "fenicsx_pctools"]
 known_first_party = ["basix", "dolfinx", "fenicsx_pctools", "ffcx", "ufl"]
 known_third_party = ["gmsh", "numpy", "pytest"]
 known_mpi = ["mpi4py", "petsc4py"]
-sections= ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "MPI", "LOCALFOLDER"]
+sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "MPI", "LOCALFOLDER"]
+profile = "black"

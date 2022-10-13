@@ -147,6 +147,7 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
         "createVecRight",
         "diagonalScale",
         "getDiagonal",
+        "getDiagonalBlock",
         "mult",
         "multTranspose",
         "norm",
