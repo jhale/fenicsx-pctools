@@ -394,7 +394,7 @@ class SplittableMatrixBlock(SplittableMatrixBase):
         return (global_isrows, global_iscols)
 
 
-def createSubMatrix(self, mat, isrow, iscol=None, submat=None):
+    def createSubMatrix(self, mat, isrow, iscol=None, submat=None):
         """Create submatrix of the wrapped matrix (based on provided index sets), wrap it using
         a newly created context with corresponding (appropriately shifted) index sets and return
         the result.

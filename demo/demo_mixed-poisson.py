@@ -36,7 +36,7 @@ from mpi4py import MPI
 from petsc4py import PETSc
 
 # Define mesh
-nx, ny = 128, 128
+nx, ny = 256, 256
 domain = mesh.create_rectangle(
     MPI.COMM_WORLD,
     [np.array([0.0, 0.0]), np.array([1.0, 1.0])],
