@@ -10,6 +10,7 @@
 
 # # Mixed Poisson problem with a Schur complement preconditioner
 
+from dolfinx.fem.petsc import assemble_matrix
 import numpy as np
 from dolfiny.function import vec_to_functions
 
@@ -102,7 +103,9 @@ a = [[inner(q, q_t) * dx, inner(p, div(q_t)) * dx], [inner(div(q), p_t) * dx, No
 L = [inner(fem.Constant(domain, (0.0, 0.0)), q_t) * dx, -inner(f, p_t) * dx]
 
 A = create_splittable_matrix_block(a, bcs, options_prefix="mp_")
-A.assemble()
+ctx = A.getPythonContext()
+fem.petsc.assemble_matrix_block(ctx.Mat, fem.form(a), bcs)
+ctx.Mat.assemble()
 
 b = fem.petsc.assemble_vector_block(fem.form(L), fem.form(a), bcs)
 b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
@@ -143,7 +146,9 @@ a_p_11 = (
 a_p = [[inner(q, q_t) * dx, None], [None, a_p_11]]
 
 A_P = create_splittable_matrix_block(a_p, bcs, options_prefix="mp_")
-A_P.assemble()
+ctx = A_P.getPythonContext()
+fem.petsc.assemble_matrix_block(ctx.Mat, fem.form(a_p), bcs)
+ctx.Mat.assemble()
 
 solver = PETSc.KSP().create(MPI.COMM_WORLD)
 solver.setOperators(A, A_P)

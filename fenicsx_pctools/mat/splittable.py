@@ -393,11 +393,6 @@ class SplittableMatrixBlock(SplittableMatrixBase):
 
         return (global_isrows, global_iscols)
 
-    def assemblyBegin(self, mat, assembly=None):
-        fem.petsc.assemble_matrix_block(self.Mat, self.jitted_form, self._bcs, diagonal=1.0)
-
-    def assemblyEnd(self, mat, assembly=None):
-        self.Mat.assemble()
 
     def createSubMatrix(self, mat, isrow, iscol=None, submat=None):
         """Create submatrix of the wrapped matrix (based on provided index sets), wrap it using
