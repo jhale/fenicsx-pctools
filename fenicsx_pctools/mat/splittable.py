@@ -154,13 +154,12 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
         "zeroEntries",
     ]
 
-    def __init__(self, a, bcs, appctx, comm):
+    def __init__(self, comm, a, bcs = [], **kwargs):
         self._a = a
-        self._bcs = [] if bcs is None else bcs
-        self._appctx = {} if appctx is None else appctx
+        self._bcs = bcs
+        self._kwargs = kwargs
         self._comm = comm
         self._spaces = None
-        self._a_cpp = None
         self._Mat = None
         self._ISes = None
 
@@ -178,16 +177,14 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
         super(SplittableMatrixBase, self).__init__()
 
     @property
-    def appctx(self):
-        return self._appctx
+    def kwargs(self):
+        return self._kwargs
 
     @property
     def comm(self):
         """Return the MPI communicator extracted from attached data or default
         `mpi4py.MPI.COMM_WORLD` if no communicator could have been extracted.
         """
-        if self._comm is None:
-            self._comm = MPI.COMM_WORLD
         return self._comm
 
     @property
@@ -199,11 +196,9 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
         return self._spaces
 
     @cached_property
-    def jitted_form(self):
+    def a(self):
         """Return jitted bilinear form."""
-        if self._a_cpp is None:
-            self._a_cpp = fem.form(self._a)
-        return self._a_cpp
+        return self._a
 
     @cached_property
     def Mat(self):
@@ -266,7 +261,7 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
         index sets), create a new wrapper (`PETSc.Mat` object of type 'python') and return it.
         """
 
-        newmat_ctx = type(self)(self._a, self._bcs, self._comm)
+        newmat_ctx = type(self)(self._comm, self._a, self._bcs)
         newmat_ctx._Mat = self._Mat.duplicate(copy)
         newmat_ctx._ISes = _copy_index_sets(self._ISes)
 
@@ -306,17 +301,16 @@ class SplittableMatrixBlock(SplittableMatrixBase):
     various combinations of the underlying fields.
 
     Parameters:
-        a (list): list of lists containing bilinear forms corresponding to individual blocks
-        bcs (list): list of boundary conditions of type `dolfinx.DirichletBC` (can be None)
-        comm (`mpi4py.MPI.Intracomm`): MPI communicator (default: None)
+        a (list): list of lists containing bilinear forms corresponding to individual blocks.
+        bcs (list): list of boundary conditions of type `dolfinx.DirichletBC`.
 
     Note:
         Use ``SplittableMatrixBlock.DELEGATED_METHODS`` to list methods automatically delegated to
         the wrapped `PETSc.Mat` object.
     """
 
-    def __init__(self, a, bcs, appctx=None, comm=None):
-        super(SplittableMatrixBlock, self).__init__(a, bcs, appctx, comm)
+    def __init__(self, comm, a, bcs = [], **kwargs):
+        super(SplittableMatrixBlock, self).__init__(comm, a, bcs, **kwargs)
 
         # Get block shape and layout of DOFs
         num_brows = len(a)
@@ -356,7 +350,7 @@ class SplittableMatrixBlock(SplittableMatrixBase):
                     assert MPI.Comm.Compare(comm, self._comm) == MPI.IDENT
 
     def _create_mat_object(self):
-        A = fem.petsc.create_matrix_block(self.jitted_form)
+        A = fem.petsc.create_matrix_block(self.a)
 
         return A
 
@@ -453,8 +447,8 @@ class SplittableMatrixBlock(SplittableMatrixBase):
         submat = self.Mat.createSubMatrix(isrow, iscol)
         a = [[self._a[i][j] for j in bcol_ids] for i in brow_ids]
         bcs = None  # TODO: Ensure that boundary conditions have been applied at this stage.
-        subctx = SplittableMatrixBlock(a, bcs, self._appctx, self._comm)
-        subctx._a_cpp = [[self.jitted_form[i][j] for j in bcol_ids] for i in brow_ids]
+        subctx = SplittableMatrixBlock(self.comm, a, bcs, **self.kwargs)
+        subctx._a_cpp = [[self.a[i][j] for j in bcol_ids] for i in brow_ids]
         subctx._Mat = submat
         subctx._ISes = (shifted_ISes_0, shifted_ISes_1)
         subctx._spaces = (
@@ -470,15 +464,14 @@ class SplittableMatrixBlock(SplittableMatrixBase):
         return Asub
 
 
-def create_splittable_matrix_block(a, bcs=None, appctx=None, comm=None, options_prefix=None):
+def create_splittable_matrix_block(comm, a, bcs=[], **kwargs):
     """Routine for assembling a splittable block matrix from given data (bilinear form and boundary
     conditions). The returned `PETSc.Mat` object of type 'python' is a wrapper for the actual
     matrix of type 'aij'. The wrapped matrix needs to be finalised by calling the :meth:`assemble`
     method of the returned object.
     """
-    ctx = SplittableMatrixBlock(a, bcs, appctx=appctx, comm=comm)
-    ctx.Mat.setOptionsPrefix(options_prefix)
-    A = PETSc.Mat().create(comm=ctx.comm)
+    ctx = SplittableMatrixBlock(comm, a, bcs)
+    A = PETSc.Mat().create(comm)
     A.setType("python")
     A.setPythonContext(ctx)  # NOTE: Set sizes (of matrix A) automatically from ctx.
     A.setUp()
@@ -513,8 +506,8 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
         :attr:`MatrixLayout.MIX`?
     """
 
-    def __init__(self, a, bcs, appctx=None, comm=None):
-        super(SplittableMatrixMonolithic, self).__init__(a, bcs, appctx, comm)
+    def __init__(self, comm, a, bcs, **kwargs):
+        super(SplittableMatrixMonolithic, self).__init__(comm, a, bcs, **kwargs)
 
         # Get block shape and layout of DOFs
         test_space, trial_space = _extract_spaces(a)
@@ -534,23 +527,14 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
             [trial_space.sub(j).collapse() for j in range(num_bcols)],
         )
 
-        # Get MPI communicator
-        self._comm = _extract_comm(test_space, trial_space)
-
     def _create_mat_object(self):
-        A = fem.petsc.create_matrix(self.jitted_form)
+        A = fem.petsc.create_matrix(self.a)
 
         return A
 
     # FIXME: Implement this!
     def _create_index_sets(self):
         return ([], [])
-
-    def assemblyBegin(self, mat, assembly=None):
-        fem.petsc.assemble_matrix(self.Mat, self.jitted_form, self._bcs, diagonal=1.0)
-
-    def assemblyEnd(self, mat, assembly=None):
-        self.Mat.assemble()
 
     def createSubMatrix(self, mat, isrow, iscol=None, submat=None):
         if submat is not None:
@@ -565,7 +549,7 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
         submat = self.Mat.createSubMatrix(isrow, iscol)
         a = self._a  # FIXME: Exclude extra terms!
         bcs = None  # TODO: Ensure that boundary conditions have been applied at this stage.
-        subctx = SplittableMatrixMonolithic(a, bcs, self._appctx, self._comm)
+        subctx = SplittableMatrixMonolithic(comm, a, bcs, **self.kwargs)
         subctx._Mat = submat
         subctx._ISes = _copy_index_sets(self._ISes)  # FIXME: Exclude extra terms and renumber!
         subctx._spaces = self._spaces  # FIXME: Exclude extra terms!
@@ -578,15 +562,14 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
         return Asub
 
 
-def create_splittable_matrix_monolithic(a, bcs=None, appctx=None, comm=None, options_prefix=None):
+def create_splittable_matrix_monolithic(comm, a, bcs=[], **kwargs):
     """Routine for assembling a splittable monolithic matrix from given data (bilinear form and
     boundary conditions). The returned `PETSc.Mat` object of type 'python' is a wrapper for the
     actual matrix of type 'aij'. The wrapped matrix needs to be finalised by calling the
     ``assemble`` method of the returned object.
     """
-    ctx = SplittableMatrixMonolithic(a, bcs, appctx=appctx, comm=comm)
-    ctx.Mat.setOptionsPrefix(options_prefix)
-    A = PETSc.Mat().create(comm=ctx.comm)
+    ctx = SplittableMatrixMonolithic(comm, a, bcs, **kwargs)
+    A = PETSc.Mat().create(comm=comm)
     A.setType("python")
     A.setPythonContext(ctx)  # NOTE: Set sizes (of matrix A) automatically from ctx.
     A.setUp()

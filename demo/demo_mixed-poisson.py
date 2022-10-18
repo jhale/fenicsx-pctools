@@ -10,7 +10,6 @@
 
 # # Mixed Poisson problem with a Schur complement preconditioner
 
-from dolfinx.fem.petsc import assemble_matrix
 import numpy as np
 from dolfiny.function import vec_to_functions
 
@@ -36,7 +35,7 @@ from mpi4py import MPI
 from petsc4py import PETSc
 
 # Define mesh
-nx, ny = 256, 256
+nx, ny = 128, 128
 domain = mesh.create_rectangle(
     MPI.COMM_WORLD,
     [np.array([0.0, 0.0]), np.array([1.0, 1.0])],
@@ -101,9 +100,11 @@ f = 10.0 * exp(-((x[0] - 0.5) * (x[0] - 0.5) + (x[1] - 0.5) * (x[1] - 0.5)) / 0.
 dx = Measure("dx", domain)
 a = [[inner(q, q_t) * dx, inner(p, div(q_t)) * dx], [inner(div(q), p_t) * dx, None]]
 L = [inner(fem.Constant(domain, (0.0, 0.0)), q_t) * dx, -inner(f, p_t) * dx]
+a_dolfin = fem.form(a)
 
-A, A_ctx = create_splittable_matrix_block(a, bcs, options_prefix="mp_")
-fem.petsc.assemble_matrix_block(A, fem.form(a), bcs)
+A, A_ctx = create_splittable_matrix_block(MPI.COMM_WORLD, a_dolfin, bcs)
+A_ctx.setOptionsPrefix("mp_")
+fem.petsc.assemble_matrix_block(A, a_dolfin, bcs)
 A.assemble()
 
 b = fem.petsc.assemble_vector_block(fem.form(L), fem.form(a), bcs)
@@ -144,12 +145,15 @@ a_p_11 = (
 )
 a_p = [[inner(q, q_t) * dx, None], [None, a_p_11]]
 
-A_P, A_P_ctx = create_splittable_matrix_block(a_p, bcs, options_prefix="mp_")
+A_P, A_P_ctx = create_splittable_matrix_block(
+    MPI.COMM_WORLD, fem.form(a_p), bcs, options_prefix="mp_"
+)
+A_P_ctx.setOptionsPrefix("mp_")
 fem.petsc.assemble_matrix_block(A_P, fem.form(a_p), bcs)
 A_P.assemble()
 
 solver = PETSc.KSP().create(MPI.COMM_WORLD)
-solver.setOperators(A_ctx, A_P_ctx)
+solver.setOperators(A, A_P_ctx)
 
 options = PETSc.Options()
 options.prefixPush("mp_")

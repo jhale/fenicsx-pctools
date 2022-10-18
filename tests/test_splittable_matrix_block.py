@@ -4,6 +4,7 @@ import pytest
 import ufl
 from dolfinx import cpp, fem
 from dolfinx.fem.function import Function, FunctionSpace
+from dolfinx.fem.petsc import assemble_matrix_block
 from dolfinx.mesh import create_unit_square
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 
@@ -43,8 +44,7 @@ def test_nested_fieldsplit(get_block_space, equal_discretization, comm):
         a[i][i] = ufl.inner(v_tr, v_te) * ufl.dx
         L[i] = ufl.inner(vsub, v_te) * ufl.dx
 
-    A = create_splittable_matrix_block(a)
-    A.assemble()
+    A, A_ctx = create_splittable_matrix_block(a)
 
     L_dolfinx = [fem.form(L) for L in L]
     imaps = [
