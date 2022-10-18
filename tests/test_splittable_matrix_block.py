@@ -44,7 +44,10 @@ def test_nested_fieldsplit(get_block_space, equal_discretization, comm):
         a[i][i] = ufl.inner(v_tr, v_te) * ufl.dx
         L[i] = ufl.inner(vsub, v_te) * ufl.dx
 
-    A, A_ctx = create_splittable_matrix_block(a)
+    a_dolfinx = fem.form(a)
+    A, A_ctx = create_splittable_matrix_block(comm, a_dolfinx)
+    fem.petsc.assemble_matrix_block(A, a_dolfinx, bcs=[])
+    A.assemble()
 
     L_dolfinx = [fem.form(L) for L in L]
     imaps = [
@@ -59,15 +62,14 @@ def test_nested_fieldsplit(get_block_space, equal_discretization, comm):
     cpp.la.petsc.scatter_local_vectors(b, b_local, imaps)
     b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
 
-    ksp = PETSc.KSP()
-    ksp.create(comm)
-    ksp.setOperators(A)
+    ksp = PETSc.KSP().create(comm)
+    ksp.setOperators(A_ctx)
     ksp.setType("preonly")
 
     pc = ksp.getPC()
     pc.setType("fieldsplit")
     pc.setFieldSplitType(PETSc.PC.CompositeType.SCHUR)
-    A_ctx = A.getPythonContext()
+    A_ctx = A_ctx.getPythonContext() # Bit odd, investigate further.
     composed_is_row = PETSc.IS(comm).createGeneral(
         np.concatenate((A_ctx.ISes[0][0].indices, A_ctx.ISes[0][2].indices))
     )

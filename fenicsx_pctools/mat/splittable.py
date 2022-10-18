@@ -13,10 +13,7 @@ from petsc4py import PETSc
 def _extract_spaces(a):
     """Extract test and trial function spaces from given bilinear form."""
 
-    if isinstance(a, fem.FormMetaClass):
-        test_space, trial_space = a.function_spaces
-    else:
-        test_space, trial_space = map(lambda arg: arg.ufl_function_space(), a.arguments())
+    test_space, trial_space = a.function_spaces
     return test_space, trial_space
 
 
@@ -516,8 +513,8 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
 
         # Store spaces per block rows/columns
         self._spaces = (
-            [test_space.sub(i).collapse() for i in range(num_brows)],
-            [trial_space.sub(j).collapse() for j in range(num_bcols)],
+            [test_space.sub([i]).collapse() for i in range(num_brows)],
+            [trial_space.sub([j]).collapse() for j in range(num_bcols)],
         )
 
     def _create_mat_object(self):

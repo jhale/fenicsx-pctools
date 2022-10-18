@@ -57,9 +57,9 @@ def test_nested_fieldsplit(get_vector_space, equal_discretization, comm):
     a = ufl.inner(v_tr, v_te) * ufl.dx
     L = ufl.inner(v_target, v_te) * ufl.dx
 
-    # A = fem.assemble_matrix(a)
     a_dolfinx = fem.form(a)
-    A = create_splittable_matrix_monolithic(a)
+    A, A_ctx = create_splittable_matrix_monolithic(comm, a_dolfinx)
+    fem.petsc.assemble_matrix(A, a_dolfinx)
     A.assemble()
 
     L_dolfinx = fem.form(L)

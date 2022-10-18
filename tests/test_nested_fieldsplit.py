@@ -12,6 +12,7 @@ from fenicsx_pctools.mat.splittable import (
     create_splittable_matrix_monolithic,
 )
 
+from mpi4py import MPI
 from petsc4py import PETSc
 
 
@@ -63,13 +64,12 @@ def space(request, comm):
             return f
 
     ghost_mode = cpp.mesh.GhostMode.shared_facet
-    # ghost_mode = cpp.mesh.GhostMode.none
     mesh = create_unit_square(comm, 4, 4, cell_type=cell_type, ghost_mode=ghost_mode)
     return MixedSpace(mesh, structure)
 
 
 @pytest.fixture
-def A(space):
+def A(space, comm):
     V = space()
     if space.structure == "monolithic":
         v_tr, v_te = ufl.TrialFunction(V), ufl.TestFunction(V)
@@ -81,14 +81,15 @@ def A(space):
         for i, (v_tr, v_te) in enumerate(zip(trial_functions, test_functions)):
             a[i][i] = ufl.inner(v_tr, v_te) * ufl.dx
 
-    A = {
-        "monolithic": create_splittable_matrix_monolithic,
+    A, A_ctx = {
+    #    "monolithic": create_splittable_matrix_monolithic,
         "block": create_splittable_matrix_block,
-        "nest": fem.petsc.assemble_matrix_nest,
-    }[space.structure](a)
+    #    "nest": fem.petsc.assemble_matrix_nest,
+    }[space.structure](comm, fem.form(a))
+    fem.petsc.assemble_matrix_block(A, fem.form(a))
     A.assemble()
 
-    return A
+    return A, A_ctx
 
 
 @pytest.fixture
@@ -190,7 +191,7 @@ def test_nested_fieldsplit(space, A, b, target, variant):
 
     ksp = PETSc.KSP()
     ksp.create(comm)
-    ksp.setOperators(A)
+    ksp.setOperators(A[1])
     ksp.setType("preonly")
 
     opts = PETSc.Options()
