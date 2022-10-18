@@ -326,7 +326,6 @@ class SplittableMatrixBlock(SplittableMatrixBase):
             np.full(num_brows, None).tolist(),
             np.full(num_bcols, None).tolist(),
         )
-        self._comm = None
         for i, row in enumerate(a):
             assert len(row) == num_bcols
             for j, a_sub in enumerate(row):
@@ -342,12 +341,6 @@ class SplittableMatrixBlock(SplittableMatrixBase):
                     else:
                         if not V[1][j] is trial_space:
                             raise RuntimeError("Mismatched trial space for column.")
-
-                    # Get MPI communicator
-                    comm = _extract_comm(test_space, trial_space)
-                    if self._comm is None:
-                        self._comm = comm
-                    assert MPI.Comm.Compare(comm, self._comm) == MPI.IDENT
 
     def _create_mat_object(self):
         A = fem.petsc.create_matrix_block(self.a)
@@ -470,7 +463,7 @@ def create_splittable_matrix_block(comm, a, bcs=[], **kwargs):
     matrix of type 'aij'. The wrapped matrix needs to be finalised by calling the :meth:`assemble`
     method of the returned object.
     """
-    ctx = SplittableMatrixBlock(comm, a, bcs)
+    ctx = SplittableMatrixBlock(comm, a, bcs, **kwargs)
     A = PETSc.Mat().create(comm)
     A.setType("python")
     A.setPythonContext(ctx)  # NOTE: Set sizes (of matrix A) automatically from ctx.
