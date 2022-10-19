@@ -69,8 +69,9 @@ def space(request, comm):
 
 
 @pytest.fixture
-def A(space, comm):
+def A(space):
     V = space()
+    comm = V[0].mesh.comm
     if space.structure == "monolithic":
         v_tr, v_te = ufl.TrialFunction(V), ufl.TestFunction(V)
         a = ufl.inner(v_tr, v_te) * ufl.dx

@@ -46,7 +46,7 @@ def test_nested_fieldsplit(get_block_space, equal_discretization, comm):
 
     a_dolfinx = fem.form(a)
     A, A_ctx = create_splittable_matrix_block(comm, a_dolfinx)
-    fem.petsc.assemble_matrix_block(A, a_dolfinx, bcs=[])
+    assemble_matrix_block(A, a_dolfinx)
     A.assemble()
 
     L_dolfinx = [fem.form(L) for L in L]

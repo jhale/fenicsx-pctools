@@ -12,20 +12,8 @@ from petsc4py import PETSc
 
 def _extract_spaces(a):
     """Extract test and trial function spaces from given bilinear form."""
-
     test_space, trial_space = a.function_spaces
     return test_space, trial_space
-
-
-def _extract_comm(test_space, trial_space):
-    """Extract MPI communicators from given couple of function spaces, verify that they are the same
-    and return the single communicator.
-    """
-
-    comm = test_space.mesh.comm
-    assert MPI.Comm.Compare(trial_space.mesh.comm, comm) == MPI.IDENT
-
-    return comm
 
 
 def _copy_index_sets(isets):
@@ -262,7 +250,7 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
         newmat_ctx._Mat = self._Mat.duplicate(copy)
         newmat_ctx._ISes = _copy_index_sets(self._ISes)
 
-        A = PETSc.Mat().create(comm=self.comm)
+        A = PETSc.Mat().create(comm=self._comm)
         A.setType("python")
         A.setPythonContext(newmat_ctx)
         A.setUp()
@@ -503,7 +491,7 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
         test_space, trial_space = _extract_spaces(a)
         num_brows, ml_brows = _analyse_block_structure(test_space)
         num_bcols, ml_bcols = _analyse_block_structure(trial_space)
-
+    
         self._block_shape = (num_brows, num_bcols)
         self._layouts = (ml_brows, ml_bcols)
 
@@ -513,8 +501,8 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
 
         # Store spaces per block rows/columns
         self._spaces = (
-            [test_space.sub([i]).collapse() for i in range(num_brows)],
-            [trial_space.sub([j]).collapse() for j in range(num_bcols)],
+            [test_space.sub(i).collapse() for i in range(num_brows)],
+            [trial_space.sub(j).collapse() for j in range(num_bcols)],
         )
 
     def _create_mat_object(self):
