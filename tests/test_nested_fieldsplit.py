@@ -6,7 +6,7 @@ import pytest
 import ufl
 from dolfinx import cpp, fem
 from dolfinx.fem import Function, FunctionSpace
-from dolfinx.fem.petsc import assemble_matrix_block
+from dolfinx.fem.petsc import assemble_matrix, assemble_matrix_block, assemble_matrix_nest
 from dolfinx.mesh import CellType, create_unit_square
 from fenicsx_pctools.mat.splittable import (
     create_splittable_matrix_block,
@@ -20,8 +20,7 @@ from petsc4py import PETSc
 @pytest.fixture(
     params=itertools.product(
         # ["block", "nest", "monolithic"],
-        #["block", "nest"],
-        ["block"],
+        ["block", "nest"],
         [CellType.triangle, CellType.quadrilateral],
     )
 )
@@ -71,9 +70,8 @@ def space(request, comm):
 
 
 @pytest.fixture
-def A(space):
+def A(space, comm):
     V = space()
-    comm = V[0].mesh.comm
     if space.structure == "monolithic":
         v_tr, v_te = ufl.TrialFunction(V), ufl.TestFunction(V)
         a = ufl.inner(v_tr, v_te) * ufl.dx
@@ -86,10 +84,14 @@ def A(space):
 
     a_dolfinx = fem.form(a)
 
-    A = {"block": assemble_matrix_block}[space.structure](a_dolfinx)
+    A = {"block": assemble_matrix_block,
+         "monolithic": assemble_matrix,
+	 "nest": assemble_matrix_nest}[space.structure](a_dolfinx)
     A.assemble() 
 
-    A_splittable = {"block": create_splittable_matrix_block}[space.structure](A, a_dolfinx) 
+    A_splittable = {"block": create_splittable_matrix_block,
+                    "monolithic": create_splittable_matrix_monolithic,
+		    "nest": lambda A, a_dolfinx: A}[space.structure](A, a_dolfinx) 
 
     return A_splittable
 
@@ -154,10 +156,12 @@ def b(space, target):
                 fem.assemble_vector(b_sub, fem.form(L_sub))
             cpp.la.petsc.scatter_local_vectors(b, b_local, imaps)
             b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
-        else:
-            b = fem.assemble_vector_nest(L)
+        elif space.structure == "nest":
+            b = fem.petsc.assemble_vector_nest(fem.form(L))
             for b_sub in b.getNestSubVecs():
                 b_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+        else:
+            raise RuntimeError
 
     return b
 
@@ -244,7 +248,7 @@ def test_nested_fieldsplit(space, A, b, target, variant):
             pc = ksp.getPC()
             pc.setType("fieldsplit")
             pc.setFieldSplitType(PETSc.PC.CompositeType.ADDITIVE)
-            nested_IS = A.getNestISes()
+            nested_IS = A.getNestISs()
             pc.setFieldSplitIS(
                 ["0", nested_IS[0][0]],
                 ["1", nested_IS[0][1]],
@@ -296,7 +300,7 @@ def test_nested_fieldsplit(space, A, b, target, variant):
             pc = ksp.getPC()
             pc.setType("fieldsplit")
             pc.setFieldSplitType(PETSc.PC.CompositeType.ADDITIVE)
-            nested_IS = A.getNestISes()
+            nested_IS = A.getNestISs()
             A.convert("aij")  # this is harsh (and not working in parallel)
             composed_is_row = PETSc.IS(comm).createGeneral(
                 np.concatenate((nested_IS[0][0], nested_IS[0][2]))

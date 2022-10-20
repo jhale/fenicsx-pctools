@@ -457,16 +457,18 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
         :attr:`MatrixLayout.MIX`?
     """
 
-    def __init__(self, comm, a, bcs, **kwargs):
-        super(SplittableMatrixMonolithic, self).__init__(comm, a, bcs, **kwargs)
+    def __init__(self, comm, A, a, **kwargs):
+        super(SplittableMatrixMonolithic, self).__init__(comm, A, a, **kwargs)
 
         # Get block shape and layout of DOFs
-        test_space, trial_space = _extract_spaces(a)
+        test_space, trial_space = a.function_spaces
         num_brows, ml_brows = _analyse_block_structure(test_space)
         num_bcols, ml_bcols = _analyse_block_structure(trial_space)
     
         self._block_shape = (num_brows, num_bcols)
         self._layouts = (ml_brows, ml_bcols)
+
+        print(num_brows)
 
         if min(*self._layouts) == MatrixLayout.MIX:
             msg = "Wrapping mixed monolithic matrices as splittable matrices not supported"
@@ -474,14 +476,9 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
 
         # Store spaces per block rows/columns
         self._spaces = (
-            [test_space.sub(i).collapse() for i in range(num_brows)],
-            [trial_space.sub(j).collapse() for j in range(num_bcols)],
+            [test_space.sub([i]).collapse() for i in range(num_brows)],
+            [trial_space.sub([j]).collapse() for j in range(num_bcols)],
         )
-
-    def _create_mat_object(self):
-        A = fem.petsc.create_matrix(self.a)
-
-        return A
 
     # FIXME: Implement this!
     def _create_index_sets(self):
@@ -498,10 +495,7 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
             return submat
 
         submat = self.Mat.createSubMatrix(isrow, iscol)
-        a = self._a  # FIXME: Exclude extra terms!
-        bcs = None  # TODO: Ensure that boundary conditions have been applied at this stage.
-        subctx = SplittableMatrixMonolithic(comm, a, bcs, **self.kwargs)
-        subctx._Mat = submat
+        subctx = SplittableMatrixMonolithic(comm, a, submat, **self.kwargs)
         subctx._ISes = _copy_index_sets(self._ISes)  # FIXME: Exclude extra terms and renumber!
         subctx._spaces = self._spaces  # FIXME: Exclude extra terms!
 
@@ -513,16 +507,17 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
         return Asub
 
 
-def create_splittable_matrix_monolithic(comm, a, bcs=[], **kwargs):
+def create_splittable_matrix_monolithic(A, a, **kwargs):
     """Routine for assembling a splittable monolithic matrix from given data (bilinear form and
     boundary conditions). The returned `PETSc.Mat` object of type 'python' is a wrapper for the
     actual matrix of type 'aij'. The wrapped matrix needs to be finalised by calling the
     ``assemble`` method of the returned object.
     """
-    ctx = SplittableMatrixMonolithic(comm, a, bcs, **kwargs)
-    A = PETSc.Mat().create(comm=comm)
-    A.setType("python")
-    A.setPythonContext(ctx)  # NOTE: Set sizes (of matrix A) automatically from ctx.
-    A.setUp()
+    comm = a.mesh.comm
+    ctx = SplittableMatrixMonolithic(comm, A, a, **kwargs)
+    A_splittable = PETSc.Mat().create(comm=comm)
+    A_splittable.setType("python")
+    A_splittable.setPythonContext(ctx)  # NOTE: Set sizes (of matrix A) automatically from ctx.
+    A_splittable.setUp()
 
     return A
