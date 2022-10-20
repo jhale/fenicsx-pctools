@@ -6,6 +6,7 @@ import pytest
 import ufl
 from dolfinx import cpp, fem
 from dolfinx.fem import Function, FunctionSpace
+from dolfinx.fem.petsc import assemble_matrix_block
 from dolfinx.mesh import CellType, create_unit_square
 from fenicsx_pctools.mat.splittable import (
     create_splittable_matrix_block,
@@ -19,6 +20,7 @@ from petsc4py import PETSc
 @pytest.fixture(
     params=itertools.product(
         # ["block", "nest", "monolithic"],
+        #["block", "nest"],
         ["block"],
         [CellType.triangle, CellType.quadrilateral],
     )
@@ -82,15 +84,14 @@ def A(space):
         for i, (v_tr, v_te) in enumerate(zip(trial_functions, test_functions)):
             a[i][i] = ufl.inner(v_tr, v_te) * ufl.dx
 
-    A, A_ctx = {
-    #    "monolithic": create_splittable_matrix_monolithic,
-        "block": create_splittable_matrix_block,
-    #    "nest": fem.petsc.assemble_matrix_nest,
-    }[space.structure](comm, fem.form(a))
-    fem.petsc.assemble_matrix_block(A, fem.form(a))
-    A.assemble()
+    a_dolfinx = fem.form(a)
 
-    return A, A_ctx
+    A = {"block": assemble_matrix_block}[space.structure](a_dolfinx)
+    A.assemble() 
+
+    A_splittable = {"block": create_splittable_matrix_block}[space.structure](A, a_dolfinx) 
+
+    return A_splittable
 
 
 @pytest.fixture
@@ -192,7 +193,7 @@ def test_nested_fieldsplit(space, A, b, target, variant):
 
     ksp = PETSc.KSP()
     ksp.create(comm)
-    ksp.setOperators(A[1])
+    ksp.setOperators(A)
     ksp.setType("preonly")
 
     opts = PETSc.Options()
