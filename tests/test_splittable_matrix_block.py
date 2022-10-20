@@ -4,7 +4,7 @@ import pytest
 import ufl
 from dolfinx import cpp, fem
 from dolfinx.fem.function import Function, FunctionSpace
-from dolfinx.fem.petsc import assemble_matrix_block
+from dolfinx.fem.petsc import assemble_matrix_block, create_matrix_block
 from dolfinx.mesh import create_unit_square
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 
@@ -45,9 +45,11 @@ def test_nested_fieldsplit(get_block_space, equal_discretization, comm):
         L[i] = ufl.inner(vsub, v_te) * ufl.dx
 
     a_dolfinx = fem.form(a)
-    A, A_python = create_splittable_matrix_block(a_dolfinx)
+    A = create_matrix_block(a_dolfinx)
     assemble_matrix_block(A, a_dolfinx)
     A.assemble()
+
+    A_splittable = create_splittable_matrix_block(A, a_dolfinx)
 
     L_dolfinx = [fem.form(L) for L in L]
     imaps = [
@@ -63,13 +65,13 @@ def test_nested_fieldsplit(get_block_space, equal_discretization, comm):
     b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
 
     ksp = PETSc.KSP().create(comm)
-    ksp.setOperators(A_python)
+    ksp.setOperators(A_splittable)
     ksp.setType("preonly")
 
     pc = ksp.getPC()
     pc.setType("fieldsplit")
     pc.setFieldSplitType(PETSc.PC.CompositeType.SCHUR)
-    A_ctx = A_python.getPythonContext()
+    A_ctx = A_splittable.getPythonContext()
     composed_is_row = PETSc.IS(comm).createGeneral(
         np.concatenate((A_ctx.ISes[0][0].indices, A_ctx.ISes[0][2].indices))
     )
