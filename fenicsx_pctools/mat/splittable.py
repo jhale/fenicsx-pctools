@@ -74,7 +74,7 @@ def _analyse_block_structure(space):
     return num_blocks, dof_layout
 
 
-def find_block_indices(iset, isets):
+def _find_block_indices(iset, isets):
     """Verify that given *iset* can be obtained as a subset of *isets* and return corresponding
     block indices (i.e. positions in *isets*).
 
@@ -376,14 +376,14 @@ class SplittableMatrixBlock(SplittableMatrixBase):
 
             return rank_offset
 
-        brow_ids = find_block_indices(isrow, self.ISes[0])
+        brow_ids = _find_block_indices(isrow, self.ISes[0])
         rank_offset_0 = _get_rank_offset(self.ISes[0], brow_ids, self._spaces[0])
         shifted_ISes_0 = _apply_shifting(self.ISes[0], brow_ids, rank_offset_0)
         if isrow == iscol and self.ISes[0] == self.ISes[1]:
             bcol_ids = brow_ids
             shifted_ISes_1 = shifted_ISes_0
         else:
-            bcol_ids = find_block_indices(iscol, self.ISes[1])
+            bcol_ids = _find_block_indices(iscol, self.ISes[1])
             rank_offset_1 = _get_rank_offset(self.ISes[1], bcol_ids, self._spaces[1])
             shifted_ISes_1 = _apply_shifting(self.ISes[1], bcol_ids, rank_offset_1)
 
