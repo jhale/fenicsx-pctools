@@ -146,9 +146,10 @@ a_p_11 = (
     - (gamma / h) * p * p_t * ds(1)
 )
 a_p = [[inner(q, q_t) * dx, None], [None, a_p_11]]
+a_p_dolfinx = fem.form(a_p)
 
-A_P = fem.petsc.create_matrix_block(fem.form(a_p))
-fem.petsc.assemble_matrix_block(A_P, fem.form(a_p), bcs)
+A_P = fem.petsc.create_matrix_block(a_p_dolfinx)
+fem.petsc.assemble_matrix_block(A_P, a_p_dolfinx, bcs)
 A_P.assemble()
 
 A_P_splittable = create_splittable_matrix_block(A_P, fem.form(a_p))
