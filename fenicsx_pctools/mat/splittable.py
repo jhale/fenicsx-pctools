@@ -16,6 +16,15 @@ def _extract_spaces(a):
     return test_space, trial_space
 
 
+def _get_unique_comm(test_space, trial_space):
+    """Extract MPI communicators from given couple of function spaces, verify they are the same
+    and return the unique communicator.
+    """
+    comm = test_space.mesh.comm
+    assert MPI.Comm.Compare(trial_space.mesh.comm, comm) == MPI.IDENT
+    return comm
+
+
 def _copy_index_sets(isets):
     """Duplicate items contained in given tuple of lists with index sets for block rows/columns."""
 
@@ -139,13 +148,12 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
         "zeroEntries",
     ]
 
-    def __init__(self, comm, a, bcs = [], **kwargs):
+    def __init__(self, comm, Mat, a, **kwargs):
         self._a = a
-        self._bcs = bcs
         self._kwargs = kwargs
         self._comm = comm
         self._spaces = None
-        self._Mat = None
+        self._Mat = Mat 
         self._ISes = None
 
         # Delegate chosen methods to underlying Mat object
@@ -165,6 +173,13 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
     def kwargs(self):
         return self._kwargs
 
+
+    @cached_property
+    def Mat(self):
+        """Return the wrapped matrix (*cached* `PETSc.Mat` object)."""
+        return self._Mat
+
+
     @property
     def comm(self):
         """Return the MPI communicator extracted from attached data or default
@@ -172,30 +187,14 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
         """
         return self._comm
 
+
     @property
     def function_spaces(self):
         """Return tuple of lists containing function spaces for block rows/columns,
         i.e. test spaces in the first list and trial spaces in the second one."""
         if self._spaces is None:
-            raise ValueError("Function spaces yet to be extracted from associated matrix data")
+            raise RuntimeError("Function spaces yet to be extracted from associated matrix data")
         return self._spaces
-
-    @cached_property
-    def a(self):
-        """Return jitted bilinear form."""
-        return self._a
-
-    @cached_property
-    def Mat(self):
-        """Return the wrapped matrix (*cached* `PETSc.Mat` object)."""
-        if self._Mat is None:
-            self._Mat = self._create_mat_object()
-        return self._Mat
-
-    @abc.abstractmethod
-    def _create_mat_object(self):
-        """Implementation of the method for creation of the wrapped matrix object."""
-        pass
 
     @cached_property
     def ISes(self):
@@ -233,36 +232,6 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
         # Increment tab level for ASCII output
         wrapped_mat.incrementTabLevel(1, parent=mat)
 
-    def destroy(self, mat):
-        """Destroy the wrapped matrix."""
-        self.Mat.destroy()
-        # TODO: Fieldsplit PC complains when we destroy index sets.
-        # for iset in zip(*self.ISes):
-        #     iset[0].destroy()
-        #     iset[1].destroy()
-
-    def duplicate(self, mat, copy):
-        """Duplicate the whole context (involves duplication of the wrapped matrix with all
-        index sets), create a new wrapper (`PETSc.Mat` object of type 'python') and return it.
-        """
-
-        newmat_ctx = type(self)(self._comm, self._a, self._bcs)
-        newmat_ctx._Mat = self._Mat.duplicate(copy)
-        newmat_ctx._ISes = _copy_index_sets(self._ISes)
-
-        A = PETSc.Mat().create(comm=self._comm)
-        A.setType("python")
-        A.setPythonContext(newmat_ctx)
-        A.setUp()
-
-        return A
-
-    # def setFromOptions(self, mat):
-    #     pass  # TODO: How to treat options like 'opts["pc_fieldsplit_NAME_blocks"] = "0, 1"'
-
-    # def setUp(self, mat):
-    #     pass  # TODO: Should we split this into initialize/update?
-
     def view(self, mat, viewer=None):
         if viewer is None:
             return
@@ -294,8 +263,8 @@ class SplittableMatrixBlock(SplittableMatrixBase):
         the wrapped `PETSc.Mat` object.
     """
 
-    def __init__(self, comm, a, bcs = [], **kwargs):
-        super(SplittableMatrixBlock, self).__init__(comm, a, bcs, **kwargs)
+    def __init__(self, comm, A, a, **kwargs):
+        super(SplittableMatrixBlock, self).__init__(comm, A, a, **kwargs)
 
         # Get block shape and layout of DOFs
         num_brows = len(a)
@@ -327,10 +296,6 @@ class SplittableMatrixBlock(SplittableMatrixBase):
                         if not V[1][j] is trial_space:
                             raise RuntimeError("Mismatched trial space for column.")
 
-    def _create_mat_object(self):
-        A = fem.petsc.create_matrix_block(self.a)
-
-        return A
 
     def _create_index_sets(self):
         # FIXME: Explore in detail: https://github.com/FEniCS/dolfinx/pull/1225
@@ -425,9 +390,8 @@ class SplittableMatrixBlock(SplittableMatrixBase):
         submat = self.Mat.createSubMatrix(isrow, iscol)
         a = [[self._a[i][j] for j in bcol_ids] for i in brow_ids]
         bcs = None  # TODO: Ensure that boundary conditions have been applied at this stage.
-        subctx = SplittableMatrixBlock(self.comm, a, bcs, **self.kwargs)
-        subctx._a_cpp = [[self.a[i][j] for j in bcol_ids] for i in brow_ids]
-        subctx._Mat = submat
+        subctx = SplittableMatrixBlock(self.comm, submat, a, **self.kwargs)
+        subctx._a = [[self._a[i][j] for j in bcol_ids] for i in brow_ids]
         subctx._ISes = (shifted_ISes_0, shifted_ISes_1)
         subctx._spaces = (
             [self._spaces[0][i] for i in brow_ids],
@@ -442,19 +406,28 @@ class SplittableMatrixBlock(SplittableMatrixBase):
         return Asub
 
 
-def create_splittable_matrix_block(comm, a, bcs=[], **kwargs):
-    """Routine for assembling a splittable block matrix from given data (bilinear form and boundary
-    conditions). The returned `PETSc.Mat` object of type 'python' is a wrapper for the actual
-    matrix of type 'aij'. The wrapped matrix needs to be finalised by calling the :meth:`assemble`
-    method of the returned object.
-    """
-    ctx = SplittableMatrixBlock(comm, a, bcs, **kwargs)
-    A = PETSc.Mat().create(comm)
-    A.setType("python")
-    A.setPythonContext(ctx)  # NOTE: Set sizes (of matrix A) automatically from ctx.
-    A.setUp()
+def _extract_comm_block(a):
+    unique_comm = None
+    for row in a:
+        for a_sub in row:
+            if a_sub is not None:
+                test_space, trial_space = a_sub.function_spaces
+                comm = _get_unique_comm(test_space, trial_space)
+                if unique_comm is None:
+                    unique_comm = comm
+                assert MPI.Comm.Compare(comm, unique_comm) == MPI.IDENT
+    return unique_comm
 
-    return ctx.Mat, A
+
+def create_splittable_matrix_block(A, a, **kwargs):
+    comm = _extract_comm_block(a)
+    ctx = SplittableMatrixBlock(comm, A, a, **kwargs)
+    A_splittable = PETSc.Mat().create(comm)
+    A_splittable.setType("python")
+    A_splittable.setPythonContext(ctx)  # NOTE: Set sizes (of matrix A) automatically from ctx.
+    A_splittable.setUp()
+
+    return A_splittable
 
 
 # NOTE:

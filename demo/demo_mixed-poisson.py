@@ -102,10 +102,12 @@ a = [[inner(q, q_t) * dx, inner(p, div(q_t)) * dx], [inner(div(q), p_t) * dx, No
 L = [inner(fem.Constant(domain, (0.0, 0.0)), q_t) * dx, -inner(f, p_t) * dx]
 a_dolfin = fem.form(a)
 
-A, A_ctx = create_splittable_matrix_block(MPI.COMM_WORLD, a_dolfin, bcs)
-A_ctx.setOptionsPrefix("mp_")
+A = fem.petsc.create_matrix_block(a_dolfin)
 fem.petsc.assemble_matrix_block(A, a_dolfin, bcs)
 A.assemble()
+
+A_splittable = create_splittable_matrix_block(A, a_dolfin)
+A_splittable.setOptionsPrefix("mp_")
 
 b = fem.petsc.assemble_vector_block(fem.form(L), fem.form(a), bcs)
 b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
@@ -145,15 +147,15 @@ a_p_11 = (
 )
 a_p = [[inner(q, q_t) * dx, None], [None, a_p_11]]
 
-A_P, A_P_ctx = create_splittable_matrix_block(
-    MPI.COMM_WORLD, fem.form(a_p), bcs, options_prefix="mp_"
-)
-A_P_ctx.setOptionsPrefix("mp_")
+A_P = fem.petsc.create_matrix_block(fem.form(a_p))
 fem.petsc.assemble_matrix_block(A_P, fem.form(a_p), bcs)
 A_P.assemble()
 
+A_P_splittable = create_splittable_matrix_block(A_P, fem.form(a_p))
+A_P_splittable.setOptionsPrefix("mp_")
+
 solver = PETSc.KSP().create(MPI.COMM_WORLD)
-solver.setOperators(A, A_P_ctx)
+solver.setOperators(A_splittable, A_P_splittable)
 
 options = PETSc.Options()
 options.prefixPush("mp_")
