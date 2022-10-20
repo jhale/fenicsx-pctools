@@ -237,10 +237,13 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
                     fem.assemble_matrix_block(P, self.a_precon, self.bcs, diagonal=1.0)
                 P.assemble()
 
-    # Prepare Jacobian matrix (UFL's variational form is required in this step)
-    Jmat = create_splittable_matrix_block(
-        problem.J_form, problem.bcs, problem.appctx, options_prefix=problem_prefix
-    )
+    # Prepare Jacobian matrix
+    J_form_dolfinx = fem.form(problem.J_form)
+    J = fem.petsc.assemble_matrix_block(J_form_dolfinx)
+    J.assemble()
+
+    Jmat = create_splittable_matrix_block(J, J_form_dolfinx, **problem.appctx)
+    Jmat.setOptionsPrefix(problem_prefix)
 
     # Set up pressure null space
     null_vec = Jmat.createVecLeft()
