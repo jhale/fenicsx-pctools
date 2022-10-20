@@ -4,7 +4,7 @@ from functools import cached_property
 
 import numpy as np
 
-from dolfinx import cpp, fem
+from dolfinx import cpp
 
 from mpi4py import MPI
 from petsc4py import PETSc
@@ -384,7 +384,6 @@ class SplittableMatrixBlock(SplittableMatrixBase):
 
         submat = self.Mat.createSubMatrix(isrow, iscol)
         a = [[self._a[i][j] for j in bcol_ids] for i in brow_ids]
-        bcs = None  # TODO: Ensure that boundary conditions have been applied at this stage.
         subctx = SplittableMatrixBlock(self.comm, submat, a, **self.kwargs)
         subctx._a = [[self._a[i][j] for j in bcol_ids] for i in brow_ids]
         subctx._ISes = (shifted_ISes_0, shifted_ISes_1)
@@ -490,7 +489,7 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
             return submat
 
         submat = self.Mat.createSubMatrix(isrow, iscol)
-        subctx = SplittableMatrixMonolithic(comm, a, submat, **self.kwargs)
+        subctx = SplittableMatrixMonolithic(self.comm, submat, self._a, **self.kwargs)
         subctx._ISes = _copy_index_sets(self._ISes)  # FIXME: Exclude extra terms and renumber!
         subctx._spaces = self._spaces  # FIXME: Exclude extra terms!
 
