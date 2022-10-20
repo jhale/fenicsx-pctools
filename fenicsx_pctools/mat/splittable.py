@@ -153,7 +153,7 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
         self._kwargs = kwargs
         self._comm = comm
         self._spaces = None
-        self._Mat = Mat 
+        self._Mat = Mat
         self._ISes = None
 
         # Delegate chosen methods to underlying Mat object
@@ -173,12 +173,10 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
     def kwargs(self):
         return self._kwargs
 
-
     @cached_property
     def Mat(self):
         """Return the wrapped matrix (*cached* `PETSc.Mat` object)."""
         return self._Mat
-
 
     @property
     def comm(self):
@@ -186,7 +184,6 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
         `mpi4py.MPI.COMM_WORLD` if no communicator could have been extracted.
         """
         return self._comm
-
 
     @property
     def function_spaces(self):
@@ -296,7 +293,6 @@ class SplittableMatrixBlock(SplittableMatrixBase):
                         if not V[1][j] is trial_space:
                             raise RuntimeError("Mismatched trial space for column.")
 
-
     def _create_index_sets(self):
         # FIXME: Explore in detail: https://github.com/FEniCS/dolfinx/pull/1225
         #   Avoid using LG map and keep index sets with locally owned indices!
@@ -329,7 +325,6 @@ class SplittableMatrixBlock(SplittableMatrixBase):
         ]
 
         return (global_isrows, global_iscols)
-
 
     def createSubMatrix(self, mat, isrow, iscol=None, submat=None):
         """Create submatrix of the wrapped matrix (based on provided index sets), wrap it using
@@ -464,7 +459,7 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
         test_space, trial_space = a.function_spaces
         num_brows, ml_brows = _analyse_block_structure(test_space)
         num_bcols, ml_bcols = _analyse_block_structure(trial_space)
-    
+
         self._block_shape = (num_brows, num_bcols)
         self._layouts = (ml_brows, ml_bcols)
 

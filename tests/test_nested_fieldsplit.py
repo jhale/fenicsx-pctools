@@ -84,14 +84,18 @@ def A(space, comm):
 
     a_dolfinx = fem.form(a)
 
-    A = {"block": assemble_matrix_block,
-         "monolithic": assemble_matrix,
-	 "nest": assemble_matrix_nest}[space.structure](a_dolfinx)
-    A.assemble() 
+    A = {
+        "block": assemble_matrix_block,
+        "monolithic": assemble_matrix,
+        "nest": assemble_matrix_nest,
+    }[space.structure](a_dolfinx)
+    A.assemble()
 
-    A_splittable = {"block": create_splittable_matrix_block,
-                    "monolithic": create_splittable_matrix_monolithic,
-		    "nest": lambda A, a_dolfinx: A}[space.structure](A, a_dolfinx) 
+    A_splittable = {
+        "block": create_splittable_matrix_block,
+        "monolithic": create_splittable_matrix_monolithic,
+        "nest": lambda A, a_dolfinx: A,
+    }[space.structure](A, a_dolfinx)
 
     return A_splittable
 
