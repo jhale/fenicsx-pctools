@@ -94,7 +94,7 @@ def A(space):
         "block": create_splittable_matrix_block,
         "monolithic": create_splittable_matrix_monolithic,
         "nest": lambda A, a_dolfinx: A,
-    }[space.structure](A, a_dolfinx)
+    }[space.structure](A, a)
 
     return A_splittable
 
@@ -144,7 +144,7 @@ def b(space, target):
         for i, (f_sub, v_te) in enumerate(zip(target, test_functions)):
             L[i] = ufl.inner(f_sub, v_te) * ufl.dx
 
-        L = fem.form(L)
+        L_dolfinx = fem.form(L)
 
         if space.structure == "block":
             imaps = [
@@ -152,17 +152,17 @@ def b(space, target):
                     form.function_spaces[0].dofmap.index_map,
                     form.function_spaces[0].dofmap.index_map_bs,
                 )
-                for form in L
+                for form in L_dolfinx
             ]
             b = cpp.fem.petsc.create_vector_block(imaps)
             b.set(0.0)
             b_local = cpp.la.petsc.get_local_vectors(b, imaps)
-            for b_sub, L_sub in zip(b_local, L):
+            for b_sub, L_sub in zip(b_local, L_dolfinx):
                 fem.assemble_vector(b_sub, L_sub)
             cpp.la.petsc.scatter_local_vectors(b, b_local, imaps)
             b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
         elif space.structure == "nest":
-            b = fem.petsc.assemble_vector_nest(L)
+            b = fem.petsc.assemble_vector_nest(L_dolfinx)
             for b_sub in b.getNestSubVecs():
                 b_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
         else:

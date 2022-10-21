@@ -451,8 +451,8 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
 
         # Store spaces per block rows/columns
         self._spaces = (
-            [test_space.sub([i]).collapse() for i in range(num_brows)],
-            [trial_space.sub([j]).collapse() for j in range(num_bcols)],
+            [test_space.sub(i).collapse() for i in range(num_brows)],
+            [trial_space.sub(j).collapse() for j in range(num_bcols)],
         )
 
     # FIXME: Implement this!
@@ -487,7 +487,7 @@ def create_splittable_matrix_monolithic(A, a, **kwargs):
     actual matrix of type 'aij'. The wrapped matrix needs to be finalised by calling the
     ``assemble`` method of the returned object.
     """
-    comm = a.mesh.comm
+    comm = A.getComm().tompi4py()  # TODO: Is the conversion needed?
     ctx = SplittableMatrixMonolithic(comm, A, a, **kwargs)
     A_splittable = PETSc.Mat().create(comm=comm)
     A_splittable.setType("python")

@@ -49,7 +49,7 @@ def test_nested_fieldsplit(get_block_space, equal_discretization, comm):
     assemble_matrix_block(A, a_dolfinx)
     A.assemble()
 
-    A_splittable = create_splittable_matrix_block(A, a_dolfinx)
+    A_splittable = create_splittable_matrix_block(A, a)
 
     L_dolfinx = fem.form(L)
     imaps = [
