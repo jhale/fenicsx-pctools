@@ -101,15 +101,16 @@ dx = Measure("dx", domain)
 a = [[inner(q, q_t) * dx, inner(p, div(q_t)) * dx], [inner(div(q), p_t) * dx, None]]
 L = [inner(fem.Constant(domain, (0.0, 0.0)), q_t) * dx, -inner(f, p_t) * dx]
 a_dolfinx = fem.form(a)
+L_dolfinx = fem.form(L)
 
 A = fem.petsc.create_matrix_block(a_dolfinx)
 fem.petsc.assemble_matrix_block(A, a_dolfinx, bcs)
 A.assemble()
 
-A_splittable = create_splittable_matrix_block(A, a_dolfinx)
+A_splittable = create_splittable_matrix_block(A, a)
 A_splittable.setOptionsPrefix("mp_")
 
-b = fem.petsc.assemble_vector_block(fem.form(L), fem.form(a), bcs)
+b = fem.petsc.assemble_vector_block(L_dolfinx, a_dolfinx, bcs)
 b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
 
@@ -152,7 +153,7 @@ A_P = fem.petsc.create_matrix_block(a_p_dolfinx)
 fem.petsc.assemble_matrix_block(A_P, a_p_dolfinx, bcs)
 A_P.assemble()
 
-A_P_splittable = create_splittable_matrix_block(A_P, fem.form(a_p))
+A_P_splittable = create_splittable_matrix_block(A_P, a_p)
 A_P_splittable.setOptionsPrefix("mp_")
 
 solver = PETSc.KSP().create(MPI.COMM_WORLD)

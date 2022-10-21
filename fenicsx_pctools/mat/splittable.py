@@ -10,6 +10,11 @@ from mpi4py import MPI
 from petsc4py import PETSc
 
 
+def _extract_spaces(ufl_form):
+    test_space, trial_space = map(lambda arg: arg.ufl_function_space(), ufl_form.arguments())
+    return test_space, trial_space
+
+
 def _get_unique_comm(test_space, trial_space):
     """Extract MPI communicators from given couple of function spaces, verify they are the same
     and return the unique communicator.
@@ -260,7 +265,7 @@ class SplittableMatrixBlock(SplittableMatrixBase):
             assert len(row) == num_bcols
             for j, a_sub in enumerate(row):
                 if a_sub is not None:
-                    test_space, trial_space = a_sub.function_spaces
+                    test_space, trial_space = _extract_spaces(a_sub)
                     if V[0][i] is None:
                         V[0][i] = test_space
                     else:
@@ -382,7 +387,7 @@ def _extract_comm_block(a):
     for row in a:
         for a_sub in row:
             if a_sub is not None:
-                test_space, trial_space = a_sub.function_spaces
+                test_space, trial_space = _extract_spaces(a_sub)
                 comm = _get_unique_comm(test_space, trial_space)
                 if unique_comm is None:
                     unique_comm = comm
@@ -391,7 +396,7 @@ def _extract_comm_block(a):
 
 
 def create_splittable_matrix_block(A, a, **kwargs):
-    comm = _extract_comm_block(a)
+    comm = _extract_comm_block(a)  # TODO: Probably not needed as now we can get comm from A!
     ctx = SplittableMatrixBlock(comm, A, a, **kwargs)
     A_splittable = PETSc.Mat().create(comm)
     A_splittable.setType("python")
@@ -433,7 +438,7 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
         super(SplittableMatrixMonolithic, self).__init__(comm, A, a, **kwargs)
 
         # Get block shape and layout of DOFs
-        test_space, trial_space = a.function_spaces
+        test_space, trial_space = _extract_spaces(a)
         num_brows, ml_brows = _analyse_block_structure(test_space)
         num_bcols, ml_bcols = _analyse_block_structure(trial_space)
 
