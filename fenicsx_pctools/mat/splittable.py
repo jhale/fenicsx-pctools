@@ -10,12 +10,6 @@ from mpi4py import MPI
 from petsc4py import PETSc
 
 
-def _extract_spaces(a):
-    """Extract test and trial function spaces from given bilinear form."""
-    test_space, trial_space = a.function_spaces
-    return test_space, trial_space
-
-
 def _get_unique_comm(test_space, trial_space):
     """Extract MPI communicators from given couple of function spaces, verify they are the same
     and return the unique communicator.
@@ -281,7 +275,7 @@ class SplittableMatrixBlock(SplittableMatrixBase):
             assert len(row) == num_bcols
             for j, a_sub in enumerate(row):
                 if a_sub is not None:
-                    test_space, trial_space = _extract_spaces(a_sub)
+                    test_space, trial_space = a_sub.function_spaces
                     if V[0][i] is None:
                         V[0][i] = test_space
                     else:
