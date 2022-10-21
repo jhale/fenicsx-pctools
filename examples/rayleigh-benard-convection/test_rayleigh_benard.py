@@ -243,7 +243,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
     # Prepare Jacobian matrix
     J = fem.petsc.assemble_matrix_block(J_form_dolfinx)
     J.assemble()
-    J_splittable = create_splittable_matrix_block(J, J_form_dolfinx, **problem.appctx)
+    J_splittable = create_splittable_matrix_block(J, problem.J_form, **problem.appctx)
     J_splittable.setOptionsPrefix(problem_prefix)
 
     # Set up pressure null space
