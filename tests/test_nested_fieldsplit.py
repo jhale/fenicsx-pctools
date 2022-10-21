@@ -13,7 +13,6 @@ from fenicsx_pctools.mat.splittable import (
     create_splittable_matrix_monolithic,
 )
 
-from mpi4py import MPI
 from petsc4py import PETSc
 
 
@@ -70,7 +69,7 @@ def space(request, comm):
 
 
 @pytest.fixture
-def A(space, comm):
+def A(space):
     V = space()
     if space.structure == "monolithic":
         v_tr, v_te = ufl.TrialFunction(V), ufl.TestFunction(V)
@@ -133,7 +132,7 @@ def b(space, target):
     if space.structure == "monolithic":
         v_te = ufl.TestFunction(V)
 
-        L = ufl.inner(target, v_te) * ufl.dx
+        L = fem.form(ufl.inner(target, v_te) * ufl.dx)
 
         b = fem.assemble_vector(L)
         b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
@@ -145,23 +144,25 @@ def b(space, target):
         for i, (f_sub, v_te) in enumerate(zip(target, test_functions)):
             L[i] = ufl.inner(f_sub, v_te) * ufl.dx
 
+        L = fem.form(L)
+
         if space.structure == "block":
             imaps = [
                 (
                     form.function_spaces[0].dofmap.index_map,
                     form.function_spaces[0].dofmap.index_map_bs,
                 )
-                for form in fem.form(L)
+                for form in L
             ]
             b = cpp.fem.petsc.create_vector_block(imaps)
             b.set(0.0)
             b_local = cpp.la.petsc.get_local_vectors(b, imaps)
             for b_sub, L_sub in zip(b_local, L):
-                fem.assemble_vector(b_sub, fem.form(L_sub))
+                fem.assemble_vector(b_sub, L_sub)
             cpp.la.petsc.scatter_local_vectors(b, b_local, imaps)
             b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
         elif space.structure == "nest":
-            b = fem.petsc.assemble_vector_nest(fem.form(L))
+            b = fem.petsc.assemble_vector_nest(L)
             for b_sub in b.getNestSubVecs():
                 b_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
         else:
