@@ -142,12 +142,12 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
         "zeroEntries",
     ]
 
-    def __init__(self, comm, Mat, a, **kwargs):
+    def __init__(self, comm, A, a, **kwargs):
         self._a = a
         self._kwargs = kwargs
         self._comm = comm
         self._spaces = None
-        self._Mat = Mat
+        self._Mat = A
         self._ISes = None
 
         # Delegate chosen methods to underlying Mat object
