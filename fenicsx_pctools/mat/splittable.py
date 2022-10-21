@@ -143,9 +143,10 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
     ]
 
     def __init__(self, comm, A, a, **kwargs):
+        self.comm = comm
+
         self._a = a
         self._kwargs = kwargs
-        self._comm = comm
         self._spaces = None
         self._Mat = A
         self._ISes = None
@@ -167,13 +168,6 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
     def Mat(self):
         """Return the wrapped matrix (*cached* `PETSc.Mat` object)."""
         return self._Mat
-
-    @property
-    def comm(self):
-        """Return the MPI communicator extracted from attached data or default
-        `mpi4py.MPI.COMM_WORLD` if no communicator could have been extracted.
-        """
-        return self._comm
 
     @property
     def function_spaces(self):
