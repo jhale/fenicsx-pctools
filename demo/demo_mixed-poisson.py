@@ -100,13 +100,13 @@ f = 10.0 * exp(-((x[0] - 0.5) * (x[0] - 0.5) + (x[1] - 0.5) * (x[1] - 0.5)) / 0.
 dx = Measure("dx", domain)
 a = [[inner(q, q_t) * dx, inner(p, div(q_t)) * dx], [inner(div(q), p_t) * dx, None]]
 L = [inner(fem.Constant(domain, (0.0, 0.0)), q_t) * dx, -inner(f, p_t) * dx]
-a_dolfin = fem.form(a)
+a_dolfinx = fem.form(a)
 
-A = fem.petsc.create_matrix_block(a_dolfin)
-fem.petsc.assemble_matrix_block(A, a_dolfin, bcs)
+A = fem.petsc.create_matrix_block(a_dolfinx)
+fem.petsc.assemble_matrix_block(A, a_dolfinx, bcs)
 A.assemble()
 
-A_splittable = create_splittable_matrix_block(A, a_dolfin)
+A_splittable = create_splittable_matrix_block(A, a_dolfinx)
 A_splittable.setOptionsPrefix("mp_")
 
 b = fem.petsc.assemble_vector_block(fem.form(L), fem.form(a), bcs)
