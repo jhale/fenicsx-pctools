@@ -140,9 +140,9 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
 
     def __init__(self, comm, A, a, **kwargs):
         self.comm = comm
+        self.kwargs = kwargs
 
         self._a = a
-        self._kwargs = kwargs
         self._spaces = None
         self._Mat = A
         self._ISes = None
@@ -362,7 +362,7 @@ class SplittableMatrixBlock(SplittableMatrixBase):
 
         submat = self.Mat.createSubMatrix(isrow, iscol)
         a = [[self._a[i][j] for j in bcol_ids] for i in brow_ids]
-        subctx = SplittableMatrixBlock(self.comm, submat, a, **self._kwargs)
+        subctx = SplittableMatrixBlock(self.comm, submat, a, **self.kwargs)
         subctx._ISes = (shifted_ISes_0, shifted_ISes_1)
         subctx._spaces = (
             [self._spaces[0][i] for i in brow_ids],
@@ -464,7 +464,7 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
             return submat
 
         submat = self.Mat.createSubMatrix(isrow, iscol)
-        subctx = SplittableMatrixMonolithic(self.comm, submat, self._a, **self._kwargs)
+        subctx = SplittableMatrixMonolithic(self.comm, submat, self._a, **self.kwargs)
         subctx._ISes = _copy_index_sets(self._ISes)  # FIXME: Exclude extra terms and renumber!
         subctx._spaces = self._spaces  # FIXME: Exclude extra terms!
 
