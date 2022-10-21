@@ -122,11 +122,7 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
     PETSc matrices (of type 'python') will derive from this abstract class. These contexts will be
     used as shells for explicitly assembled matrices in other "native" PETSc formats (e.g. 'aij').
 
-    Any derived class must implement the following methods:
-
-    - :meth:`_create_mat_object`
-    - :meth:`_create_index_sets`
-
+    Any derived class must implement the method :meth:`_create_index_sets`.
     """
 
     # TODO: Many of the required methods are probably not in the list yet.
@@ -164,9 +160,9 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
 
         super(SplittableMatrixBase, self).__init__()
 
-    @cached_property
+    @property
     def Mat(self):
-        """Return the wrapped matrix (*cached* `PETSc.Mat` object)."""
+        """Return the wrapped matrix (`PETSc.Mat` object)."""
         return self._Mat
 
     @property
@@ -192,11 +188,8 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
         pass
 
     def create(self, mat):
-        """Prepare the wrapped matrix and index sets (both are *cached* properties), and set sizes
-        of the wrapper to match sizes of the wrapped matrix.
-        """
+        """Prepare index sets and set sizes of the wrapper to match sizes of the wrapped matrix."""
         # Initialize cache
-        wrapped_mat = self.Mat  # calls self._create_mat_object
         index_sets = self.ISes  # calls self._create_index_sets
 
         # Check that index sets have correct lengths
@@ -204,14 +197,14 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
             MatrixLayout.BLOCK,
             MatrixLayout.BLOCK,
         ):  # FIXME: Always check!
-            assert sum([iset.getSize() for iset in index_sets[0]]) == wrapped_mat.getSize()[0]
-            assert sum([iset.getSize() for iset in index_sets[1]]) == wrapped_mat.getSize()[1]
+            assert sum([iset.getSize() for iset in index_sets[0]]) == self.Mat.getSize()[0]
+            assert sum([iset.getSize() for iset in index_sets[1]]) == self.Mat.getSize()[1]
 
-        # Set sizes of wrapper 'mat' to match sizes of 'wrapped_mat'
-        mat.setSizes(wrapped_mat.getSizes(), bsize=wrapped_mat.getBlockSizes())
+        # Set sizes of wrapper 'mat' to match sizes of 'self.Mat'
+        mat.setSizes(self.Mat.getSizes(), bsize=self.Mat.getBlockSizes())
 
         # Increment tab level for ASCII output
-        wrapped_mat.incrementTabLevel(1, parent=mat)
+        self.Mat.incrementTabLevel(1, parent=mat)
 
     def view(self, mat, viewer=None):
         if viewer is None:
