@@ -364,7 +364,6 @@ class SplittableMatrixBlock(SplittableMatrixBase):
         submat = self.Mat.createSubMatrix(isrow, iscol)
         a = [[self._a[i][j] for j in bcol_ids] for i in brow_ids]
         subctx = SplittableMatrixBlock(self.comm, submat, a, **self._kwargs)
-        subctx._a = [[self._a[i][j] for j in bcol_ids] for i in brow_ids]
         subctx._ISes = (shifted_ISes_0, shifted_ISes_1)
         subctx._spaces = (
             [self._spaces[0][i] for i in brow_ids],
