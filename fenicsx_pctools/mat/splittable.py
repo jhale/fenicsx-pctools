@@ -317,7 +317,6 @@ class SplittableMatrixBlock(SplittableMatrixBase):
             #       iterations.
             self.Mat.createSubMatrix(isrow, iscol, submat.getPythonContext().Mat)
             # TODO: Is the above line a new assembly? How about using virtual submatrices here?
-
             return submat
 
         def _apply_shifting(isets, block_ids, rank_offset):
@@ -396,7 +395,7 @@ def create_splittable_matrix_block(A, a, **kwargs):
     ctx = SplittableMatrixBlock(comm, A, a, **kwargs)
     A_splittable = PETSc.Mat().create(comm)
     A_splittable.setType("python")
-    A_splittable.setPythonContext(ctx)  # NOTE: Set sizes (of matrix A) automatically from ctx.
+    A_splittable.setPythonContext(ctx)
     A_splittable.setUp()
 
     return A_splittable
@@ -442,8 +441,6 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
         self._block_shape = (num_brows, num_bcols)
         self._layouts = (ml_brows, ml_bcols)
 
-        print(num_brows)
-
         if min(*self._layouts) == MatrixLayout.MIX:
             msg = "Wrapping mixed monolithic matrices as splittable matrices not supported"
             raise NotImplementedError(msg)
@@ -465,7 +462,6 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
             #       iterations.
             self.Mat.createSubMatrix(isrow, iscol, submat.getPythonContext().Mat)
             # TODO: Is the above line a new assembly? How about using virtual submatrices here?
-
             return submat
 
         submat = self.Mat.createSubMatrix(isrow, iscol)
@@ -491,7 +487,7 @@ def create_splittable_matrix_monolithic(A, a, **kwargs):
     ctx = SplittableMatrixMonolithic(comm, A, a, **kwargs)
     A_splittable = PETSc.Mat().create(comm=comm)
     A_splittable.setType("python")
-    A_splittable.setPythonContext(ctx)  # NOTE: Set sizes (of matrix A) automatically from ctx.
+    A_splittable.setPythonContext(ctx)
     A_splittable.setUp()
 
     return A
