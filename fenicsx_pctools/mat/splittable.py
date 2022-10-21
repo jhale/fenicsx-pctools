@@ -232,7 +232,7 @@ class SplittableMatrixBlock(SplittableMatrixBase):
         comm (mpi4py.MPI.Intracomm): MPI communicator
         A (PETSc.Mat): matrix to be wrapped up using this class
         a (list): list of lists containing bilinear forms corresponding to individual blocks
-        bcs (list): list of boundary conditions of type `dolfinx.fem.bcs.DirichletBC`
+        kwargs (dict): any specific application-related context
 
     Note:
         Use ``SplittableMatrixBlock.DELEGATED_METHODS`` to list methods automatically delegated to
@@ -417,8 +417,7 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
         comm (mpi4py.MPI.Intracomm): MPI communicator
         A (PETSc.Mat): matrix to be wrapped up using this class
         a (list): list of lists containing bilinear forms corresponding to individual blocks
-        bcs (list): list of boundary conditions of type `dolfinx.fem.bcs.DirichletBC`
-
+        kwargs (dict): any specific application-related context
 
     Note:
         Use ``SplittableMatrixMonolithic.DELEGATED_METHODS`` to list methods automatically delegated
