@@ -1,6 +1,5 @@
 import abc
 import enum
-from functools import cached_property
 
 import numpy as np
 
@@ -421,7 +420,7 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
         comm (mpi4py.MPI.Intracomm): MPI communicator
         A (PETSc.Mat): matrix to be wrapped up using this class
         a (list): list of lists containing bilinear forms corresponding to individual blocks
-        kwargs (dict): any specific application-related context
+        kwargs (dict): any application-related context
 
     Note:
         Use ``SplittableMatrixMonolithic.DELEGATED_METHODS`` to list methods automatically delegated
