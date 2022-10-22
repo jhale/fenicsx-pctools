@@ -197,11 +197,11 @@ class PCDPC_vX(PCDPCBase):
         where :math:`K_p` denotes the discrete pressure convection matrix, :math:`A_p` denotes the
         discrete Laplace operator on the pressure space and :math:`M_p` is the pressure mass matrix.
         Note that the solve :math:`A_p^{-1} x` is performed with the application of a subfield BC
-        on matrix :math:`A_p` and RHS :math:`x` (but only in that term). The subfield BC, together
-        with other necessary information, should be provided via an application context `appctx`
-        attached to the preconditioner matrix of type `'python'`, e.g.
+        on matrix :math:`A_p` and RHS :math:`x` (but only in that term). The subfield BC,
+        together with other necessary information, should be provided as keyword arguments to
+        the preconditioner matrix of type "python", e.g.
         :py:class:`fenicsx_pctools.mat.splittable.SplittableMatrixBlock`.
-        The expected application context is a dictionary with the following items:
+        The expected keyword arguments include the following items:
 
             + `"nu"` : kinematic viscosity :math:`\nu` used to scale :math:`M_p` and :math:`K_p`,
               both by :math:`\nu^{-1}`
@@ -267,11 +267,11 @@ class PCDPC_vY(PCDPCBase):
         where :math:`K_p` denotes the discrete pressure convection matrix, :math:`A_p` denotes the
         discrete Laplace operator on the pressure space and :math:`M_p` is the pressure mass matrix.
         Note that the solve :math:`A_p^{-1} x` is performed with the application of a subfield BC
-        on matrix :math:`A_p` and RHS :math:`x` (but only in that term). The subfield BC, together
-        with other necessary information, should be provided via an application context `appctx`
-        attached to the preconditioner matrix of type `'python'`, e.g.
+        on matrix :math:`A_p` and RHS :math:`x` (but only in that term). The subfield BC,
+        together with other necessary information, should be provided as keyword arguments to
+        the preconditioner matrix of type "python", e.g.
         :py:class:`fenicsx_pctools.mat.splittable.SplittableMatrixBlock`.
-        The expected application context is a dictionary with the following items:
+        The expected keyword arguments include the following items:
 
             + `"nu"` : kinematic viscosity :math:`\nu` used to scale :math:`M_p` and :math:`K_p`,
               both by :math:`\nu^{-1}`
