@@ -17,6 +17,8 @@ build-lint-and-test:
     - python3 -m black --check fenicsx_pctools/
     - python3 -m flake8 demo/
     - python3 -m black --check demo/
+    - python3 -m flake8 tests/
+    - python3 -m black --check tests/
 
     - python3 -m pytest examples/rayleigh-benard-convection/
     - python3 -m pytest tests/
