@@ -10,17 +10,9 @@ from petsc4py import PETSc
 
 
 def _extract_spaces(ufl_form):
+    """Extract test and trial function spaces from given bilinear form."""
     test_space, trial_space = map(lambda arg: arg.ufl_function_space(), ufl_form.arguments())
     return test_space, trial_space
-
-
-def _get_unique_comm(test_space, trial_space):
-    """Extract MPI communicators from given couple of function spaces, verify they are the same
-    and return the unique communicator.
-    """
-    comm = test_space.mesh.comm
-    assert MPI.Comm.Compare(trial_space.mesh.comm, comm) == MPI.IDENT
-    return comm
 
 
 def _copy_index_sets(isets):
@@ -247,7 +239,7 @@ class SplittableMatrixBlock(SplittableMatrixBase):
         comm (mpi4py.MPI.Intracomm): MPI communicator
         A (PETSc.Mat): matrix to be wrapped up using this class
         a (list): list of lists containing bilinear forms corresponding to individual blocks
-        kwargs (dict): any specific application-related context
+        kwargs (dict): any application-related context
 
     Note:
         Use ``SplittableMatrixBlock.DELEGATED_METHODS`` to list methods automatically delegated to
