@@ -31,6 +31,7 @@ class PCDPCBase(PCBase):
 
         V_p = test_space[0]
 
+        # FIXME: This step requires UFL space.
         p_tr = ufl.TrialFunction(V_p)
         p_te = ufl.TestFunction(V_p)
 
@@ -38,9 +39,9 @@ class PCDPCBase(PCBase):
             fem.form(p_te * ufl.dx)
         )  # aux. vector used to apply BCs
 
-        ufl_form_Mp = Pctx.appctx.get("ufl_form_Mp", None)
+        ufl_form_Mp = Pctx.kwargs.get("ufl_form_Mp", None)
         if ufl_form_Mp is None:
-            nu = Pctx.appctx.get("nu", 1.0)
+            nu = Pctx.kwargs.get("nu", 1.0)
             ufl_form_Mp = (1.0 / nu) * ufl.inner(p_tr, p_te) * ufl.dx
         form_Mp = fem.form(ufl_form_Mp)
 
@@ -66,7 +67,7 @@ class PCDPCBase(PCBase):
         ksp_Mp.setFromOptions()
         ksp_Mp.setUp()
 
-        ufl_form_Ap = Pctx.appctx.get("ufl_form_Ap", None)
+        ufl_form_Ap = Pctx.kwargs.get("ufl_form_Ap", None)
         if ufl_form_Ap is None:
             ufl_form_Ap = ufl.inner(ufl.grad(p_tr), ufl.grad(p_te)) * ufl.dx
             # TODO: Add stabilization term so we don't need to think about nullspaces anymore?
@@ -74,7 +75,7 @@ class PCDPCBase(PCBase):
             # ufl_form_Ap += Constant(V_p.mesh, 1e-6) * p_tr * p_te * ufl.dx
         self.form_Ap = fem.form(ufl_form_Ap)
 
-        self.bcs_pcd = bcs_pcd = Pctx.appctx.get("bcs_pcd", [])
+        self.bcs_pcd = bcs_pcd = Pctx.kwargs.get("bcs_pcd", [])
 
         Ap = fem.petsc.create_matrix(self.form_Ap)
         Ap.setOptionsPrefix(prefix + "Ap_")
@@ -84,7 +85,7 @@ class PCDPCBase(PCBase):
         if not bcs_pcd:
             Ap.setOption(PETSc.Mat.Option.SYMMETRIC, True)
             # Create default nullspace
-            # TODO: Consider an option `nullsp_Ap = Pctx.appctx.get("nullsp_Ap", None)``
+            # TODO: Consider an option `nullsp_Ap = Pctx.kwargs.get("nullsp_Ap", None)``
             null_vec = Ap.createVecLeft()
             null_vec.set(1.0)
             null_vec.normalize()
@@ -105,11 +106,11 @@ class PCDPCBase(PCBase):
         ksp_Ap.setFromOptions()
         ksp_Ap.setUp()
 
-        ufl_form_Kp = Pctx.appctx.get("ufl_form_Kp", None)
+        ufl_form_Kp = Pctx.kwargs.get("ufl_form_Kp", None)
         if ufl_form_Kp is None:
-            v = Pctx.appctx.get("v", ufl.grad(Function(V_p)))  # defaults to zero vector
-            nu = Pctx.appctx.get("nu", 1.0)
-            ds_in = Pctx.appctx.get("ds_in", None)
+            v = Pctx.kwargs.get("v", ufl.grad(Function(V_p)))  # defaults to zero vector
+            nu = Pctx.kwargs.get("nu", 1.0)
+            ds_in = Pctx.kwargs.get("ds_in", None)
             ufl_form_Kp = (1.0 / nu) * ufl.dot(ufl.grad(p_tr), v) * p_te * ufl.dx
             if type(self).__name__ == "PCDPC_vY" and ds_in is not None:
                 n = ufl.FacetNormal(ds_in.subdomain_data().mesh)
@@ -196,11 +197,11 @@ class PCDPC_vX(PCDPCBase):
         where :math:`K_p` denotes the discrete pressure convection matrix, :math:`A_p` denotes the
         discrete Laplace operator on the pressure space and :math:`M_p` is the pressure mass matrix.
         Note that the solve :math:`A_p^{-1} x` is performed with the application of a subfield BC
-        on matrix :math:`A_p` and RHS :math:`x` (but only in that term). The subfield BC, together
-        with other necessary information, should be provided via an application context `appctx`
-        attached to the preconditioner matrix of type `'python'`, e.g.
+        on matrix :math:`A_p` and RHS :math:`x` (but only in that term). The subfield BC,
+        together with other necessary information, should be provided as keyword arguments to
+        the preconditioner matrix of type "python", e.g.
         :py:class:`fenicsx_pctools.mat.splittable.SplittableMatrixBlock`.
-        The expected application context is a dictionary with the following items:
+        The expected keyword arguments include the following items:
 
             + `"nu"` : kinematic viscosity :math:`\nu` used to scale :math:`M_p` and :math:`K_p`,
               both by :math:`\nu^{-1}`
@@ -266,11 +267,11 @@ class PCDPC_vY(PCDPCBase):
         where :math:`K_p` denotes the discrete pressure convection matrix, :math:`A_p` denotes the
         discrete Laplace operator on the pressure space and :math:`M_p` is the pressure mass matrix.
         Note that the solve :math:`A_p^{-1} x` is performed with the application of a subfield BC
-        on matrix :math:`A_p` and RHS :math:`x` (but only in that term). The subfield BC, together
-        with other necessary information, should be provided via an application context `appctx`
-        attached to the preconditioner matrix of type `'python'`, e.g.
+        on matrix :math:`A_p` and RHS :math:`x` (but only in that term). The subfield BC,
+        together with other necessary information, should be provided as keyword arguments to
+        the preconditioner matrix of type "python", e.g.
         :py:class:`fenicsx_pctools.mat.splittable.SplittableMatrixBlock`.
-        The expected application context is a dictionary with the following items:
+        The expected keyword arguments include the following items:
 
             + `"nu"` : kinematic viscosity :math:`\nu` used to scale :math:`M_p` and :math:`K_p`,
               both by :math:`\nu^{-1}`

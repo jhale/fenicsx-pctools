@@ -227,26 +227,27 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
             F.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
         def J_block(self, snes, x, J, P):
-            J.zeroEntries()
-            if J.getType() != "python":
-                fem.assemble_matrix_block(J, self.a, self.bcs, diagonal=1.0)
-            J.assemble()
+            Jmat = J.getPythonContext().Mat if J.getType() == "python" else J
+            Jmat.zeroEntries()
+            fem.petsc.assemble_matrix_block(Jmat, self.a, self.bcs, diagonal=1.0)
+            Jmat.assemble()
             if self.a_precon is not None:
-                P.zeroEntries()
-                if P.getType() != "python":
-                    fem.assemble_matrix_block(P, self.a_precon, self.bcs, diagonal=1.0)
-                P.assemble()
+                Pmat = P.getPythonContext().Mat if P.getType() == "python" else P
+                Pmat.zeroEntries()
+                fem.petsc.assemble_matrix_block(Pmat, self.a_precon, self.bcs, diagonal=1.0)
+                Pmat.assemble()
+
+    F_form_dolfinx = fem.form(problem.F_form)
+    J_form_dolfinx = fem.form(problem.J_form)
 
     # Prepare Jacobian matrix
-    J_form_dolfinx = fem.form(problem.J_form)
     J = fem.petsc.assemble_matrix_block(J_form_dolfinx)
     J.assemble()
-
-    Jmat = create_splittable_matrix_block(J, J_form_dolfinx, **problem.appctx)
-    Jmat.setOptionsPrefix(problem_prefix)
+    J_splittable = create_splittable_matrix_block(J, problem.J_form, **problem.appctx)
+    J_splittable.setOptionsPrefix(problem_prefix)
 
     # Set up pressure null space
-    null_vec = Jmat.createVecLeft()
+    null_vec = J_splittable.createVecLeft()
     V_v_map = problem.u[0].function_space.dofmap
     V_p_map = problem.u[1].function_space.dofmap
     offset_p = V_v_map.index_map.size_local * V_v_map.index_map_bs
@@ -254,20 +255,18 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
     null_vec.array[offset_p : offset_p + offset_T] = 1.0
     null_vec.normalize()
     nsp = PETSc.NullSpace().create(vectors=[null_vec])
-    Jmat.setNullSpace(nsp)
+    J_splittable.setNullSpace(nsp)
 
-    # Compile each UFL Form into dolfinx Form for better assembly performance
-    F_form = fem.form(problem.F_form)
-    J_form = fem.form(problem.J_form)
-    pdeproblem = PDEProblem(F_form, J_form, problem.u, problem.bcs)
+    # Set up PDE problem
+    pdeproblem = PDEProblem(F_form_dolfinx, J_form_dolfinx, problem.u, problem.bcs)
 
     # Prepare vectors (jitted forms can be used here)
-    Fvec = fem.petsc.create_vector_block(F_form)
-    x0 = fem.petsc.create_vector_block(F_form)
+    Fvec = fem.petsc.create_vector_block(F_form_dolfinx)
+    x0 = fem.petsc.create_vector_block(F_form_dolfinx)
 
     solver = PETSc.SNES().create(comm)
     solver.setFunction(pdeproblem.F_block, Fvec)
-    solver.setJacobian(pdeproblem.J_block, J=Jmat, P=None)
+    solver.setJacobian(pdeproblem.J_block, J=J_splittable, P=None)
     solver.setOptionsPrefix(problem_prefix)
     solver.setFromOptions()
     PETSc.Sys.Print("Setup completed")

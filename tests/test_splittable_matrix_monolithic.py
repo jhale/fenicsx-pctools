@@ -63,7 +63,7 @@ def test_nested_fieldsplit(get_vector_space, equal_discretization, comm):
     fem.petsc.assemble_matrix(A, a_dolfinx)
     A.assemble()
 
-    A_splittable = create_splittable_matrix_monolithic(A, a_dolfinx)
+    A_splittable = create_splittable_matrix_monolithic(A, a)
 
     L_dolfinx = fem.form(L)
     b = fem.petsc.assemble_vector(L_dolfinx)
@@ -71,7 +71,7 @@ def test_nested_fieldsplit(get_vector_space, equal_discretization, comm):
 
     ksp = PETSc.KSP()
     ksp.create(comm)
-    ksp.setOperators(A)
+    ksp.setOperators(A_splittable)
     ksp.setType("preonly")
 
     pc = ksp.getPC()
