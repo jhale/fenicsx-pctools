@@ -3,6 +3,7 @@ import pytest
 import ufl
 from dolfinx import fem
 from dolfinx.fem.function import Function, FunctionSpace
+from dolfinx.fem.petsc import create_matrix
 from dolfinx.mesh import create_unit_square
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_monolithic
 
@@ -57,10 +58,12 @@ def test_nested_fieldsplit(get_vector_space, equal_discretization, comm):
     a = ufl.inner(v_tr, v_te) * ufl.dx
     L = ufl.inner(v_target, v_te) * ufl.dx
 
-    # A = fem.assemble_matrix(a)
     a_dolfinx = fem.form(a)
-    A = create_splittable_matrix_monolithic(a)
+    A = create_matrix(a_dolfinx)
+    fem.petsc.assemble_matrix(A, a_dolfinx)
     A.assemble()
+
+    A_splittable = create_splittable_matrix_monolithic(A, a)
 
     L_dolfinx = fem.form(L)
     b = fem.petsc.assemble_vector(L_dolfinx)
@@ -68,7 +71,7 @@ def test_nested_fieldsplit(get_vector_space, equal_discretization, comm):
 
     ksp = PETSc.KSP()
     ksp.create(comm)
-    ksp.setOperators(A)
+    ksp.setOperators(A_splittable)
     ksp.setType("preonly")
 
     pc = ksp.getPC()
