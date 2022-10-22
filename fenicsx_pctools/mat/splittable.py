@@ -127,7 +127,11 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
     PETSc matrices (of type 'python') will derive from this abstract class. These contexts will be
     used as shells for explicitly assembled matrices in other "native" PETSc formats (e.g. 'aij').
 
-    Any derived class must implement the method :meth:`_create_index_sets`.
+    Any derived class must implement the following methods:
+
+    - :meth:`_get_spaces`
+    - :meth:`_create_index_sets`
+
     """
 
     # TODO: Many of the required methods are probably not in the list yet.
@@ -175,12 +179,17 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
         """Return tuple of lists containing function spaces for block rows/columns,
         i.e. test spaces in the first list and trial spaces in the second one."""
         if self._spaces is None:
-            raise RuntimeError("Function spaces yet to be extracted from associated matrix data")
+            self._spaces = self._get_spaces()
         return self._spaces
 
-    @cached_property
+    @abc.abstractmethod
+    def _get_spaces(self):
+        """Implementation of the method for extraction of index sets from associated matrix data."""
+        pass
+
+    @property
     def ISes(self):
-        """Return tuple of lists containing index sets (*cached* `PETSc.IS` objects) for block
+        """Return tuple of lists containing index sets (`PETSc.IS` objects) for block
         rows/columns.
         """
         if self._ISes is None:
@@ -195,7 +204,9 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
     def create(self, mat):
         """Prepare index sets and set sizes of the wrapper to match sizes of the wrapped matrix."""
         # Initialize cache
+        spaces = self.function_spaces  # calls self._get_spaces
         index_sets = self.ISes  # calls self._create_index_sets
+        assert (len(spaces[0]), len(spaces[1])) == self._block_shape, "Unexpected number of spaces"
 
         # Check that index sets have correct lengths
         if self._layouts == (
@@ -247,7 +258,6 @@ class SplittableMatrixBlock(SplittableMatrixBase):
     def __init__(self, comm, A, a, **kwargs):
         super(SplittableMatrixBlock, self).__init__(comm, A, a, **kwargs)
 
-        # Get block shape and layout of DOFs
         num_brows = len(a)
         num_bcols = len(a[0])
         ml_brows = MatrixLayout.BLOCK
@@ -256,12 +266,13 @@ class SplittableMatrixBlock(SplittableMatrixBase):
         self._block_shape = (num_brows, num_bcols)
         self._layouts = (ml_brows, ml_bcols)
 
-        # Get spaces per block rows/columns
-        self._spaces = V = (
+    def _get_spaces(self):
+        num_brows, num_bcols = self._block_shape
+        V = (
             np.full(num_brows, None).tolist(),
             np.full(num_bcols, None).tolist(),
         )
-        for i, row in enumerate(a):
+        for i, row in enumerate(self._a):
             assert len(row) == num_bcols
             for j, a_sub in enumerate(row):
                 if a_sub is not None:
@@ -276,6 +287,7 @@ class SplittableMatrixBlock(SplittableMatrixBase):
                     else:
                         if not V[1][j] is trial_space:
                             raise RuntimeError("Mismatched trial space for column.")
+        return V
 
     def _create_index_sets(self):
         # FIXME: Explore in detail: https://github.com/FEniCS/dolfinx/pull/1225
@@ -441,6 +453,8 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
         test_space, trial_space = _extract_spaces(a)
         num_brows, ml_brows = _analyse_block_structure(test_space)
         num_bcols, ml_bcols = _analyse_block_structure(trial_space)
+        self._test_space = test_space
+        self._trial_space = trial_space
 
         self._block_shape = (num_brows, num_bcols)
         self._layouts = (ml_brows, ml_bcols)
@@ -449,10 +463,11 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
             msg = "Wrapping mixed monolithic matrices as splittable matrices not supported"
             raise NotImplementedError(msg)
 
-        # Store spaces per block rows/columns
-        self._spaces = (
-            [test_space.sub(i).collapse() for i in range(num_brows)],
-            [trial_space.sub(j).collapse() for j in range(num_bcols)],
+    def _get_spaces(self):
+        num_brows, num_bcols = self._block_shape
+        return (
+            [self._test_space.sub(i).collapse() for i in range(num_brows)],
+            [self._trial_space.sub(j).collapse() for j in range(num_bcols)],
         )
 
     # FIXME: Implement this!
