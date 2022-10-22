@@ -394,21 +394,8 @@ class SplittableMatrixBlock(SplittableMatrixBase):
         return Asub
 
 
-def _extract_comm_block(a):
-    unique_comm = None
-    for row in a:
-        for a_sub in row:
-            if a_sub is not None:
-                test_space, trial_space = _extract_spaces(a_sub)
-                comm = _get_unique_comm(test_space, trial_space)
-                if unique_comm is None:
-                    unique_comm = comm
-                assert MPI.Comm.Compare(comm, unique_comm) == MPI.IDENT
-    return unique_comm
-
-
 def create_splittable_matrix_block(A, a, **kwargs):
-    comm = _extract_comm_block(a)  # TODO: Probably not needed as now we can get comm from A!
+    comm = A.getComm()
     ctx = SplittableMatrixBlock(comm, A, a, **kwargs)
     A_splittable = PETSc.Mat().create(comm)
     A_splittable.setType("python")
@@ -502,7 +489,7 @@ def create_splittable_matrix_monolithic(A, a, **kwargs):
     actual matrix of type 'aij'. The wrapped matrix needs to be finalised by calling the
     ``assemble`` method of the returned object.
     """
-    comm = A.getComm().tompi4py()  # TODO: Is the conversion needed?
+    comm = A.getComm()
     ctx = SplittableMatrixMonolithic(comm, A, a, **kwargs)
     A_splittable = PETSc.Mat().create(comm=comm)
     A_splittable.setType("python")
