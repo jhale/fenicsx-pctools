@@ -175,7 +175,9 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def _get_spaces(self):
-        """Implementation of the method for extraction of index sets from associated matrix data."""
+        """Implementation of the method for extraction of function spaces from the associated
+        bilinear form.
+        """
         pass
 
     @property
@@ -189,7 +191,9 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
 
     @abc.abstractmethod
     def _create_index_sets(self):
-        """Implementation of the method for extraction of index sets from associated matrix data."""
+        """Implementation of the method for extraction of index sets from the associated
+        matrix data.
+        """
         pass
 
     def create(self, mat):
