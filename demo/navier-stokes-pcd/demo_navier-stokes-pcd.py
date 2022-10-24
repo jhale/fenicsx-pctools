@@ -10,8 +10,6 @@
 
 # # Navier-Stokes equations with a PCD-based preconditioner
 
-# TODO: We may want to run this demo as part of CI pipeline.
-
 # TODO: Add problem description with references!
 
 # Start with usual imports.
@@ -107,10 +105,10 @@ a01 = ufl.derivative(F0, p)
 a10 = ufl.derivative(F1, v)
 a11 = None
 
-F_form = [F0, F1]
-J_form = [[a00, a01], [a10, a11]]
-F_dolfinx = fem.form(F_form)
-J_dolfinx = fem.form(J_form)
+F_ufl = [F0, F1]
+J_ufl = [[a00, a01], [a10, a11]]
+F_dfx = fem.form(F_ufl)
+J_dfx = fem.form(J_ufl)
 # -
 
 # Define primary and secondary boundary conditions.
@@ -155,10 +153,10 @@ bcs_pcd = {
 # +
 # Wrap PDEs, BCs and solution variables into a class that can assemble Jacobian and residual
 class PDEProblem:
-    def __init__(self, F_form, J_form, solution_vars, bcs, P_form=None):
-        self.F_form = F_form
-        self.J_form = J_form
-        self.P_form = P_form
+    def __init__(self, F_dfx, J_dfx, solution_vars, bcs, P_dfx=None):
+        self.F_dfx = F_dfx
+        self.J_dfx = J_dfx
+        self.P_dfx = P_dfx
         self.bcs = bcs
         self.solution_vars = solution_vars
 
@@ -169,18 +167,18 @@ class PDEProblem:
         x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
         vec_to_functions(x, self.solution_vars)
 
-        fem.petsc.assemble_vector_block(F, self.F_form, self.J_form, self.bcs, x0=x, scale=-1.0)
+        fem.petsc.assemble_vector_block(F, self.F_dfx, self.J_dfx, self.bcs, x0=x, scale=-1.0)
         F.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
     def J_block(self, snes, x, J, P):
         J = J.getPythonContext().Mat if J.getType() == "python" else J
         J.zeroEntries()
-        fem.petsc.assemble_matrix_block(J, self.J_form, self.bcs, diagonal=1.0)
+        fem.petsc.assemble_matrix_block(J, self.J_dfx, self.bcs, diagonal=1.0)
         J.assemble()
-        if self.P_form is not None:
+        if self.P_dfx is not None:
             P = P.getPythonContext().Mat if P.getType() == "python" else P
             P.zeroEntries()
-            fem.petsc.assemble_matrix_block(P, self.P_form, self.bcs, diagonal=1.0)
+            fem.petsc.assemble_matrix_block(P, self.P_dfx, self.bcs, diagonal=1.0)
             P.assemble()
 
 
@@ -190,17 +188,17 @@ ds_in = ufl.Measure("ds", domain=mesh, subdomain_data=regions, subdomain_id=tag_
 appctx = {"nu": nu, "v": v, "bcs_pcd": bcs_pcd, "ds_in": ds_in}
 
 # Prepare Jacobian matrix and its splittable version
-Jmat = fem.petsc.assemble_matrix_block(J_dolfinx, bcs)
-Jmat.assemble()
+J_mat = fem.petsc.assemble_matrix_block(J_dfx, bcs)
+J_mat.assemble()
 
-J_splittable = create_splittable_matrix_block(Jmat, J_form)
+J_splittable = create_splittable_matrix_block(J_mat, J_ufl)
 J_splittable.setOptionsPrefix(problem_prefix)
 
-pdeproblem = PDEProblem(F_dolfinx, J_dolfinx, [v, p], bcs)
+pdeproblem = PDEProblem(F_dfx, J_dfx, [v, p], bcs)
 
 # Prepare vectors (DOLFINx form is required here)
-Fvec = fem.petsc.create_vector_block(F_dolfinx)
-x0 = fem.petsc.create_vector_block(F_dolfinx)
+F_vec = fem.petsc.create_vector_block(F_dfx)
+x0 = fem.petsc.create_vector_block(F_dfx)
 # -
 
 # Configure the solver depending on the chosen preconditioning approach.
@@ -249,7 +247,7 @@ opts.prefixPop()  # ns_
 
 # Set up nonlinear solver
 solver = PETSc.SNES().create(mesh_comm)
-solver.setFunction(pdeproblem.F_block, Fvec)
+solver.setFunction(pdeproblem.F_block, F_vec)
 solver.setJacobian(pdeproblem.J_block, J=J_splittable, P=None)
 solver.setOptionsPrefix(problem_prefix)
 solver.setFromOptions()
