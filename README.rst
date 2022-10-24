@@ -25,6 +25,32 @@ variants of the pressure-convection-diffusion (PCD) preconditioner for the
 system of incompressible Navier-Stokes equations originally implemented in the
 work of :cite:t:`blechta_fenapack_2018`.
 
+Synopsis
+========
+
+``fenicsx_pctools`` main feature is its ability to take block matrices
+constructed using DOLFINx's built-in assembly functions
+
+    .. code-block:: python
+
+       a = [[inner(q, q_t) * dx, inner(p, div(q_t)) * dx], [inner(div(q), p_t) * dx, None]]
+       a_dolfinx = fem.form(a)
+
+
+       A = fem.petsc.create_matrix_block(a_dolfinx)
+       fem.petsc.assemble_matrix_block(A, a_dolfinx, bcs)
+       A.assemble()
+
+and then automatically create a wrapper that is compatible with PETSc's
+field split preconditioning features
+
+     .. code-block:: python
+
+       A_splittable = create_splittable_matrix_block(A, a)
+
+Advanced constructions are supported, including nested field splits (splits
+within splits). See the demos for more details.
+
 Dependencies
 ============
 
