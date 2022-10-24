@@ -109,6 +109,8 @@ a11 = None
 
 F_form = [F0, F1]
 J_form = [[a00, a01], [a10, a11]]
+F_dolfinx = fem.form(F_form)
+J_dolfinx = fem.form(J_form)
 # -
 
 # Define primary and secondary boundary conditions.
@@ -171,14 +173,14 @@ class PDEProblem:
         F.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
     def J_block(self, snes, x, J, P):
+        J = J.getPythonContext().Mat if J.getType() == "python" else J
         J.zeroEntries()
-        if J.getType() != "python":
-            fem.petsc.assemble_matrix_block(J, self.J_form, self.bcs, diagonal=1.0)
+        fem.petsc.assemble_matrix_block(J, self.J_form, self.bcs, diagonal=1.0)
         J.assemble()
         if self.P_form is not None:
+            P = P.getPythonContext().Mat if P.getType() == "python" else P
             P.zeroEntries()
-            if P.getType() != "python":
-                fem.petsc.assemble_matrix_block(P, self.P_form, self.bcs, diagonal=1.0)
+            fem.petsc.assemble_matrix_block(P, self.P_form, self.bcs, diagonal=1.0)
             P.assemble()
 
 
@@ -187,18 +189,18 @@ regions, tag_id_map = merge_meshtags(mts, fdim)
 ds_in = ufl.Measure("ds", domain=mesh, subdomain_data=regions, subdomain_id=tag_id_map["inlet"])
 appctx = {"nu": nu, "v": v, "bcs_pcd": bcs_pcd, "ds_in": ds_in}
 
-# Prepare Jacobian matrix (UFL form is required in this step)
-Jmat = create_splittable_matrix_block(
-    J_form, bcs, appctx, comm=mesh_comm, options_prefix=problem_prefix
-)
+# Prepare Jacobian matrix and its splittable version
+Jmat = fem.petsc.assemble_matrix_block(J_dolfinx, bcs)
+Jmat.assemble()
 
-F_form = fem.form(F_form)
-J_form = fem.form(J_form)
-pdeproblem = PDEProblem(F_form, J_form, [v, p], bcs)
+J_splittable = create_splittable_matrix_block(Jmat, J_form)
+J_splittable.setOptionsPrefix(problem_prefix)
+
+pdeproblem = PDEProblem(F_dolfinx, J_dolfinx, [v, p], bcs)
 
 # Prepare vectors (DOLFINx form is required here)
-Fvec = fem.petsc.create_vector_block(F_form)
-x0 = fem.petsc.create_vector_block(F_form)
+Fvec = fem.petsc.create_vector_block(F_dolfinx)
+x0 = fem.petsc.create_vector_block(F_dolfinx)
 # -
 
 # Configure the solver depending on the chosen preconditioning approach.
@@ -248,7 +250,7 @@ opts.prefixPop()  # ns_
 # Set up nonlinear solver
 solver = PETSc.SNES().create(mesh_comm)
 solver.setFunction(pdeproblem.F_block, Fvec)
-solver.setJacobian(pdeproblem.J_block, J=Jmat, P=None)
+solver.setJacobian(pdeproblem.J_block, J=J_splittable, P=None)
 solver.setOptionsPrefix(problem_prefix)
 solver.setFromOptions()
 # -
@@ -277,7 +279,7 @@ vec_to_functions(x0, pdeproblem.solution_vars)
 # +
 # Save ParaView plots
 for field in pdeproblem.solution_vars:
-    xfile = f"solution_{field.name}.xdmf"
+    xfile = f"output/solution_{field.name}.xdmf"
     with XDMFFile(mesh_comm, xfile, "w") as f:
         f.write_mesh(field.function_space.mesh)
         f.write_function(field)
