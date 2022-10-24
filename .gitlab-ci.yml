@@ -20,8 +20,10 @@ build-lint-and-test:
     - python3 -m flake8 tests/
     - python3 -m black --check tests/
 
-    - python3 -m pytest examples/rayleigh-benard-convection/
     - python3 -m pytest tests/
+    - mpirun -n 2 python3 -m pytest tests/
+    - python3 -m pytest examples/rayleigh-benard-convection/
+    - mpirun -n 2 python3 -m pytest examples/rayleigh-benard-convection/
 
 pages:
   stage: pages
