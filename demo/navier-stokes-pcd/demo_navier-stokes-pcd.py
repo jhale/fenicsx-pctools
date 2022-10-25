@@ -191,7 +191,7 @@ appctx = {"nu": nu, "v": v, "bcs_pcd": bcs_pcd, "ds_in": ds_in}
 J_mat = fem.petsc.assemble_matrix_block(J_dfx, bcs)
 J_mat.assemble()
 
-J_splittable = create_splittable_matrix_block(J_mat, J_ufl)
+J_splittable = create_splittable_matrix_block(J_mat, J_ufl, **appctx)
 J_splittable.setOptionsPrefix(problem_prefix)
 
 pdeproblem = PDEProblem(F_dfx, J_dfx, [v, p], bcs)
@@ -209,7 +209,6 @@ x0 = fem.petsc.create_vector_block(F_dfx)
 
 # +
 # Set up PETSc options
-PETSc.Log.begin()
 opts = PETSc.Options()
 opts.prefixPush(problem_prefix)
 opts["snes_type"] = "newtonls"
