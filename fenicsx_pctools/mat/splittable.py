@@ -137,6 +137,7 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
         "mult",
         "multTranspose",
         "norm",
+        "setUp",
         "zeroEntries",
     ]
 
