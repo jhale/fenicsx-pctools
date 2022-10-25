@@ -229,6 +229,21 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
     #         iset[0].destroy()
     #         iset[1].destroy()
 
+    def duplicate(self, mat, copy=False):
+        """Duplicate the whole context (involves duplication of the wrapped matrix with all
+        index sets), create a new wrapper (`PETSc.Mat` object of type 'python') and return it.
+        """
+
+        newmat_ctx = type(self)(self._Mat.duplicate(copy), self._a, **self.kwargs)
+        newmat_ctx._ISes = _copy_index_sets(self._ISes)
+
+        A_splittable = PETSc.Mat().create(comm=self.comm)
+        A_splittable.setType("python")
+        A_splittable.setPythonContext(newmat_ctx)
+        A_splittable.setUp()
+
+        return A_splittable
+
     def view(self, mat, viewer=None):
         if viewer is None:
             return
