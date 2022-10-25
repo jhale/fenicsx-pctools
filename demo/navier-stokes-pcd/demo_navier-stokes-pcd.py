@@ -283,5 +283,5 @@ for field in pdeproblem.solution_vars:
 
 # Destroy PETSc objects
 solver.destroy()
-Jmat.destroy()
+J_splittable.destroy()  # NOTE: This destroys also the wrapped matrix `J_mat`!
 # -

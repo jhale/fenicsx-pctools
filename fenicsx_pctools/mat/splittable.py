@@ -131,6 +131,7 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
         "assemblyEnd",
         "createVecLeft",
         "createVecRight",
+        "destroy",
         "diagonalScale",
         "getDiagonal",
         "getDiagonalBlock",
@@ -219,6 +220,14 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
 
         # Increment tab level for ASCII output
         self.Mat.incrementTabLevel(1, parent=mat)
+
+    # # TODO: This is probably doing too much - 'memory control' test required!
+    # def destroy(self, mat):
+    #     """Destroy the wrapped matrix."""
+    #     self.Mat.destroy()
+    #     for iset in zip(*self.ISes):
+    #         iset[0].destroy()
+    #         iset[1].destroy()
 
     def view(self, mat, viewer=None):
         if viewer is None:
