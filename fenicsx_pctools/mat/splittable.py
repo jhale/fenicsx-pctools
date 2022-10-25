@@ -127,6 +127,8 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
 
     # TODO: Many of the required methods are probably not in the list yet.
     DELEGATED_METHODS = [
+        "assemblyBegin",
+        "assemblyEnd",
         "createVecLeft",
         "createVecRight",
         "diagonalScale",

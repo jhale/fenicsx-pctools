@@ -227,14 +227,14 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
             F.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
         def J_block(self, snes, x, J, P):
-            J = J.getPythonContext().Mat if J.getType() == "python" else J
+            J_mat = J.getPythonContext().Mat if J.getType() == "python" else J
             J.zeroEntries()
-            fem.petsc.assemble_matrix_block(J, self.J_dfx, self.bcs, diagonal=1.0)
+            fem.petsc.assemble_matrix_block(J_mat, self.J_dfx, self.bcs, diagonal=1.0)
             J.assemble()
             if self.P_dfx is not None:
-                P = P.getPythonContext().Mat if P.getType() == "python" else P
+                P_mat = P.getPythonContext().Mat if P.getType() == "python" else P
                 P.zeroEntries()
-                fem.petsc.assemble_matrix_block(P, self.P_dfx, self.bcs, diagonal=1.0)
+                fem.petsc.assemble_matrix_block(P_mat, self.P_dfx, self.bcs, diagonal=1.0)
                 P.assemble()
 
     F_dfx = fem.form(problem.F_ufl)
