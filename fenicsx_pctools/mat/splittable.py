@@ -127,6 +127,8 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
 
     # TODO: Many of the required methods are probably not in the list yet.
     DELEGATED_METHODS = [
+        "assemblyBegin",
+        "assemblyEnd",
         "createVecLeft",
         "createVecRight",
         "diagonalScale",
@@ -135,6 +137,7 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
         "mult",
         "multTranspose",
         "norm",
+        "setUp",
         "zeroEntries",
     ]
 
@@ -216,6 +219,27 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
 
         # Increment tab level for ASCII output
         self.Mat.incrementTabLevel(1, parent=mat)
+
+    def destroy(self, mat):
+        """Destroy created index sets."""
+        for iset_row, iset_col in zip(*self.ISes):
+            iset_row.destroy()
+            iset_col.destroy()
+
+    def duplicate(self, mat, copy=False):
+        """Duplicate the whole context (involves duplication of the wrapped matrix with all
+        index sets), create a new wrapper (`PETSc.Mat` object of type 'python') and return it.
+        """
+
+        newmat_ctx = type(self)(self._Mat.duplicate(copy), self._a, **self.kwargs)
+        newmat_ctx._ISes = _copy_index_sets(self._ISes)
+
+        A_splittable = PETSc.Mat().create(comm=self.comm)
+        A_splittable.setType("python")
+        A_splittable.setPythonContext(newmat_ctx)
+        A_splittable.setUp()
+
+        return A_splittable
 
     def view(self, mat, viewer=None):
         if viewer is None:
@@ -487,4 +511,4 @@ def create_splittable_matrix_monolithic(A, a, **kwargs):
     A_splittable.setPythonContext(ctx)
     A_splittable.setUp()
 
-    return A
+    return A_splittable

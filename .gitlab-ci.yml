@@ -20,8 +20,17 @@ build-lint-and-test:
     - python3 -m flake8 tests/
     - python3 -m black --check tests/
 
+    # Run unit tests
     - python3 -m pytest tests/
     - mpirun -n 2 python3 -m pytest tests/
+
+    # Run demos
+    - python3 demo/mixed-poisson/demo_mixed-poisson.py
+    - mpirun -n 2 python3 demo/mixed-poisson/demo_mixed-poisson.py
+    - python3 demo/navier-stokes-pcd/demo_navier-stokes-pcd.py
+    - mpirun -n 2 python3 demo/navier-stokes-pcd/demo_navier-stokes-pcd.py
+
+    # Run examples
     - python3 -m pytest examples/rayleigh-benard-convection/
     - mpirun -n 2 python3 -m pytest examples/rayleigh-benard-convection/
 

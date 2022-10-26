@@ -11,6 +11,8 @@
 # # Mixed Poisson problem with a Schur complement preconditioner
 
 import numpy as np
+import pathlib
+
 from dolfiny.function import vec_to_functions
 
 from dolfinx import fem, io, mesh
@@ -198,10 +200,12 @@ q_h = fem.Function(Q)
 p_h = fem.Function(P)
 vec_to_functions(u_h, [q_h, p_h])
 
-with io.XDMFFile(MPI.COMM_WORLD, "output/q_h.xdmf", "w") as handle:
+outdir = pathlib.Path(__file__).resolve().parent.joinpath("output")
+
+with io.XDMFFile(MPI.COMM_WORLD, outdir.joinpath("q_h.xdmf"), "w") as handle:
     handle.write_mesh(domain)
     handle.write_function(q_h)
 
-with io.XDMFFile(MPI.COMM_WORLD, "output/p_h.xdmf", "w") as handle:
+with io.XDMFFile(MPI.COMM_WORLD, outdir.joinpath("p_h.xdmf"), "w") as handle:
     handle.write_mesh(domain)
     handle.write_function(p_h)

@@ -31,7 +31,6 @@ class PCDPCBase(PCBase):
 
         V_p = test_space[0]
 
-        # FIXME: This step requires UFL space.
         p_tr = ufl.TrialFunction(V_p)
         p_te = ufl.TestFunction(V_p)
 

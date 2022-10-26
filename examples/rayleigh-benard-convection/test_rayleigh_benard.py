@@ -187,10 +187,10 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
 
     # Set up PDE
     class PDEProblem:
-        def __init__(self, F, J, solution_vars, bcs, P=None):
-            self.L = F
-            self.a = J
-            self.a_precon = P
+        def __init__(self, F_dfx, J_dfx, solution_vars, bcs, P_dfx=None):
+            self.F_dfx = F_dfx
+            self.J_dfx = J_dfx
+            self.P_dfx = P_dfx
             self.bcs = bcs
             self.solution_vars = solution_vars
 
@@ -223,27 +223,27 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
             x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
             self.vec_to_functions(x, self.solution_vars)
 
-            fem.petsc.assemble_vector_block(F, self.L, self.a, self.bcs, x0=x, scale=-1.0)
+            fem.petsc.assemble_vector_block(F, self.F_dfx, self.J_dfx, self.bcs, x0=x, scale=-1.0)
             F.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
         def J_block(self, snes, x, J, P):
-            Jmat = J.getPythonContext().Mat if J.getType() == "python" else J
-            Jmat.zeroEntries()
-            fem.petsc.assemble_matrix_block(Jmat, self.a, self.bcs, diagonal=1.0)
-            Jmat.assemble()
-            if self.a_precon is not None:
-                Pmat = P.getPythonContext().Mat if P.getType() == "python" else P
-                Pmat.zeroEntries()
-                fem.petsc.assemble_matrix_block(Pmat, self.a_precon, self.bcs, diagonal=1.0)
-                Pmat.assemble()
+            J_mat = J.getPythonContext().Mat if J.getType() == "python" else J
+            J.zeroEntries()
+            fem.petsc.assemble_matrix_block(J_mat, self.J_dfx, self.bcs, diagonal=1.0)
+            J.assemble()
+            if self.P_dfx is not None:
+                P_mat = P.getPythonContext().Mat if P.getType() == "python" else P
+                P.zeroEntries()
+                fem.petsc.assemble_matrix_block(P_mat, self.P_dfx, self.bcs, diagonal=1.0)
+                P.assemble()
 
-    F_form_dolfinx = fem.form(problem.F_form)
-    J_form_dolfinx = fem.form(problem.J_form)
+    F_dfx = fem.form(problem.F_ufl)
+    J_dfx = fem.form(problem.J_ufl)
 
     # Prepare Jacobian matrix
-    J = fem.petsc.assemble_matrix_block(J_form_dolfinx)
-    J.assemble()
-    J_splittable = create_splittable_matrix_block(J, problem.J_form, **problem.appctx)
+    J_mat = fem.petsc.assemble_matrix_block(J_dfx)
+    J_mat.assemble()
+    J_splittable = create_splittable_matrix_block(J_mat, problem.J_ufl, **problem.appctx)
     J_splittable.setOptionsPrefix(problem_prefix)
 
     # Set up pressure null space
@@ -258,14 +258,14 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
     J_splittable.setNullSpace(nsp)
 
     # Set up PDE problem
-    pdeproblem = PDEProblem(F_form_dolfinx, J_form_dolfinx, problem.u, problem.bcs)
+    pdeproblem = PDEProblem(F_dfx, J_dfx, problem.u, problem.bcs)
 
     # Prepare vectors (jitted forms can be used here)
-    Fvec = fem.petsc.create_vector_block(F_form_dolfinx)
-    x0 = fem.petsc.create_vector_block(F_form_dolfinx)
+    F_vec = fem.petsc.create_vector_block(F_dfx)
+    x0 = fem.petsc.create_vector_block(F_dfx)
 
     solver = PETSc.SNES().create(comm)
-    solver.setFunction(pdeproblem.F_block, Fvec)
+    solver.setFunction(pdeproblem.F_block, F_vec)
     solver.setJacobian(pdeproblem.J_block, J=J_splittable, P=None)
     solver.setOptionsPrefix(problem_prefix)
     solver.setFromOptions()

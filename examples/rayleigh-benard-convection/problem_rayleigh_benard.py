@@ -144,7 +144,7 @@ class Problem(object):
         return {"v": self.u[0]}
 
     @cached_property
-    def F_form(self):
+    def F_ufl(self):
         v, p, T = self.u
         v_te, p_te, T_te = self.test_functions
 
@@ -164,20 +164,20 @@ class Problem(object):
         return [F0, F1, F2]
 
     @cached_property
-    def J_form(self):
-        J_form = [[None for i in range(len(self.u))] for j in range(len(self.u))]
+    def J_ufl(self):
+        J_ufl = [[None for i in range(len(self.u))] for j in range(len(self.u))]
 
         for i in range(len(self.u)):
             for j in range(len(self.u)):
-                J_form[i][j] = ufl.algorithms.expand_derivatives(
+                J_ufl[i][j] = ufl.algorithms.expand_derivatives(
                     ufl.derivative(
-                        self.F_form[i], self.u[j], ufl.TrialFunction(self.u[j].function_space)
+                        self.F_ufl[i], self.u[j], ufl.TrialFunction(self.u[j].function_space)
                     )
                 )
-                if J_form[i][j].empty():
-                    J_form[i][j] = None
+                if J_ufl[i][j].empty():
+                    J_ufl[i][j] = None
 
-        return J_form
+        return J_ufl
 
     @cached_property
     def bcs(self):
