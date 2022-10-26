@@ -10,12 +10,6 @@
 
 # # Navier-Stokes equations with a PCD-based preconditioner
 
-# TODO: Add problem description with references!
-
-# Start with usual imports.
-
-
-# +
 import gmsh
 import numpy as np
 import pathlib
@@ -32,13 +26,7 @@ from ufl import inner, grad, div, dot, dx
 
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 
-# -
 
-# Create a distributed (parallel) mesh using the Gmsh API and mark exterior facets.
-# The mesh is generated on rank 0 and then distrubuted across other ranks.
-
-
-# +
 gmsh.initialize()
 
 # Set verbosity of Gmsh
@@ -78,13 +66,7 @@ if mesh_comm.rank == model_rank:
 # Convert Gmsh mesh to DOLFINx
 mesh, mts = gmsh_to_dolfin(model, 2, prune_z=True, comm=mesh_comm)
 gmsh.finalize()
-# -
 
-# Build function spaces, define non-linear variational forms representing the incompressible
-# Navier-Stokes equations, and calculate the matrix blocks for the linearized problem.
-
-
-# +
 # Build Taylor-Hood function space
 V_v = fem.VectorFunctionSpace(mesh, ("P", 2), dim=mesh.geometry.dim)
 V_p = fem.FunctionSpace(mesh, ("P", 1))
@@ -110,13 +92,8 @@ F_ufl = [F0, F1]
 J_ufl = [[a00, a01], [a10, a11]]
 F_dfx = fem.form(F_ufl)
 J_dfx = fem.form(J_ufl)
-# -
-
-# Define primary and secondary boundary conditions.
-# The latter are important for the performance of PCD preconditioners (see API documentation).
 
 
-# +
 def v_inflow_eval(x):
     values = np.zeros((2, x.shape[1]))
     values[0] = 4.0 * x[1] * (1.0 - x[1])
@@ -144,14 +121,8 @@ bcs_pcd = {
     "PCDPC_vX": [fem.dirichletbc(fem.Function(V_p), inlet_dofs_p)],
     "PCDPC_vY": [fem.dirichletbc(fem.Function(V_p), outlet_dofs_p)],
 }[pcd_type]
-# -
-
-# Define the context for the nonlinear SNES solver that will be used to solve the problem.
-
-# TODO: Comment on the use of _splittable_ matrix when evaluating the Jacobian!
 
 
-# +
 # Wrap PDEs, BCs and solution variables into a class that can assemble Jacobian and residual
 class PDEProblem:
     def __init__(self, F_dfx, J_dfx, solution_vars, bcs, P_dfx=None):
@@ -200,15 +171,7 @@ pdeproblem = PDEProblem(F_dfx, J_dfx, [v, p], bcs)
 # Prepare vectors (DOLFINx form is required here)
 F_vec = fem.petsc.create_vector_block(F_dfx)
 x0 = fem.petsc.create_vector_block(F_dfx)
-# -
 
-# Configure the solver depending on the chosen preconditioning approach.
-
-# TODO: Comment on the use of ``WrappedPC``, as well as on the use of innner LU solves (fully
-#       iterative config can be found in Rayleigh-Bénard example).
-
-
-# +
 # Set up PETSc options
 opts = PETSc.Options()
 opts.prefixPush(problem_prefix)
@@ -251,12 +214,7 @@ solver.setFunction(pdeproblem.F_block, F_vec)
 solver.setJacobian(pdeproblem.J_block, J=J_splittable, P=None)
 solver.setOptionsPrefix(problem_prefix)
 solver.setFromOptions()
-# -
 
-# Now we are ready to solve the problem and track the number of iterations.
-
-
-# +
 # Solve the problem
 PETSc.Sys.Print("Solving the nonlinear problem with SNES")
 solver.solve(None, x0)
@@ -269,12 +227,7 @@ PETSc.Sys.Print(
 
 # Update solution variables
 vec_to_functions(x0, pdeproblem.solution_vars)
-# -
 
-# Visualize the resulting fields and do the cleanup.
-
-
-# +
 # Save ParaView plots
 outdir = pathlib.Path(__file__).resolve().parent.joinpath("output")
 for field in pdeproblem.solution_vars:
@@ -287,4 +240,3 @@ for field in pdeproblem.solution_vars:
 solver.destroy()
 J_splittable.destroy()
 J_mat.destroy()
-# -
