@@ -66,3 +66,24 @@ def test_refcount(a):
     assert B_splittable.refcount == 0
     with pytest.raises(AssertionError):
         assert B.refcount == 0  # B.refcount == 1
+
+
+def test_ises(a):
+    A = fem.petsc.assemble_matrix_block(fem.form(a))
+    A.assemble()
+
+    A_splittable = create_splittable_matrix_block(A, a)
+    assert A_splittable.refcount == 1
+    assert A.refcount == 1
+
+    isrows, iscols = A_splittable.getPythonContext().ISes
+    for iset_r, iset_c in zip(isrows, iscols):
+        assert iset_r.refcount == 1
+        assert iset_c.refcount == 1
+
+    A_splittable.destroy()
+    assert A_splittable.refcount == 0
+    assert A.refcount == 0
+    for iset_r, iset_c in zip(isrows, iscols):
+        assert iset_r.refcount == 0
+        assert iset_c.refcount == 0
