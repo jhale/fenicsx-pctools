@@ -18,6 +18,7 @@
 # +
 import gmsh
 import numpy as np
+import pathlib
 
 from mpi4py import MPI
 from petsc4py import PETSc
@@ -275,8 +276,9 @@ vec_to_functions(x0, pdeproblem.solution_vars)
 
 # +
 # Save ParaView plots
+outdir = pathlib.Path(__file__).resolve().parent.joinpath("output")
 for field in pdeproblem.solution_vars:
-    xfile = f"output/solution_{field.name}.xdmf"
+    xfile = outdir.joinpath(f"solution_{field.name}.xdmf")
     with XDMFFile(mesh_comm, xfile, "w") as f:
         f.write_mesh(field.function_space.mesh)
         f.write_function(field)
