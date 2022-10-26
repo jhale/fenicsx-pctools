@@ -414,9 +414,3 @@ def test_nested_fieldsplit(space, A, b, target, variant):
     # Clean up options database
     for opt in opts.getAll().keys():
         opts.delValue(opt)
-    # NOTE: None of the following "destructors" works:
-    #   - opts.clear()
-    #   - opts.destroy()
-    #   - del opts
-    # TODO: Consider implementation of an `OptionsManager`, see
-    #       https://github.com/firedrakeproject/firedrake/blob/master/firedrake/petsc.py
