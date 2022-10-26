@@ -514,4 +514,4 @@ def create_splittable_matrix_monolithic(A, a, **kwargs):
     A_splittable.setPythonContext(ctx)
     A_splittable.setUp()
 
-    return A
+    return A_splittable

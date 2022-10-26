@@ -69,8 +69,7 @@ def test_nested_fieldsplit(get_vector_space, equal_discretization, comm):
     b = fem.petsc.assemble_vector(L_dolfinx)
     b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
 
-    ksp = PETSc.KSP()
-    ksp.create(comm)
+    ksp = PETSc.KSP().create(comm)
     ksp.setOperators(A_splittable)
     ksp.setType("preonly")
 
