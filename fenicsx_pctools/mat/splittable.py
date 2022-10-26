@@ -221,11 +221,10 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
         self.Mat.incrementTabLevel(1, parent=mat)
 
     def destroy(self, mat):
-        """Destroy the wrapped matrix."""
-        self.Mat.destroy()
-        for iset in zip(*self.ISes):
-            iset[0].destroy()
-            iset[1].destroy()
+        """Destroy created index sets."""
+        for iset_row, iset_col in zip(*self.ISes):
+            iset_row.destroy()
+            iset_col.destroy()
 
     def duplicate(self, mat, copy=False):
         """Duplicate the whole context (involves duplication of the wrapped matrix with all
