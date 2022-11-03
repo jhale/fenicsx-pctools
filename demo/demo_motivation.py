@@ -394,8 +394,14 @@ verify_solution(u, f)
 # -
 
 # The same strategy can be applied to the system with our ``A_nest`` matrix,
-# but we have to manipulate the index sets which makes it cumbersome to use if we wish to test
-# diverse solution strategies quickly.
+# but we have to manipulate the index sets which makes it cumbersome to use
+# if we wish to test diverse solution strategies quickly.
+
+# ```{warning}
+# The setup presented below will work as we concatenate the two neighboring index sets.
+# If we had decided to combine for example the index sets corresponding to block indices
+# 0 and 2, it would have been necessary to convert the system matrix to a different format.
+# ```
 
 # +
 ksp = create_solver(A_nest, prefix="s2_nest_")
@@ -414,6 +420,7 @@ pc.setFieldSplitIS(
     ["0", composed_is_row],
     ["1", nested_IS[0][2]],
 )
+# A_nest.convert("aij")  # required when combining non-neighboring index sets
 pc.setUp()
 for i, sub_ksp in enumerate(pc.getFieldSplitSubKSP()):
     sub_ksp.setType("cg")
