@@ -128,6 +128,8 @@ def verify_solution(u, f):
     for u_i, f_i in zip(u, f):
         with u_i.vector.localForm() as u_i_loc, f_i.vector.localForm() as f_i_loc:
             assert np.allclose(u_i_loc.array_r, f_i_loc.array_r, rtol=1e-6)
+
+
 # -
 
 # Our aim is to configure the solver from a common options database using command line
