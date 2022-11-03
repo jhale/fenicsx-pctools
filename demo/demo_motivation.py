@@ -393,7 +393,7 @@ verify_solution(u, f)
 
 # The same strategy can be of course applied to the system with our ``A_nest`` matrix,
 # but we have to manipulate the index sets which makes it cumbersome if we wish to test
-# diverse solution strategies.
+# diverse solution strategies quickly.
 
 # +
 ksp = create_solver(A_nest, prefix="s2_nest_")
@@ -427,3 +427,9 @@ ksp.destroy()
 vec_to_functions(x_nest, u)
 verify_solution(u, f)
 # -
+
+# ## Other benefits
+
+# The wrappers discussed above can be used to build advanced custom preconditioners.
+# Few of those have been delivered as part of the package, so do not hesitate to explore
+# the rest of the demos to find out more.
