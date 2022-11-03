@@ -13,7 +13,7 @@
 # In this introductory demo we will try to answer the following question:
 
 # ```{admonition} Question
-# *Why and when should I use fenicsx-pctools?*
+# Why and when should I use ``fenicsx_pctools``?
 # ```
 
 # ## Example of block system of equations
@@ -152,17 +152,17 @@ opts = PETSc.Options()
 # ```{math}
 #    \begin{align}
 #    \begin{bmatrix}
-#       \mathrm{ksp}(A_{00}, P_{00}) & 0 & 0 \\
-#       0 & \mathrm{ksp}(A_{11}, P_{11}) & 0 \\
-#       0 & 0 & \mathrm{ksp}(A_{22}, P_{22})
+#       \mathrm{ksp}(A_{00}, Ap_{00}) & 0 & 0 \\
+#       0 & \mathrm{ksp}(A_{11}, Ap_{11}) & 0 \\
+#       0 & 0 & \mathrm{ksp}(A_{22}, Ap_{22})
 #    \end{bmatrix}
 #    .
 #    \end{align}
 # ```
 
-# Here, we used the simplified notation $\mathrm{ksp}(A, P)$ to mean approximately solving
+# Here, we used the simplified notation $\mathrm{ksp}(A, Ap)$ to mean approximately solving
 # a linear system using the ``PETSc.KSP`` object with operator $A$ and preconditioner built
-# from matrix $P$ (which is the same as $A$ by default).
+# from matrix $Ap$ (which is the same as $A$ by default).
 # We will set up the *inner* ``PETSc.KSP`` objects to use a direct solver.
 
 # ```{note}
@@ -228,7 +228,7 @@ verify_solution(u, f)
 # ```
 
 # The excess use of the ``"wrapped_"`` prefix in the above example is the small price to pay to
-# have the KSP solver configurable from the options database. Next, we show that we cannot achieve
+# have the solver configurable from the options database. Next, we show that we cannot achieve
 # this out-of-the-box for our ``A_nest`` matrix.
 
 
