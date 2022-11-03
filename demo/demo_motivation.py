@@ -13,10 +13,10 @@
 # In this introductory demo we will try to answer the following question:
 
 # ```{admonition} Question
-# *Why and when should I use FEniCSx PC Tools?*
+# *Why and when should I use fenicsx-pctools?*
 # ```
 
-# ## Exemplary block system of equations
+# ## Example of block system of equations
 
 # In what follows, we will solve a system of algebraic equations $A x = b$, where
 
@@ -180,7 +180,7 @@ opts = PETSc.Options()
 A_splittable = create_splittable_matrix_block(A_block, a)
 # -
 
-# The returned matrix is of type ``PETSc.Mat.Type.PYTHON``. As such, it can be endowed with
+# The returned matrix is of type ``PETSc.Mat.Type.PYTHON``. As such, it can be connected with
 # the UFL form ``a`` that is in turn used to create index sets defining the blocks.
 
 # Any preconditioner that is supposed to work with a splittable matrix should be configured
@@ -227,8 +227,8 @@ verify_solution(u, f)
 # using ``PETSc.PC.Type.LU``.
 # ```
 
-# The excess use of the ``"wrapped_"`` prefix in the above example is the price to pay to
-# get things configurable from the options database. Next, we show that we cannot achieve
+# The excess use of the ``"wrapped_"`` prefix in the above example is the small price to pay to
+# have the KSP solver configurable from the options database. Next, we show that we cannot achieve
 # this out-of-the-box for our ``A_nest`` matrix.
 
 
@@ -393,8 +393,8 @@ vec_to_functions(x_block, u)
 verify_solution(u, f)
 # -
 
-# The same strategy can be of course applied to the system with our ``A_nest`` matrix,
-# but we have to manipulate the index sets which makes it cumbersome if we wish to test
+# The same strategy can be applied to the system with our ``A_nest`` matrix,
+# but we have to manipulate the index sets which makes it cumbersome to use if we wish to test
 # diverse solution strategies quickly.
 
 # +
@@ -433,5 +433,5 @@ verify_solution(u, f)
 # ## Other benefits
 
 # The wrappers discussed above can be used to build advanced custom preconditioners.
-# Few of those have been delivered as part of the package, so do not hesitate to explore
+# A few of those have been delivered as part of the package, so do not hesitate to explore
 # the rest of the demos to find out more.
