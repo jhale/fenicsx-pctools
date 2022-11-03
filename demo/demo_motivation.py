@@ -10,7 +10,7 @@
 
 # # Motivation
 
-# In this introductory demo we will try to answer the following question for you:
+# In this introductory demo we will try to answer the following question:
 
 # ```{admonition} Question
 # *Why and when should I use FEniCSx PC Tools?*
@@ -55,7 +55,7 @@ from dolfiny.function import vec_to_functions
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 
 
-N = 2#
+N = 12
 mesh = create_unit_cube(MPI.COMM_WORLD, N, N, N)
 elem = ufl.FiniteElement("Lagrange", mesh.ufl_cell(), 1)
 
@@ -127,7 +127,6 @@ def create_solver(A, prefix=None):
 def verify_solution(u, f):
     for u_i, f_i in zip(u, f):
         with u_i.vector.localForm() as u_i_loc, f_i.vector.localForm() as f_i_loc:
-            #print(f"[rank {mesh.comm.rank}] u_{i} = {u_i_loc.array_r}")#FIXME: Remove!
             assert np.allclose(u_i_loc.array_r, f_i_loc.array_r, rtol=1e-6)
 # -
 
@@ -292,3 +291,139 @@ verify_solution(u, f)
 # In the next section we show what happens if we decide to tweak the solver configuration.
 # There will be only few changes in the options database when using the splittable matrix,
 # but the code modifications in the other case will be much more extensive.
+
+
+# ## Solution based on Schur complement method
+
+# In order to apply a solution approach based on Schur complements, we have to rewrite
+# the linear operator as a **block $2 \times 2$ matrix**
+
+# ```{math}
+#    \begin{align}
+#    A &=
+#    \begin{bmatrix}
+#       A'_{00} & A'_{01} \\
+#       A'_{10} & A'_{11}
+#    \end{bmatrix}
+#    \end{align}
+# ```
+
+# with individual blocks recombined e.g. in the following way
+
+# ```{math}
+#    \begin{align}
+#    A'_{00} &=
+#    \begin{bmatrix}
+#       A_{00} & A_{01} \\
+#       A_{10} & A_{11}
+#    \end{bmatrix}
+#    , &
+#    A'_{01} &=
+#    \begin{bmatrix}
+#       A_{02} \\
+#       A_{12}
+#    \end{bmatrix}
+#    , &
+#    A'_{10} &=
+#    \begin{bmatrix}
+#       A_{20} & A_{21}
+#    \end{bmatrix}
+#    , &
+#    A'_{11} &= A_{22}.
+#    \end{align}
+# ```
+
+# The right hand side data can be recombined in the corresponding way, i.e.
+
+# ```{math}
+#    \begin{align}
+#    b &= \begin{bmatrix} b'_0 \\ b'_1 \end{bmatrix}
+#    , &
+#    b'_0 &= \begin{bmatrix} b_0 \\ b_1 \end{bmatrix}
+#    , &
+#    b'_1 &= b_2,
+#    \end{align}
+# ```
+
+# and the same manipulation can be applied to the solution vector.
+
+# We will solve the exact same problem as above, but this time we will apply the Schur
+# complement preconditioner. In particular, we will base the preconditioner on the full
+# fatorization of the original system and we will use $A'_{11}$ to build a preconditioner
+# for the approximate Schur complement (see
+# [PETSc User-Guide](https://petsc.org/release/docs/manual/ksp/#solving-block-matrices)
+# for details). Any subsystems resulting from the factorization will be solved using
+# the conjugate gradient method in combination with the (point) Jacobi preconditioner.
+
+
+# +
+ksp = create_solver(A_splittable, prefix="s2_block_")
+
+opts.prefixPush(ksp.getOptionsPrefix())
+opts["ksp_type"] = "preonly"
+opts["ksp_monitor"] = None
+opts["pc_type"] = "python"
+opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
+opts.prefixPush("wrapped_")
+opts["pc_type"] = "fieldsplit"
+opts["pc_fieldsplit_type"] = "schur"
+opts["pc_fieldsplit_schur_fact_type"] = "full"
+opts["pc_fieldsplit_schur_precondition"] = "a11"
+opts["pc_fieldsplit_0_fields"] = "0, 1"
+opts["pc_fieldsplit_1_fields"] = "2"
+for i in range(2):
+    opts.prefixPush(f"fieldsplit_{i}_")
+    opts["ksp_type"] = "cg"
+    opts["pc_type"] = "python"
+    opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
+    opts.prefixPush("wrapped_")
+    opts["pc_type"] = "jacobi"
+    opts.prefixPop()  # wrapped_
+    opts.prefixPop()  # fieldsplit_{i}_
+opts.prefixPop()  # wrapped_
+opts.prefixPop()
+
+ksp.setFromOptions()
+ksp.solve(b_block, x_block)
+ksp.destroy()
+
+vec_to_functions(x_block, u)
+verify_solution(u, f)
+# -
+
+# The same strategy can be of course applied to the system with our ``A_nest`` matrix,
+# but we have to manipulate the index sets which makes it cumbersome if we wish to test
+# diverse solution strategies.
+
+# +
+ksp = create_solver(A_nest, prefix="s2_nest_")
+
+ksp.setType("preonly")
+pc = ksp.getPC()
+pc.setType("fieldsplit")
+pc.setFieldSplitType(PETSc.PC.CompositeType.SCHUR)
+pc.setFieldSplitSchurFactType(PETSc.PC.SchurFactType.FULL)
+pc.setFieldSplitSchurPreType(PETSc.PC.SchurPreType.A11)
+nested_IS = A_nest.getNestISs()
+composed_is_row = PETSc.IS(A_nest.getComm()).createGeneral(
+    np.concatenate((nested_IS[0][0], nested_IS[0][1]))
+)
+pc.setFieldSplitIS(
+    ["0", composed_is_row],
+    ["1", nested_IS[0][2]],
+)
+pc.setUp()
+for i, sub_ksp in enumerate(pc.getFieldSplitSubKSP()):
+    sub_ksp.setType("cg")
+    sub_ksp.getPC().setType("jacobi")
+opts.prefixPush(ksp.getOptionsPrefix())
+opts["ksp_monitor"] = None
+opts.prefixPop()
+
+ksp.setFromOptions()
+ksp.solve(b_nest, x_nest)
+ksp.destroy()
+
+vec_to_functions(x_nest, u)
+verify_solution(u, f)
+# -
