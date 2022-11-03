@@ -300,13 +300,11 @@ def test_nested_fieldsplit(space, A, b, target, variant):
                 opts[f"fieldsplit_{i}_pc_type"] = "jacobi"
             opts.prefixPop()
         elif space.structure == "nest":
-            if comm.size > 1:
-                pytest.skip("MATNEST matrix cannot be coverted in parallel?")
             pc = ksp.getPC()
             pc.setType("fieldsplit")
             pc.setFieldSplitType(PETSc.PC.CompositeType.ADDITIVE)
             nested_IS = A.getNestISs()
-            A.convert("aij")  # this is harsh (and not working in parallel)
+            A.convert("aij")  # this is harsh
             composed_is_row = PETSc.IS(comm).createGeneral(
                 np.concatenate((nested_IS[0][0], nested_IS[0][2]))
             )
