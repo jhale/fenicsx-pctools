@@ -208,7 +208,6 @@ def test_nested_fieldsplit(space, A, b, target, variant):
     opts = PETSc.Options()
 
     if variant == "LU":
-
         if space.structure == "nest":
             pytest.skip("Direct solver cannot be used with 'nest' structures")
         else:
@@ -217,7 +216,6 @@ def test_nested_fieldsplit(space, A, b, target, variant):
             opts["wrapped_pc_type"] = "lu"
 
     elif variant == "FS 0_1_2_3":
-
         if space.structure == "block":
             opts["pc_type"] = "python"
             opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
@@ -268,7 +266,6 @@ def test_nested_fieldsplit(space, A, b, target, variant):
             pytest.skip(f"Variant '{variant}' needs to be implemented for '{space.structure}'")
 
     elif variant == "FS 0-3_1-2":
-
         if space.structure == "block":
             opts["pc_type"] = "python"
             opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
@@ -285,7 +282,6 @@ def test_nested_fieldsplit(space, A, b, target, variant):
             pytest.skip(f"Variant '{variant}' needs to be implemented for '{space.structure}'")
 
     elif variant == "FS 0-2_1_3":
-
         if space.structure == "block":
             opts["pc_type"] = "python"
             opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
@@ -321,7 +317,6 @@ def test_nested_fieldsplit(space, A, b, target, variant):
             pytest.skip(f"Variant '{variant}' needs to be implemented for '{space.structure}'")
 
     elif variant == "FS 0-2-3_1 1_0-2":
-
         if space.structure == "block":
             opts["pc_type"] = "python"
             opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
@@ -349,7 +344,6 @@ def test_nested_fieldsplit(space, A, b, target, variant):
             pytest.skip(f"Variant '{variant}' needs to be implemented for '{space.structure}'")
 
     elif variant == "FS 0-2-3_1 1_0-2 1_0":
-
         if space.structure == "block":
             opts["pc_type"] = "python"
             opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
