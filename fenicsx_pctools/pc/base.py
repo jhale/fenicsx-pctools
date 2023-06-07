@@ -4,7 +4,6 @@ from petsc4py import PETSc
 
 
 class PCBase(object, metaclass=abc.ABCMeta):
-
     needs_python_amat = False
     """Set this to True if the system matrix needs to be of type 'python'."""
 

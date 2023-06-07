@@ -1,5 +1,3 @@
-__version__ = "0.5.1.dev0"
-
 from fenicsx_pctools import mat, pc
 
 # Imports allowing shorthand specification of preconditioners in PETSc config files
