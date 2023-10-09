@@ -51,7 +51,9 @@ class Problem(object):
         # cell_type = cpp.mesh.CellType.hexahedron
         ghost_mode = GhostMode.shared_facet
 
-        mesh = create_unit_cube(self.comm, self.N, self.N, self.N, cell_type, ghost_mode)
+        mesh = create_unit_cube(
+            self.comm, self.N, self.N, self.N, cell_type=cell_type, ghost_mode=ghost_mode
+        )
         mesh.topology.create_connectivity(2, 2)
         imap = mesh.topology.index_map(2)
         indices = np.arange(0, imap.size_local + imap.num_ghosts)

@@ -13,9 +13,9 @@
 import numpy as np
 import pathlib
 
-from dolfiny.function import vec_to_functions
-
 from dolfinx import fem, io, mesh
+from dolfinx.fem.petsc import assemble_matrix_block, assemble_vector_block, create_matrix_block
+from fenicsx_pctools.utils import vec_to_functions
 from fenicsx_pctools.mat import create_splittable_matrix_block
 from ufl import (
     CellDiameter,
@@ -25,6 +25,7 @@ from ufl import (
     SpatialCoordinate,
     TestFunction,
     TrialFunction,
+    VectorElement,
     avg,
     div,
     exp,
@@ -105,14 +106,14 @@ L = [inner(fem.Constant(domain, (0.0, 0.0)), q_t) * dx, -inner(f, p_t) * dx]
 a_dolfinx = fem.form(a)
 L_dolfinx = fem.form(L)
 
-A = fem.petsc.create_matrix_block(a_dolfinx)
-fem.petsc.assemble_matrix_block(A, a_dolfinx, bcs)
+A = create_matrix_block(a_dolfinx)
+assemble_matrix_block(A, a_dolfinx, bcs)
 A.assemble()
 
 A_splittable = create_splittable_matrix_block(A, a)
 A_splittable.setOptionsPrefix("mp_")
 
-b = fem.petsc.assemble_vector_block(L_dolfinx, a_dolfinx, bcs)
+b = assemble_vector_block(L_dolfinx, a_dolfinx, bcs)
 b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
 
@@ -200,12 +201,20 @@ q_h = fem.Function(Q)
 p_h = fem.Function(P)
 vec_to_functions(u_h, [q_h, p_h])
 
+Q_out_el = VectorElement("Lagrange", domain.ufl_cell(), 1)
+Q_out = fem.FunctionSpace(domain, Q_out_el)
+
+q_h_out = fem.Function(Q_out)
+q_h_out.interpolate(q_h)
+
 outdir = pathlib.Path(__file__).resolve().parent.joinpath("output")
 
 with io.XDMFFile(MPI.COMM_WORLD, outdir.joinpath("q_h.xdmf"), "w") as handle:
     handle.write_mesh(domain)
-    handle.write_function(q_h)
+    handle.write_function(q_h_out)
 
 with io.XDMFFile(MPI.COMM_WORLD, outdir.joinpath("p_h.xdmf"), "w") as handle:
     handle.write_mesh(domain)
     handle.write_function(p_h)
+
+PETSc.garbage_cleanup()

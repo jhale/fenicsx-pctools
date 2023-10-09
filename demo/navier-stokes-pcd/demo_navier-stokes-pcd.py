@@ -12,19 +12,21 @@
 
 import gmsh
 import numpy as np
-import pathlib
+
+# import pathlib
 
 from mpi4py import MPI
 from petsc4py import PETSc
 
 import ufl
 from dolfinx import fem
-from dolfinx.io import XDMFFile
+
+# from dolfinx.io import XDMFFile
 from dolfiny.mesh import gmsh_to_dolfin, merge_meshtags
-from dolfiny.function import vec_to_functions
 from ufl import inner, grad, div, dot, dx
 
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
+from fenicsx_pctools.utils import vec_to_functions
 
 
 gmsh.initialize()
@@ -155,7 +157,7 @@ class PDEProblem:
 
 
 problem_prefix = "ns_"
-regions, tag_id_map = merge_meshtags(mts, fdim)
+regions, tag_id_map = merge_meshtags(mesh, mts, fdim)
 ds_in = ufl.Measure("ds", domain=mesh, subdomain_data=regions, subdomain_id=tag_id_map["inlet"])
 appctx = {"nu": nu, "v": v, "bcs_pcd": bcs_pcd, "ds_in": ds_in}
 
@@ -229,14 +231,11 @@ PETSc.Sys.Print(
 vec_to_functions(x0, pdeproblem.solution_vars)
 
 # Save ParaView plots
-outdir = pathlib.Path(__file__).resolve().parent.joinpath("output")
-for field in pdeproblem.solution_vars:
-    xfile = outdir.joinpath(f"solution_{field.name}.xdmf")
-    with XDMFFile(mesh_comm, xfile, "w") as f:
-        f.write_mesh(field.function_space.mesh)
-        f.write_function(field)
+# outdir = pathlib.Path(__file__).resolve().parent.joinpath("output")
+# for field in pdeproblem.solution_vars:
+#    xfile = outdir.joinpath(f"solution_{field.name}.xdmf")
+#    with XDMFFile(mesh_comm, xfile, "w") as f:
+#        f.write_mesh(field.function_space.mesh)
+#        f.write_function(field)
 
-# Destroy PETSc objects
-solver.destroy()
-J_splittable.destroy()
-J_mat.destroy()
+PETSc.garbage_cleanup()

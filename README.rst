@@ -15,10 +15,11 @@ This repository contains various tools for preconditioning of systems of linear
 algebraic equations in `DOLFINx <https://github.com/FEniCS/dolfinx>`_, the
 computational environment of the `FEniCS Project
 <https://fenicsproject.org/>`_. These tools, delivered as a Python library
-``fenicsx_pctools``, aim to facilitate the specification of problems that can be
-tackled by means of composable linear solvers offered by `PETSc
-<https://www.mcs.anl.gov/petsc/>`_. The idea is inspired by the work of :cite:t:`kirby_solver_2018`
-that was originally implemented in the `Firedrake Project <https://firedrakeproject.org/>`_.
+``fenicsx_pctools``, aim to facilitate the specification of problems that can
+be tackled by means of composable linear solvers offered by `PETSc
+<https://www.mcs.anl.gov/petsc/>`_. The idea is inspired by the work of
+:cite:t:`kirby_solver_2018` that was originally implemented in the `Firedrake
+Project <https://firedrakeproject.org/>`_.
 
 Implementation of chosen advanced preconditioners is part of the library, e.g.
 variants of the pressure-convection-diffusion (PCD) preconditioner for the
@@ -98,7 +99,7 @@ License
 
 .. |(C)| unicode:: U+000A9
 
-Copyright |(C)| 2021-2022 Rafinex S. á r. l. <info@rafinex.com>
+Copyright |(C)| 2021-2023 Rafinex S. á r. l., Jack S. Hale <info@rafinex.com>
 
 ``fenicsx-pctools`` is free software: you can redistribute it and/or modify it
 under the terms of the GNU Lesser General Public License as published

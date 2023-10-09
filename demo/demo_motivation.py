@@ -50,10 +50,15 @@ from petsc4py import PETSc
 
 from dolfinx import fem
 from dolfinx.mesh import create_unit_cube
-from dolfiny.function import vec_to_functions
+from dolfinx.fem.petsc import (
+    assemble_vector_block,
+    assemble_matrix_block,
+    assemble_matrix_nest,
+    assemble_vector_nest,
+)
 
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
-
+from fenicsx_pctools.utils import vec_to_functions
 
 N = 12
 mesh = create_unit_cube(MPI.COMM_WORLD, N, N, N)
@@ -94,15 +99,15 @@ a_dolfinx = fem.form(a)
 L_dolfinx = fem.form(L)
 
 # Block assembly
-A_block = fem.petsc.assemble_matrix_block(a_dolfinx)
+A_block = assemble_matrix_block(a_dolfinx)
 A_block.assemble()
-b_block = fem.petsc.assemble_vector_block(L_dolfinx, a_dolfinx)
+b_block = assemble_vector_block(L_dolfinx, a_dolfinx)
 x_block = A_block.createVecRight()
 
 # Nested assembly
-A_nest = fem.petsc.assemble_matrix_nest(a_dolfinx)
+A_nest = assemble_matrix_nest(a_dolfinx)
 A_nest.assemble()
-b_nest = fem.petsc.assemble_vector_nest(L_dolfinx)
+b_nest = assemble_vector_nest(L_dolfinx)
 for b_sub in b_nest.getNestSubVecs():
     b_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
 x_nest = A_nest.createVecRight()
@@ -442,3 +447,5 @@ verify_solution(u, f)
 # The wrappers discussed above can be used to build advanced custom preconditioners.
 # A few of those have been delivered as part of the package, so do not hesitate to explore
 # the rest of the demos to find out more.
+
+PETSc.garbage_cleanup()
