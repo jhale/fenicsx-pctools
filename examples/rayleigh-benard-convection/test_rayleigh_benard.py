@@ -31,7 +31,7 @@ from problem_rayleigh_benard import Problem
 
 from dolfinx import fem
 from dolfinx.common import TimingType, list_timings
-from dolfinx.io import XDMFFile
+from dolfinx.fem.petsc import create_vector_block, assemble_matrix_block, assemble_vector_block
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 
 from mpi4py import MPI
@@ -223,25 +223,25 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
             x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
             self.vec_to_functions(x, self.solution_vars)
 
-            fem.petsc.assemble_vector_block(F, self.F_dfx, self.J_dfx, self.bcs, x0=x, scale=-1.0)
+            assemble_vector_block(F, self.F_dfx, self.J_dfx, self.bcs, x0=x, scale=-1.0)
             F.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
         def J_block(self, snes, x, J, P):
             J_mat = J.getPythonContext().Mat if J.getType() == "python" else J
             J.zeroEntries()
-            fem.petsc.assemble_matrix_block(J_mat, self.J_dfx, self.bcs, diagonal=1.0)
+            assemble_matrix_block(J_mat, self.J_dfx, self.bcs, diagonal=1.0)
             J.assemble()
             if self.P_dfx is not None:
                 P_mat = P.getPythonContext().Mat if P.getType() == "python" else P
                 P.zeroEntries()
-                fem.petsc.assemble_matrix_block(P_mat, self.P_dfx, self.bcs, diagonal=1.0)
+                assemble_matrix_block(P_mat, self.P_dfx, self.bcs, diagonal=1.0)
                 P.assemble()
 
     F_dfx = fem.form(problem.F_ufl)
     J_dfx = fem.form(problem.J_ufl)
 
     # Prepare Jacobian matrix
-    J_mat = fem.petsc.assemble_matrix_block(J_dfx)
+    J_mat = assemble_matrix_block(J_dfx)
     J_mat.assemble()
     J_splittable = create_splittable_matrix_block(J_mat, problem.J_ufl, **problem.appctx)
     J_splittable.setOptionsPrefix(problem_prefix)
@@ -261,8 +261,8 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
     pdeproblem = PDEProblem(F_dfx, J_dfx, problem.u, problem.bcs)
 
     # Prepare vectors (jitted forms can be used here)
-    F_vec = fem.petsc.create_vector_block(F_dfx)
-    x0 = fem.petsc.create_vector_block(F_dfx)
+    F_vec = create_vector_block(F_dfx)
+    x0 = create_vector_block(F_dfx)
 
     solver = PETSc.SNES().create(comm)
     solver.setFunction(pdeproblem.F_block, F_vec)
@@ -376,21 +376,6 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
         "FunctionEval": time_residual,
     }
 
-    # Save XDMF data
-    if not request.config.getoption("noxdmf"):
-        pvscript_args = [
-            "pvscript_rayleigh_benard.py",
-            os.path.join(results_dir, "fig_rayleigh_benard.png"),
-        ]
-        basename = os.path.splitext(os.path.basename(results_file))[0]
-        for field, name in [(s0, "v"), (s1, "p"), (s2, "T")]:
-            xfile = f"{basename}_{pc_approach}_nprocs{comm.size}_field_{name}.xdmf"
-            xfile = os.path.join(results_dir, xfile)
-            with XDMFFile(comm, xfile, "w") as f:
-                f.write_mesh(field.function_space.mesh)
-                f.write_function(field)
-            pvscript_args.append(xfile)
-
     if comm.rank == 0:
         data = pandas.DataFrame(results, index=[0])
         if request.config.getoption("overwrite"):
@@ -418,6 +403,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
     for opt in opts.getAll().keys():
         opts.delValue(opt)
 
+    PETSc.garbage_cleanup()
 
 if __name__ == "__main__":
     import argparse

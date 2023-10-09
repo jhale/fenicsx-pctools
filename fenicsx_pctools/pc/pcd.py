@@ -112,7 +112,7 @@ class PCDPCBase(PCBase):
             ds_in = Pctx.kwargs.get("ds_in", None)
             ufl_form_Kp = (1.0 / nu) * ufl.dot(ufl.grad(p_tr), v) * p_te * ufl.dx
             if type(self).__name__ == "PCDPC_vY" and ds_in is not None:
-                n = ufl.FacetNormal(ds_in.subdomain_data().mesh)
+                n = ufl.FacetNormal(ds_in.ufl_domain())
                 ufl_form_Kp -= (1.0 / nu) * ufl.dot(v, n) * p_tr * p_te * ds_in
         self.form_Kp = fem.form(ufl_form_Kp)
 
@@ -120,6 +120,8 @@ class PCDPCBase(PCBase):
         Kp.setOptionsPrefix(prefix + "Kp_")
         fem.petsc.assemble_matrix(Kp, self.form_Kp, bcs=[], diagonal=1.0)
         Kp.assemble()
+
+        PETSc.garbage_cleanup()
 
     def update(self, pc):
         self.Kp.zeroEntries()

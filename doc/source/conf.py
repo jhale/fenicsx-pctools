@@ -17,7 +17,7 @@ import jupytext_process
 jupytext_process.process()
 
 project = "fenicsx-pctools"
-copyright = "2022, FEniCSx-pctools Authors"
+copyright = "2022-2023, FEniCSx-pctools Authors"
 author = "FEniCSx-pctools Authors"
 
 # The version info for the project you're documenting, acts as replacement for
