@@ -238,4 +238,4 @@ vec_to_functions(x0, pdeproblem.solution_vars)
 #        f.write_mesh(field.function_space.mesh)
 #        f.write_function(field)
 
-PETSc.garbage_cleanup()
+del solver

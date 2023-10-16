@@ -217,4 +217,4 @@ with io.XDMFFile(MPI.COMM_WORLD, outdir.joinpath("p_h.xdmf"), "w") as handle:
     handle.write_mesh(domain)
     handle.write_function(p_h)
 
-PETSc.garbage_cleanup()
+del solver
