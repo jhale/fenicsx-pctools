@@ -1,3 +1,4 @@
+#!/usr/bin/env pvpython
 import os
 import sys
 
