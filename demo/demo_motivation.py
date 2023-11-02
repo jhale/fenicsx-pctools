@@ -256,9 +256,10 @@ ksp.setFromOptions()
 # ksp.solve(b_nest, x_nest)  # !!! THIS RAISES AN ERROR !!!
 ksp.destroy()
 
+# Remove any unused options to suppress warnings from PETSc
 unused_opts = [name for name in opts.getAll() if name.startswith("s0_nest_fieldsplit_")]
 for name in unused_opts:
-    opts.delValue(name)  # required to suppress warnings from PETSc
+    opts.delValue(name)
 # -
 
 # It is not possible to define the fields in the above way since matrices of type
@@ -445,7 +446,8 @@ ksp.destroy()
 vec_to_functions(x_nest, u)
 verify_solution(u, f)
 
-PETSc.garbage_cleanup()  # destroy any remaining PETSc objects
+# Destroy any remaining PETSc objects
+PETSc.garbage_cleanup()
 # -
 
 # ## Other benefits
