@@ -13,15 +13,12 @@
 import gmsh
 import numpy as np
 
-# import pathlib
-
 from mpi4py import MPI
 from petsc4py import PETSc
 
 import ufl
 from dolfinx import fem
 
-# from dolfinx.io import XDMFFile
 from dolfiny.mesh import gmsh_to_dolfin, merge_meshtags
 from ufl import inner, grad, div, dot, dx
 
@@ -70,7 +67,7 @@ mesh, mts = gmsh_to_dolfin(model, 2, prune_z=True, comm=mesh_comm)
 gmsh.finalize()
 
 # Build Taylor-Hood function space
-V_v = fem.VectorFunctionSpace(mesh, ("P", 2), dim=mesh.geometry.dim)
+V_v = fem.FunctionSpace(mesh, ("P", 2, (mesh.geometry.dim,)))
 V_p = fem.FunctionSpace(mesh, ("P", 1))
 
 v = fem.Function(V_v, name="v")
@@ -230,12 +227,16 @@ PETSc.Sys.Print(
 # Update solution variables
 vec_to_functions(x0, pdeproblem.solution_vars)
 
+# +
 # Save ParaView plots
+# import pathlib
+# from dolfinx.io import XDMFFile
 # outdir = pathlib.Path(__file__).resolve().parent.joinpath("output")
 # for field in pdeproblem.solution_vars:
 #    xfile = outdir.joinpath(f"solution_{field.name}.xdmf")
 #    with XDMFFile(mesh_comm, xfile, "w") as f:
 #        f.write_mesh(field.function_space.mesh)
 #        f.write_function(field)
+# -
 
 del solver
