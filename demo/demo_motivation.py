@@ -210,14 +210,10 @@ for i in range(3):
     opts[f"pc_fieldsplit_{i}_fields"] = i
     opts.prefixPush(f"fieldsplit_{i}_")
     opts["ksp_type"] = "preonly"
-    opts["pc_type"] = "python"
-    opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
-    opts.prefixPush("wrapped_")
     opts["pc_type"] = "lu"
-    opts.prefixPop()  # wrapped_
     opts.prefixPop()  # fieldsplit_{i}_
 opts.prefixPop()  # wrapped_
-opts.prefixPop()
+opts.prefixPop()  # s1_block_
 
 ksp.setFromOptions()
 ksp.solve(b_block, x_block)
@@ -232,9 +228,9 @@ verify_solution(u, f)
 # using ``PETSc.PC.Type.LU``.
 # ```
 
-# The excess use of the ``"wrapped_"`` prefix in the above example is the small price to pay to
-# have the solver configurable from the options database. Next, we show that we cannot achieve
-# this out-of-the-box for our ``A_nest`` matrix.
+# The usage of the "wrapped" preconditioner is necessary to configure the solver at runtime
+# from the options database. Next, we show that we cannot achieve this out-of-the-box for
+# our ``A_nest`` matrix.
 
 
 # +

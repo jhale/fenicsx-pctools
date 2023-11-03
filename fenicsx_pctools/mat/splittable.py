@@ -276,6 +276,8 @@ class SplittableMatrixBlock(SplittableMatrixBase):
     def __init__(self, A, a, **kwargs):
         super(SplittableMatrixBlock, self).__init__(A, a, **kwargs)
 
+        self._fieldsplit_pc_types = {}
+
         num_brows = len(a)
         num_bcols = len(a[0])
         ml_brows = MatrixLayout.BLOCK
@@ -340,6 +342,12 @@ class SplittableMatrixBlock(SplittableMatrixBase):
 
         return (global_isrows, global_iscols)
 
+    def _set_fieldsplit_pc_type(self, field_ids, pc_type):
+        self._fieldsplit_pc_types[field_ids] = pc_type
+
+    def _get_fieldsplit_pc_type(self, field_ids):
+        return self._fieldsplit_pc_types.get(field_ids, None)
+
     def createSubMatrix(self, mat, isrow, iscol=None, submat=None):
         """Create submatrix of the wrapped matrix (based on provided index sets), wrap it using
         a newly created context with corresponding (appropriately shifted) index sets and return
@@ -396,6 +404,12 @@ class SplittableMatrixBlock(SplittableMatrixBase):
             shifted_ISes_1 = _apply_shifting(self.ISes[1], bcol_ids, rank_offset_1)
 
         submat = self.Mat.createSubMatrix(isrow, iscol)
+
+        # Check type of associated preconditioner to avoid unnecessary wrapping of the submatrix
+        pc_type = self._get_fieldsplit_pc_type(brow_ids)
+        if self._fieldsplit_pc_types and pc_type != "python":
+            return submat
+
         a = [[self._a[i][j] for j in bcol_ids] for i in brow_ids]
         subctx = SplittableMatrixBlock(submat, a, **self.kwargs)
         subctx._ISes = (shifted_ISes_0, shifted_ISes_1)
@@ -403,6 +417,7 @@ class SplittableMatrixBlock(SplittableMatrixBase):
             [self._spaces[0][i] for i in brow_ids],
             [self._spaces[1][j] for j in bcol_ids],
         )
+        assert not subctx._fieldsplit_pc_types  # TODO: Is this correct?
 
         Asub = PETSc.Mat().create(comm=self.comm)
         Asub.setType("python")
