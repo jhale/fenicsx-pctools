@@ -73,4 +73,4 @@ html_static_path = ["_static"]
 
 bibtex_bibfiles = ["references.bib"]
 bibtex_default_style = "alpha"
-bibtex_reference_style = "author_year"
+# bibtex_reference_style = "author_year"
