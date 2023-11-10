@@ -51,7 +51,7 @@
 
 # +
 
-import pathlib
+# import pathlib
 
 import gmsh
 import numpy as np
@@ -61,7 +61,7 @@ from petsc4py import PETSc
 
 import ufl
 from dolfinx import fem
-from dolfinx.io import XDMFFile
+# from dolfinx.io import XDMFFile
 
 from dolfiny.mesh import gmsh_to_dolfin, merge_meshtags
 from ufl import inner, grad, div, dot, dx
