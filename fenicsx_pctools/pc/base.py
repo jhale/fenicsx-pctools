@@ -4,6 +4,17 @@ from petsc4py import PETSc
 
 
 class PCBase(object, metaclass=abc.ABCMeta):
+    """An abstract base class for creating Python contexts suitable for PETSc PC objects.
+
+    Any derived class must implement the following methods:
+
+    - :meth:`initialize`
+    - :meth:`update`
+    - :meth:`apply`
+    - :meth:`applyTranspose`
+
+    """
+
     needs_python_amat = False
     """Set this to True if the system matrix needs to be of type 'python'."""
 
@@ -11,16 +22,6 @@ class PCBase(object, metaclass=abc.ABCMeta):
     """Set this to True if the preconditioner matrix needs to be of type 'python'."""
 
     def __init__(self):
-        """An abstract base class for creating Python contexts suitable for PETSc PC objects.
-
-        Any derived class must implement the following methods:
-
-        - :meth:`initialize`
-        - :meth:`update`
-        - :meth:`apply`
-        - :meth:`applyTranspose`
-
-        """
         self.initialized = False
         super(PCBase, self).__init__()
 
