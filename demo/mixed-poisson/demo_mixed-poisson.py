@@ -10,6 +10,11 @@
 
 # # Mixed Poisson problem with a Schur complement preconditioner
 
+# ```{admonition} TODO
+# This demo needs documentation.
+# ```
+
+# +
 import numpy as np
 import pathlib
 
@@ -218,3 +223,4 @@ with io.XDMFFile(MPI.COMM_WORLD, outdir.joinpath("p_h.xdmf"), "w") as handle:
     handle.write_function(p_h)
 
 del solver
+# -

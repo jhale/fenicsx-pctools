@@ -29,7 +29,7 @@ work of :cite:t:`blechta_fenapack_2018`.
 Synopsis
 ========
 
-``fenicsx_pctools`` main feature is its ability to take block matrices
+The main feature of ``fenicsx_pctools`` is its ability to take block matrices
 constructed using DOLFINx's built-in assembly functions
 
     .. code-block:: python
@@ -99,7 +99,7 @@ License
 
 .. |(C)| unicode:: U+000A9
 
-Copyright |(C)| 2021-2023 Rafinex S. á r. l., Jack S. Hale <info@rafinex.com>
+Copyright |(C)| 2021-2023 Rafinex S.à r.l. <info@rafinex.com>, Jack S. Hale
 
 ``fenicsx-pctools`` is free software: you can redistribute it and/or modify it
 under the terms of the GNU Lesser General Public License as published

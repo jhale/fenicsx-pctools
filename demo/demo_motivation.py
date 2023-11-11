@@ -255,6 +255,11 @@ opts.prefixPop()
 ksp.setFromOptions()
 # ksp.solve(b_nest, x_nest)  # !!! THIS RAISES AN ERROR !!!
 ksp.destroy()
+
+# Remove any unused options to suppress warnings from PETSc
+unused_opts = [name for name in opts.getAll() if name.startswith("s0_nest_fieldsplit_")]
+for name in unused_opts:
+    opts.delValue(name)
 # -
 
 # It is not possible to define the fields in the above way since matrices of type
@@ -440,6 +445,9 @@ ksp.destroy()
 
 vec_to_functions(x_nest, u)
 verify_solution(u, f)
+
+# Destroy any remaining PETSc objects
+PETSc.garbage_cleanup()
 # -
 
 # ## Other benefits
@@ -447,5 +455,3 @@ verify_solution(u, f)
 # The wrappers discussed above can be used to build advanced custom preconditioners.
 # A few of those have been delivered as part of the package, so do not hesitate to explore
 # the rest of the demos to find out more.
-
-PETSc.garbage_cleanup()

@@ -66,3 +66,7 @@ known_third_party = ["gmsh", "numpy", "pytest"]
 known_mpi = ["mpi4py", "petsc4py"]
 sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "MPI", "LOCALFOLDER"]
 profile = "black"
+
+[tool.pytest.ini_options]
+minversion = "6.2"
+testpaths = ["tests"]
