@@ -15,7 +15,7 @@ This repository contains various tools for preconditioning of systems of linear
 algebraic equations in `DOLFINx <https://github.com/FEniCS/dolfinx>`_, the
 computational environment of the `FEniCS Project
 <https://fenicsproject.org/>`_. These tools, delivered as a Python library
-``fenicsx_pctools``, aim to facilitate the specification of problems that can
+``fenicsx-pctools``, aim to facilitate the specification of problems that can
 be tackled by means of composable linear solvers offered by `PETSc
 <https://www.mcs.anl.gov/petsc/>`_. The idea is inspired by the work of
 :cite:t:`kirby_solver_2018` that was originally implemented in the `Firedrake
@@ -29,7 +29,7 @@ work of :cite:t:`blechta_fenapack_2018`.
 Synopsis
 ========
 
-The main feature of ``fenicsx_pctools`` is its ability to take block matrices
+The main feature of ``fenicsx-pctools`` is its ability to take block matrices
 constructed using DOLFINx's built-in assembly functions
 
     .. code-block:: python
@@ -63,7 +63,7 @@ Quickstart
 
 Assuming that the current working directory is the root of this repository.
 
-1. Install ``fenicsx_pctools``:
+1. Install ``fenicsx-pctools``:
 
    .. code-block:: console
 
