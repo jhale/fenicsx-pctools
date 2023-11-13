@@ -51,7 +51,7 @@
 
 # +
 
-# import pathlib
+import pathlib
 
 import gmsh
 import numpy as np
@@ -61,8 +61,7 @@ from petsc4py import PETSc
 
 import ufl
 from dolfinx import fem
-
-# from dolfinx.io import XDMFFile
+from dolfinx.io import XDMFFile
 
 from dolfiny.mesh import gmsh_to_dolfin, merge_meshtags
 from ufl import inner, grad, div, dot, dx
@@ -358,16 +357,26 @@ del solver
 
 # As a last step, we save the results for visualisation.
 
-# ```{admonition} TODO
-# The velocity field must be interpolated to P1 space!?
-# ```
-
 # +
-# outdir = pathlib.Path(__file__).resolve().parent.joinpath("output")
-# vec_to_functions(x0, pdeproblem.solution_vars)
-# for field in pdeproblem.solution_vars:
-#     xfile = outdir.joinpath(f"solution_{field.name}.xdmf")
-#     with XDMFFile(mesh_comm, xfile, "w") as f:
-#         f.write_mesh(field.function_space.mesh)
-#         f.write_function(field)
+vec_to_functions(x0, pdeproblem.solution_vars)
+v_h, p_h = pdeproblem.solution_vars
+
+V_out_el = ufl.VectorElement("Lagrange", mesh.ufl_cell(), 1)
+V_out = fem.FunctionSpace(mesh, V_out_el)
+v_h_out = fem.Function(V_out, name="v")
+v_h_out.interpolate(v_h)
+
+outdir = pathlib.Path(__file__).resolve().parent.joinpath("output")
+for field in [v_h_out, p_h]:
+    xfile = outdir.joinpath(f"solution_{field.name}.xdmf")
+    with XDMFFile(mesh_comm, xfile, "w") as f:
+        f.write_mesh(field.function_space.mesh)
+        f.write_function(field)
 # -
+
+# Here, we used [ParaView](https://www.paraview.org/) to plot the velocity streamlines with
+# the pressure field in the background. We have made the flow convection-dominated by setting up
+# the Reynolds number to 100. This is nicely illustrated by the fact that the fluid passes the
+# corner while creating a slow-moving recirculating region right behind the step.
+
+# ![Velocity streamlines and pressure field in the background](bfstep-results-Re100.png)
