@@ -1,5 +1,5 @@
 ==================================================
-``fenicsx-pctools``: FEniCSx Preconditioning Tools
+FEniCSx-pctools: FEniCSx Preconditioning Tools
 ==================================================
 
 .. image:: https://img.shields.io/badge/docs-ready-success
@@ -14,8 +14,8 @@ Description
 This repository contains various tools for preconditioning of systems of linear
 algebraic equations in `DOLFINx <https://github.com/FEniCS/dolfinx>`_, the
 computational environment of the `FEniCS Project
-``fenicsx-pctools``, aim to facilitate the specification of problems that can
 <https://fenicsproject.org/>`_. These tools, delivered as a Python package
+FEniCSx-pctools, aim to facilitate the specification of problems that can
 be tackled by means of composable linear solvers offered by `PETSc
 <https://www.mcs.anl.gov/petsc/>`_. The idea is inspired by the work of
 :cite:t:`kirby_solver_2018` that was originally implemented in the `Firedrake
@@ -29,7 +29,7 @@ work of :cite:t:`blechta_fenapack_2018`.
 Synopsis
 ========
 
-The main feature of ``fenicsx-pctools`` is its ability to take block matrices
+The main feature of FEniCSx-pctools is its ability to take block matrices
 constructed using DOLFINx's built-in assembly functions
 
     .. code-block:: python
@@ -56,14 +56,14 @@ that is available at https://rafinex-external-rifle.gitlab.io/fenicsx-pctools/.
 Dependencies
 ============
 
-``fenicsx-pctools`` depends on the Python interface to DOLFINx.
+FEniCSx-pctools depends on the Python interface to DOLFINx.
 
 Quickstart
 ==========
 
 Assuming that the current working directory is the root of this repository.
 
-1. Install ``fenicsx-pctools``:
+1. Install FEniCSx-pctools:
 
    .. code-block:: console
 
@@ -102,18 +102,18 @@ License
 
 Copyright |(C)| 2021-2023 Rafinex S.à r.l. <info@rafinex.com>, Jack S. Hale
 
-``fenicsx-pctools`` is free software: you can redistribute it and/or modify it
+FEniCSx-pctools is free software: you can redistribute it and/or modify it
 under the terms of the GNU Lesser General Public License as published
 by the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-``fenicsx-pctools`` is distributed in the hope that it will be useful, but
+FEniCSx-pctools is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
 Lesser General Public License for more details.
 
 You should have received a copy of the GNU Lesser General Public
-License along with fenicsx-pctools. If not, see
+License along with FEniCSx-pctools. If not, see
 <http://www.gnu.org/licenses/>.
 
 In addition to the LGPL license detailed above, the additional rights under

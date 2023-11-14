@@ -16,7 +16,7 @@ import jupytext_process
 
 jupytext_process.process()
 
-project = "fenicsx-pctools"
+project = "FEniCSx-pctools"
 copyright = "2022-2023, FEniCSx-pctools Authors"
 author = "FEniCSx-pctools Authors"
 
