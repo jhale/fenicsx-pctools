@@ -92,15 +92,15 @@ Authors
 This package was developed by `Rafinex <https://www.rafinex.com/>`_ within the
 `FNR <https://www.fnr.lu/>`_ Industrial Fellowship project `RIFLE
 <https://www.fnr.lu/projects/robust-incompressible-flow-solver-enhancement/>`_
-(Host Institution: `Rafinex S.à r.l. <https://www.rafinex.com/>`_, Academic
-Partner: `University of Luxembourg <https://wwwen.uni.lu/>`_).
+(Host Institution: `Rafinex S.à r.l. <https://www.rafinex.com/>`_ <info@rafinex.com>,
+Academic Partner: `University of Luxembourg <https://wwwen.uni.lu/>`_).
 
 License
 =======
 
 .. |(C)| unicode:: U+000A9
 
-Copyright |(C)| 2021-2023 Rafinex S.à r.l. <info@rafinex.com>, Jack S. Hale
+Copyright |(C)| 2021-2023 Rafinex S.à r.l., Jack S. Hale
 
 FEniCSx-pctools is free software: you can redistribute it and/or modify it
 under the terms of the GNU Lesser General Public License as published
