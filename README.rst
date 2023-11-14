@@ -14,14 +14,14 @@ Description
 This repository contains various tools for preconditioning of systems of linear
 algebraic equations in `DOLFINx <https://github.com/FEniCS/dolfinx>`_, the
 computational environment of the `FEniCS Project
-<https://fenicsproject.org/>`_. These tools, delivered as a Python library
 ``fenicsx-pctools``, aim to facilitate the specification of problems that can
+<https://fenicsproject.org/>`_. These tools, delivered as a Python package
 be tackled by means of composable linear solvers offered by `PETSc
 <https://www.mcs.anl.gov/petsc/>`_. The idea is inspired by the work of
 :cite:t:`kirby_solver_2018` that was originally implemented in the `Firedrake
 Project <https://firedrakeproject.org/>`_.
 
-Implementation of chosen advanced preconditioners is part of the library, e.g.
+Implementation of chosen advanced preconditioners is part of the package, e.g.
 variants of the pressure-convection-diffusion (PCD) preconditioner for the
 system of incompressible Navier-Stokes equations originally implemented in the
 work of :cite:t:`blechta_fenapack_2018`.
