@@ -50,8 +50,12 @@ field split preconditioning features
        A_splittable = create_splittable_matrix_block(A, a)
 
 Advanced constructions are supported, including nested field splits (splits within splits).
-For more details, please explore the sections :doc:`Documented demos <demos>`
-and :doc:`API documentation <api>`.
+For more details, see :doc:`Documented demos <demos>` and :doc:`API documentation <api>`.
+
+Documentation
+=============
+
+Full documentation is available at https://rafinex-external-rifle.gitlab.io/fenicsx-pctools/.
 
 Dependencies
 ============
