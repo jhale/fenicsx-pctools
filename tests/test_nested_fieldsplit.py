@@ -1,4 +1,4 @@
-# Copyright (C) 2021-2023 Rafinex S.à r.l., Jack S. Hale
+# Copyright (C) 2021-2023 Rafinex S.à r.l. and Jack S. Hale
 #
 # This file is part of FEniCSx-pctools (https://gitlab.com/rafinex-external-rifle/fenicsx-pctools)
 #

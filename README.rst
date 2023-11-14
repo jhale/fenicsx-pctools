@@ -100,7 +100,7 @@ License
 
 .. |(C)| unicode:: U+000A9
 
-Copyright |(C)| 2021-2023 Rafinex S.à r.l., Jack S. Hale
+Copyright |(C)| 2021-2023 Rafinex S.à r.l. and Jack S. Hale
 
 FEniCSx-pctools is free software: you can redistribute it and/or modify it
 under the terms of the GNU Lesser General Public License as published
