@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier:    LGPL-3.0-or-later
 
-__version__ = "0.7.0.dev0"
+__version__ = "0.7.2"
 
 from fenicsx_pctools import mat, pc
 
