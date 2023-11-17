@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fenicsx_pctools"
-version = "0.7.0.dev0"
+version = "0.7.2"
 description = "FEniCSx Preconditioning Tools"
 authors = [
     {name = "Martin Rehor", email="martin.rehor@rafinex.com"},
