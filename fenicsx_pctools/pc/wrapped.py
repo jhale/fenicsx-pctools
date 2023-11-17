@@ -50,13 +50,18 @@ class WrappedPC(PCBase):
             for key in opts.getAll().keys():
                 opt = key.strip()
                 if opt.startswith("pc_fieldsplit_") and opt.endswith("_fields"):
+                    # Get split number and corresponding index set
                     splitnum = re.findall("[0-9]+", opt)[0]  # get the left most integer
-                    opt = f"pc_fieldsplit_{splitnum}_fields"
-                    field_ids = re.findall("[0-9]+", opts.getString(opt))
+                    opt_fields = f"pc_fieldsplit_{splitnum}_fields"
+                    field_ids = re.findall("[0-9]+", opts.getString(opt_fields))
                     field_ids = list(map(int, field_ids))  # str -> int conversion
-                    opts.delValue(opt)  # remove the option from the database
+                    opts.delValue(opt_fields)  # remove the option from the database
                     iset = combine_fields(comm, field_ids, Pctx.ISes[0])
                     fs_args.append((splitnum, iset))
+                    # Make the matrix context to remember field_ids and corresponding pc_type
+                    opt_pc_type = f"fieldsplit_{splitnum}_pc_type"
+                    fieldsplit_pc_type = opts.getString(opt_pc_type)  # defaults to None
+                    Pctx._set_fieldsplit_pc_type(tuple(field_ids), fieldsplit_pc_type)
             pc.setFromOptions()
             pc.setFieldSplitIS(*fs_args)
         else:
