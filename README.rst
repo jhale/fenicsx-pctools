@@ -54,6 +54,22 @@ field split preconditioning features
 Advanced constructions are supported, including nested field splits (splits within splits).
 For more details, see :doc:`Documented demos <demos>` and :doc:`API documentation <api>`.
 
+Citing
+======
+
+FEniCSx-pctools is described in the preprint at https://arxiv.org/abs/2402.02523
+
+     .. code-block::
+
+       @misc{rehor2024fenicsx,
+             title={FEniCSx Preconditioning Tools (FEniCSx-pctools)}, 
+             author={Martin Řehoř and Jack S. Hale},
+             year={2024},
+             eprint={2402.02523},
+             archivePrefix={arXiv},
+             primaryClass={cs.MS}
+       }
+
 Documentation
 =============
 
