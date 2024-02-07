@@ -61,23 +61,29 @@ from petsc4py import PETSc
 
 import ufl
 from dolfinx import fem
+import dolfinx.fem.petsc  # noqa: F401
 from dolfinx.io import XDMFFile
+from dolfinx.io.gmshio import model_to_mesh
 
-from dolfiny.mesh import gmsh_to_dolfin, merge_meshtags
 from ufl import inner, grad, div, dot, dx
 
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 from fenicsx_pctools.utils import vec_to_functions
 
+
 gmsh.initialize()
 
 # Set verbosity of Gmsh
-gmsh.option.setNumber("General.Terminal", 0)
+# gmsh.option.setNumber("General.Terminal", 0)
 
 # Set up the model
-model = gmsh.model
-model.add("bfstep")
 
+tags = {}
+tags["inlet"] = 1
+tags["outlet"] = 2
+tags["wall"] = 3
+
+model = gmsh.model
 model_rank = 0
 mesh_comm = MPI.COMM_WORLD
 if mesh_comm.rank == model_rank:
@@ -88,25 +94,30 @@ if mesh_comm.rank == model_rank:
     factory.fuse([(2, s1)], [(2, s2)], tag=s3)
     factory.synchronize()
     ov = model.getBoundary([(2, s3)])
-    l1, l2, l3, l4, l5, l6 = [val[1] for val in ov]  # counterclockwise (l6 = inflow)
+    l1, l2, l3, l4, l5, l6 = [val[1] for val in ov]  # counterclockwise (l6 = inlet)
+
+    # Tag interior
+    model.addPhysicalGroup(2, [s3], tag=0)
 
     # Tag boundaries
-    model.addPhysicalGroup(1, [l6], 1)
-    model.setPhysicalName(1, 1, "inlet")
-    model.addPhysicalGroup(1, [l4], 2)
-    model.setPhysicalName(1, 2, "outlet")
-    model.addPhysicalGroup(1, [l1, l2, l3, l5], 3)
-    model.setPhysicalName(1, 3, "wall")
+    model.addPhysicalGroup(1, [l6], tag=tags["inlet"])
+    model.setPhysicalName(1, tags["inlet"], "inlet")
+    model.addPhysicalGroup(1, [l4], tag=tags["outlet"])
+    model.setPhysicalName(1, tags["outlet"], "outlet")
+    model.addPhysicalGroup(1, [l1, l2, l3, l5], tag=tags["wall"])
+    model.setPhysicalName(1, tags["wall"], "wall")
 
     # Set uniform mesh size at all points
     mesh_size = 0.1
     model.mesh.setSize(model.getEntities(0), mesh_size)
 
     # Generate 2D mesh
-    model.mesh.generate(2)
+    model.mesh.generate(dim=2)
+
 
 # Convert Gmsh mesh to DOLFINx
-mesh, mts = gmsh_to_dolfin(model, 2, prune_z=True, comm=mesh_comm)
+mesh, _, facet_tags = model_to_mesh(model, MPI.COMM_WORLD, rank=model_rank, gdim=2)
+facet_tags.name = "facet_tags"
 gmsh.finalize()
 # -
 
@@ -181,8 +192,8 @@ v_inflow.interpolate(v_inflow_eval)
 
 # Localize boundary dofs for velocity
 fdim = mesh.topology.dim - 1
-wall_dofs_v = fem.locate_dofs_topological(V_v, fdim, mts["wall"].indices)
-inlet_dofs_v = fem.locate_dofs_topological(V_v, fdim, mts["inlet"].indices)
+wall_dofs_v = fem.locate_dofs_topological(V_v, fdim, facet_tags.find(tags["wall"]))
+inlet_dofs_v = fem.locate_dofs_topological(V_v, fdim, facet_tags.find(tags["inlet"]))
 
 # Collect primary boundary condtions
 bcs = [fem.dirichletbc(v_inflow, inlet_dofs_v), fem.dirichletbc(v_wall, wall_dofs_v)]
@@ -241,8 +252,8 @@ pdeproblem = PDEProblem(F_dfx, J_dfx, [v, p], bcs)
 
 # +
 # Localize boundary dofs for pressure
-inlet_dofs_p = fem.locate_dofs_topological(V_p, fdim, mts["inlet"].indices)
-outlet_dofs_p = fem.locate_dofs_topological(V_p, fdim, mts["outlet"].indices)
+inlet_dofs_p = fem.locate_dofs_topological(V_p, fdim, facet_tags.find(tags["inlet"]))
+outlet_dofs_p = fem.locate_dofs_topological(V_p, fdim, facet_tags.find(tags["outlet"]))
 
 # Collect secondary boundary condtions for PCD preconditioner
 pcd_type = "PCDPC_vY"  # pick one of the two versions specified in the dictionary below
@@ -251,8 +262,7 @@ bcs_pcd = {
     "PCDPC_vY": [fem.dirichletbc(fem.Function(V_p), outlet_dofs_p)],
 }[pcd_type]
 
-regions, tag_id_map = merge_meshtags(mesh, mts, fdim)
-ds_in = ufl.Measure("ds", domain=mesh, subdomain_data=regions, subdomain_id=tag_id_map["inlet"])
+ds_in = ufl.Measure("ds", domain=mesh, subdomain_data=facet_tags, subdomain_id=tags["inlet"])
 appctx = {"nu": nu, "v": v, "bcs_pcd": bcs_pcd, "ds_in": ds_in}  # application context
 
 # Prepare Jacobian matrix and its splittable version

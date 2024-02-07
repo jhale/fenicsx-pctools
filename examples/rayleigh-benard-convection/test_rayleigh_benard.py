@@ -405,6 +405,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
 
     PETSc.garbage_cleanup()
 
+
 if __name__ == "__main__":
     import argparse
     import sys

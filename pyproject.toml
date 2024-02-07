@@ -36,7 +36,6 @@ docs = [
 examples = [
     "matplotlib",
     "pandas",
-    "dolfiny @ git+https://github.com/michalhabera/dolfiny.git#egg=dolfiny"
 ]
 lint = [
     "black",
