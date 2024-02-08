@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fenicsx_pctools"
-version = "0.7.2"
+version = "0.7.3.dev0"
 description = "FEniCSx Preconditioning Tools"
 authors = [
     {name = "Martin Rehor", email="martin.rehor@rafinex.com"},
@@ -38,9 +38,7 @@ examples = [
     "pandas",
 ]
 lint = [
-    "black",
-    "flake8",
-    "isort"
+    "ruff"
 ]
 ci = [
     "fenicsx_pctools[docs]",
@@ -52,20 +50,41 @@ ci = [
 [tool.setuptools]
 packages = ["fenicsx_pctools", "fenicsx_pctools.mat", "fenicsx_pctools.pc"]
 
-[tool.black]
-line_length = 100
-
 [project.urls]
 repository = "https://gitlab.com/rafinex-external-rifle/fenicsx_pctools"
-
-[tool.isort]
-src_paths = ["demo", "examples", "fenicsx_pctools"]
-known_first_party = ["basix", "dolfinx", "fenicsx_pctools", "ffcx", "ufl"]
-known_third_party = ["gmsh", "numpy", "pytest"]
-known_mpi = ["mpi4py", "petsc4py"]
-sections = ["FUTURE", "STDLIB", "THIRDPARTY", "FIRSTPARTY", "MPI", "LOCALFOLDER"]
-profile = "black"
 
 [tool.pytest.ini_options]
 minversion = "6.2"
 testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+indent-width = 4
+
+[tool.ruff.lint]
+select = [
+      "E", # pycodestyle
+      "W", # pycodestyle
+      "F", # pyflakes
+      "I",   # isort - use standalone isort
+      "RUF", # Ruff-specific rules
+      "UP",  # pyupgrade
+      "ICN", # flake8-import-conventions
+      "NPY", # numpy-specific rules
+      "FLY", # use f-string not static joins
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["basix", "dolfinx", "ffcx", "ufl"]
+known-third-party = ["gmsh", "numba", "numpy", "pytest", "pyvista"]
+section-order = [
+      "future",
+      "standard-library",
+      "mpi",
+      "third-party",
+      "first-party",
+      "local-folder",
+]
+
+[tool.ruff.lint.isort.sections]
+"mpi" = ["mpi4py", "petsc4py"]

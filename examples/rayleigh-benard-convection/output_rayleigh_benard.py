@@ -2,7 +2,7 @@
 
 import os
 
-import pandas
+import pandas as pd
 
 
 def get_latex_table(content, caption, label):
@@ -69,7 +69,7 @@ def _prepare_table_content(data):
 
 
 def _generate_tables(outdir, results_file):
-    data_0 = pandas.read_csv(results_file)
+    data_0 = pd.read_csv(results_file)
     data_0 = data_0.sort_values("num_procs")
     basename = os.path.splitext(os.path.basename(results_file))[0]
 
@@ -106,7 +106,7 @@ def _run_pvscript(pvscript_args):
         TEXMFDIST_DIR = subprocess.check_output("kpsewhich -var-value=TEXMFDIST", shell=True)
         TEXMFDIST_DIR = TEXMFDIST_DIR.decode("utf-8")[:-1]
         os.environ.setdefault("TEXMFDIST_DIR", TEXMFDIST_DIR)
-        cmd = [pvbatch, pvscript] + pvscript_args
+        cmd = [pvbatch, pvscript, *pvscript_args]
         print("Calling '{}'".format(" ".join(cmd)))
         subprocess.check_call(cmd, cwd=thisfiledir)
         os.environ.pop("TEXMFDIST_DIR")

@@ -42,21 +42,20 @@
 
 
 # +
-import numpy as np
-import ufl
-
 from mpi4py import MPI
 from petsc4py import PETSc
 
+import numpy as np
+
+import ufl
 from dolfinx import fem
-from dolfinx.mesh import create_unit_cube
 from dolfinx.fem.petsc import (
-    assemble_vector_block,
     assemble_matrix_block,
     assemble_matrix_nest,
+    assemble_vector_block,
     assemble_vector_nest,
 )
-
+from dolfinx.mesh import create_unit_cube
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 from fenicsx_pctools.utils import vec_to_functions
 

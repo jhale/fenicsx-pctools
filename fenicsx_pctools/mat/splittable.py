@@ -6,13 +6,14 @@
 
 import abc
 import enum
+import typing
+
+from mpi4py import MPI
+from petsc4py import PETSc
 
 import numpy as np
 
 from dolfinx import cpp
-
-from mpi4py import MPI
-from petsc4py import PETSc
 
 
 def _extract_spaces(ufl_form):
@@ -118,7 +119,7 @@ def _find_block_indices(iset, isets):
     return tuple(block_ids)
 
 
-class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
+class SplittableMatrixBase(metaclass=abc.ABCMeta):
     """A representation of a block matrix that can be split into submatrices corresponding to
     various combinations of fields represented by its original blocks. Python contexts for
     PETSc matrices (of type 'python') will derive from this abstract class. These contexts will be
@@ -132,7 +133,7 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
     """
 
     # TODO: Many of the required methods are probably not in the list yet.
-    DELEGATED_METHODS = [
+    DELEGATED_METHODS: typing.ClassVar[list[str]] = [
         "assemblyBegin",
         "assemblyEnd",
         "createVecLeft",
@@ -167,7 +168,7 @@ class SplittableMatrixBase(object, metaclass=abc.ABCMeta):
         for method in delegation_config:
             setattr(self, method, create_callable(method))
 
-        super(SplittableMatrixBase, self).__init__()
+        super().__init__()
 
     @property
     def Mat(self):
@@ -280,7 +281,7 @@ class SplittableMatrixBlock(SplittableMatrixBase):
     """
 
     def __init__(self, A, a, **kwargs):
-        super(SplittableMatrixBlock, self).__init__(A, a, **kwargs)
+        super().__init__(A, a, **kwargs)
 
         self._fieldsplit_pc_types = {}
 
@@ -306,12 +307,12 @@ class SplittableMatrixBlock(SplittableMatrixBase):
                     if V[0][i] is None:
                         V[0][i] = test_space
                     else:
-                        if not V[0][i] is test_space:
+                        if V[0][i] is not test_space:
                             raise RuntimeError("Mismatched test space for row.")
                     if V[1][j] is None:
                         V[1][j] = trial_space
                     else:
-                        if not V[1][j] is trial_space:
+                        if V[1][j] is not trial_space:
                             raise RuntimeError("Mismatched trial space for column.")
         return V
 
@@ -471,7 +472,7 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
     """
 
     def __init__(self, A, a, **kwargs):
-        super(SplittableMatrixMonolithic, self).__init__(A, a, **kwargs)
+        super().__init__(A, a, **kwargs)
 
         # Get block shape and layout of DOFs
         test_space, trial_space = _extract_spaces(a)

@@ -1,4 +1,5 @@
 #!/usr/bin/env pvpython
+# ruff: noqa
 import os
 import sys
 

@@ -4,6 +4,8 @@
 #
 # SPDX-License-Identifier:    LGPL-3.0-or-later
 
+from petsc4py import PETSc
+
 import pytest
 
 import ufl
@@ -12,8 +14,6 @@ from dolfinx.fem.function import Function, FunctionSpace
 from dolfinx.fem.petsc import create_matrix
 from dolfinx.mesh import create_unit_square
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_monolithic
-
-from petsc4py import PETSc
 
 
 def _create_constant(function_space, value):

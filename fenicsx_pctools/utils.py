@@ -6,8 +6,9 @@
 
 import typing
 
-import dolfinx
 from petsc4py import PETSc
+
+import dolfinx
 
 
 def functions_to_vec(u: typing.List[dolfinx.fem.Function], x):
