@@ -22,8 +22,6 @@ from dolfinx.mesh import (
 )
 from ufl import div, dot, dx, grad, inner
 
-from petsc4py import PETSc
-
 
 def get_boundary_mask(mesh):
     topology = mesh.topology
@@ -38,7 +36,7 @@ def get_boundary_mask(mesh):
     return bndry_mask
 
 
-class Problem(object):
+class Problem:
     def __init__(self, comm, N=10):
         self.comm = comm
         self.N = N

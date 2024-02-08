@@ -13,12 +13,9 @@ build-lint-and-test:
     - export DEB_PYTHON_INSTALL_LAYOUT='deb_system'
     - python3 -m pip install '.[ci]'
 
-    - python3 -m flake8 fenicsx_pctools/
-    - python3 -m black --check fenicsx_pctools/
-    - python3 -m flake8 demo/
-    - python3 -m black --check demo/
-    - python3 -m flake8 tests/
-    - python3 -m black --check tests/
+    # lint and check formatting
+    - ruff check .
+    - ruff format --check .
 
     # Run unit tests
     - python3 -m pytest tests/

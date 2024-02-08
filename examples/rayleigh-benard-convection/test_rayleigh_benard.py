@@ -24,18 +24,18 @@ if socket.gethostname().startswith("iris"):
 
 import os
 
+from mpi4py import MPI
+from petsc4py import PETSc
+
 import numpy as np
-import pandas
+import pandas as pd
 import pytest
 from problem_rayleigh_benard import Problem
 
 from dolfinx import fem
 from dolfinx.common import TimingType, list_timings
-from dolfinx.fem.petsc import create_vector_block, assemble_matrix_block, assemble_vector_block
+from dolfinx.fem.petsc import assemble_matrix_block, assemble_vector_block, create_vector_block
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
-
-from mpi4py import MPI
-from petsc4py import PETSc
 
 
 def target_mesh_size():
@@ -377,7 +377,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
     }
 
     if comm.rank == 0:
-        data = pandas.DataFrame(results, index=[0])
+        data = pd.DataFrame(results, index=[0])
         if request.config.getoption("overwrite"):
             if first_run:
                 mode = "w"

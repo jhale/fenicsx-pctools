@@ -4,6 +4,8 @@
 #
 # SPDX-License-Identifier:    LGPL-3.0-or-later
 
+from petsc4py import PETSc
+
 import numpy as np
 import pytest
 
@@ -13,8 +15,6 @@ from dolfinx.fem.function import Function, FunctionSpace
 from dolfinx.fem.petsc import assemble_matrix_block, create_matrix_block
 from dolfinx.mesh import create_unit_square
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
-
-from petsc4py import PETSc
 
 
 @pytest.fixture

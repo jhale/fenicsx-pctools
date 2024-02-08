@@ -4,16 +4,15 @@
 #
 # SPDX-License-Identifier:    LGPL-3.0-or-later
 
-import numpy as np
-import pytest
-import ufl
-
 from petsc4py import PETSc
 
-from dolfinx import fem
-from dolfinx.mesh import create_unit_square
-from dolfinx.fem.petsc import assemble_matrix_block
+import numpy as np
+import pytest
 
+import ufl
+from dolfinx import fem
+from dolfinx.fem.petsc import assemble_matrix_block
+from dolfinx.mesh import create_unit_square
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 
 

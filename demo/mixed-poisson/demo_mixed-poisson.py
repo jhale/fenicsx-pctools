@@ -15,13 +15,17 @@
 # ```
 
 # +
-import numpy as np
 import pathlib
+
+from mpi4py import MPI
+from petsc4py import PETSc
+
+import numpy as np
 
 from dolfinx import fem, io, mesh
 from dolfinx.fem.petsc import assemble_matrix_block, assemble_vector_block, create_matrix_block
-from fenicsx_pctools.utils import vec_to_functions
 from fenicsx_pctools.mat import create_splittable_matrix_block
+from fenicsx_pctools.utils import vec_to_functions
 from ufl import (
     CellDiameter,
     FacetNormal,
@@ -38,9 +42,6 @@ from ufl import (
     inner,
     jump,
 )
-
-from mpi4py import MPI
-from petsc4py import PETSc
 
 # Define mesh
 nx, ny = 128, 128

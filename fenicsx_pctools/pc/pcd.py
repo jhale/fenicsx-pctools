@@ -4,12 +4,12 @@
 #
 # SPDX-License-Identifier:    LGPL-3.0-or-later
 
+from petsc4py import PETSc
+
 import ufl
 from dolfinx import fem
 from dolfinx.fem import Function
 from fenicsx_pctools.pc.base import PCBase
-
-from petsc4py import PETSc
 
 
 class PCDPCBase(PCBase):
@@ -174,7 +174,7 @@ class PCDPCBase(PCBase):
         y.copy(result=x)  # move truly updated values back to x
 
     def view(self, pc, viewer=None):
-        super(PCDPCBase, self).view(pc, viewer)
+        super().view(pc, viewer)
         viewer.printfASCII("Pressure-Convection-Diffusion inverse:\n")
         viewer.printfASCII("KSP solver for discrete Laplace operator on the pressure space:\n")
         self.ksp_Ap.view(viewer)
@@ -188,10 +188,10 @@ class PCDPC_vX(PCDPCBase):
     """
 
     def initialize(self, pc):
-        super(PCDPC_vX, self).initialize(pc)
+        super().initialize(pc)
 
     def update(self, pc):
-        super(PCDPC_vX, self).update(pc)
+        super().update(pc)
 
     def apply(self, pc, x, y):
         r"""This method implements the action of the inverse of the approximate
@@ -258,10 +258,10 @@ class PCDPC_vY(PCDPCBase):
     """
 
     def initialize(self, pc):
-        super(PCDPC_vY, self).initialize(pc)
+        super().initialize(pc)
 
     def update(self, pc):
-        super(PCDPC_vY, self).update(pc)
+        super().update(pc)
 
     def apply(self, pc, x, y):
         r"""This method implements the action of the inverse of the approximate

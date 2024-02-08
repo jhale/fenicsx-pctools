@@ -53,23 +53,20 @@
 
 import pathlib
 
-import gmsh
-import numpy as np
-
 from mpi4py import MPI
 from petsc4py import PETSc
 
+import gmsh
+import numpy as np
+
+import dolfinx.fem.petsc  # noqa: F401
 import ufl
 from dolfinx import fem
-import dolfinx.fem.petsc  # noqa: F401
 from dolfinx.io import XDMFFile
 from dolfinx.io.gmshio import model_to_mesh
-
-from ufl import inner, grad, div, dot, dx
-
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 from fenicsx_pctools.utils import vec_to_functions
-
+from ufl import div, dot, dx, grad, inner
 
 gmsh.initialize()
 
@@ -94,7 +91,7 @@ if mesh_comm.rank == model_rank:
     factory.fuse([(2, s1)], [(2, s2)], tag=s3)
     factory.synchronize()
     ov = model.getBoundary([(2, s3)])
-    l1, l2, l3, l4, l5, l6 = [val[1] for val in ov]  # counterclockwise (l6 = inlet)
+    l1, l2, l3, l4, l5, l6 = (val[1] for val in ov)  # counterclockwise (l6 = inlet)
 
     # Tag interior
     model.addPhysicalGroup(2, [s3], tag=0)

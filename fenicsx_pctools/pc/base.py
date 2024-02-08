@@ -9,7 +9,7 @@ import abc
 from petsc4py import PETSc
 
 
-class PCBase(object, metaclass=abc.ABCMeta):
+class PCBase(metaclass=abc.ABCMeta):
     """An abstract base class for creating Python contexts suitable for PETSc PC objects.
 
     Any derived class must implement the following methods:
@@ -29,7 +29,7 @@ class PCBase(object, metaclass=abc.ABCMeta):
 
     def __init__(self):
         self.initialized = False
-        super(PCBase, self).__init__()
+        super().__init__()
 
     @abc.abstractmethod
     def initialize(self, pc):

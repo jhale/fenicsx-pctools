@@ -6,6 +6,8 @@
 
 import itertools
 
+from petsc4py import PETSc
+
 import numpy as np
 import pytest
 
@@ -18,8 +20,6 @@ from fenicsx_pctools.mat.splittable import (
     create_splittable_matrix_block,
     create_splittable_matrix_monolithic,
 )
-
-from petsc4py import PETSc
 
 
 @pytest.fixture(
@@ -34,7 +34,7 @@ def space(request, comm):
         print(request.param)
     structure, cell_type = request.param
 
-    class MixedSpace(object):
+    class MixedSpace:
         def __init__(self, mesh, structure):
             self.mesh = mesh
             self.structure = structure

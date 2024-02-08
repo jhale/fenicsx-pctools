@@ -9,10 +9,12 @@
 import os
 import sys
 
+import fenicsx_pctools
+
 sys.path.insert(0, os.path.abspath("."))
 
-import fenicsx_pctools
-import jupytext_process
+import jupytext_process  # noqa: I001
+
 
 jupytext_process.process()
 

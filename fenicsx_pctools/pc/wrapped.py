@@ -6,11 +6,11 @@
 
 import re
 
+from petsc4py import PETSc
+
 import numpy as np
 
 from fenicsx_pctools.pc.base import PCBase
-
-from petsc4py import PETSc
 
 
 class WrappedPC(PCBase):
@@ -85,7 +85,7 @@ class WrappedPC(PCBase):
         self.pc.applyTranspose(x, y)
 
     def view(self, pc, viewer=None):
-        super(WrappedPC, self).view(pc, viewer)
+        super().view(pc, viewer)
         if hasattr(self, "pc"):
             viewer.printfASCII("PC to apply inverse:\n")
             viewer.subtractASCIITab(-1)  # TODO: 'incrementTabLevel' command above seems to fail
