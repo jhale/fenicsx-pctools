@@ -22,6 +22,7 @@ from petsc4py import PETSc
 
 import numpy as np
 
+from basix.ufl import element
 from dolfinx import fem, io, mesh
 from dolfinx.fem.petsc import assemble_matrix_block, assemble_vector_block, create_matrix_block
 from fenicsx_pctools.mat import create_splittable_matrix_block
@@ -29,12 +30,10 @@ from fenicsx_pctools.utils import vec_to_functions
 from ufl import (
     CellDiameter,
     FacetNormal,
-    FiniteElement,
     Measure,
     SpatialCoordinate,
     TestFunction,
     TrialFunction,
-    VectorElement,
     avg,
     div,
     exp,
@@ -53,10 +52,10 @@ domain = mesh.create_rectangle(
 )
 
 k = 1
-Q_el = FiniteElement("BDMCF", domain.ufl_cell(), k)
-P_el = FiniteElement("DG", domain.ufl_cell(), k - 1)
-Q = fem.FunctionSpace(domain, Q_el)
-P = fem.FunctionSpace(domain, P_el)
+Q_el = element("BDMCF", domain.basix_cell(), k)
+P_el = element("DG", domain.basix_cell(), k - 1)
+Q = fem.functionspace(domain, Q_el)
+P = fem.functionspace(domain, P_el)
 
 q = TrialFunction(Q)
 q_t = TestFunction(Q)
@@ -207,8 +206,8 @@ q_h = fem.Function(Q)
 p_h = fem.Function(P)
 vec_to_functions(u_h, [q_h, p_h])
 
-Q_out_el = VectorElement("Lagrange", domain.ufl_cell(), 1)
-Q_out = fem.FunctionSpace(domain, Q_out_el)
+Q_out_el = element("Lagrange", domain.basix_cell(), 1, shape=(domain.geometry.dim,))
+Q_out = fem.functionspace(domain, Q_out_el)
 
 q_h_out = fem.Function(Q_out)
 q_h_out.interpolate(q_h)

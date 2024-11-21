@@ -9,8 +9,9 @@ from petsc4py import PETSc
 import pytest
 
 import ufl
+from basix.ufl import element, mixed_element
 from dolfinx import fem
-from dolfinx.fem.function import Function, FunctionSpace
+from dolfinx.fem.function import Function, functionspace
 from dolfinx.fem.petsc import create_matrix
 from dolfinx.mesh import create_unit_square
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_monolithic
@@ -18,7 +19,7 @@ from fenicsx_pctools.mat.splittable import create_splittable_matrix_monolithic
 
 def _create_constant(function_space, value):
     f = Function(function_space)
-    with f.vector.localForm() as f_local:
+    with f.x.petsc_vec.localForm() as f_local:
         f_local.set(value)
     return f
 
@@ -26,16 +27,16 @@ def _create_constant(function_space, value):
 @pytest.fixture
 def get_vector_space():
     def _get_vector_space(mesh, equal_discretization):
-        CG1 = ufl.FiniteElement("CG", mesh.ufl_cell(), 1)
-        CG2 = ufl.FiniteElement("CG", mesh.ufl_cell(), 2)
+        CG1 = element("Lagrange", mesh.basix_cell(), 1)
+        CG2 = element("Lagrange", mesh.basix_cell(), 2)
 
         if equal_discretization:
-            ME = ufl.VectorElement("CG", mesh.ufl_cell(), 1, dim=3)
+            ME = element("Lagrange", mesh.basix_cell(), 1, shape=(3,))
         else:
             components = (CG1, CG1, CG2)
-            ME = ufl.MixedElement(*components)
+            ME = mixed_element(components)
 
-        return FunctionSpace(mesh, ME)
+        return functionspace(mesh, ME)
 
     return _get_vector_space
 
@@ -103,5 +104,5 @@ def test_nested_fieldsplit(get_vector_space, equal_discretization, comm):
     x.zeroEntries()
     ksp.solve(b, x)
 
-    v_target.vector.axpy(-1.0, x)
-    assert v_target.vector.norm() == pytest.approx(0.0, abs=1.0e-10)
+    v_target.x.petsc_vec.axpy(-1.0, x)
+    assert v_target.x.petsc_vec.norm() == pytest.approx(0.0, abs=1.0e-10)

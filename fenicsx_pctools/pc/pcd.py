@@ -300,14 +300,15 @@ class PCDPC_vY(PCDPCBase):
             Keeping the identity term separated is important to get a stability with respect to
             the leading Stokes term.
         """
-        (z,) = self.get_work_vecs(x, 1)
+        (z, a) = self.get_work_vecs(x, 2)
 
+        # y = -(I + A_p^{-1} K_p) M_p^{-1} x,
         self.ksp_Mp.solve(x, y)  # y = M_p^{-1} x
-        self.Kp.mult(y, x)  # x = K_p y
-        self.bcs_applier(x)  # apply bcs to x
-        self.ksp_Ap.solve(x, z)  # z = A_p^{-1} x
+        self.Kp.mult(z, a)  # a = K_p z
+        self.bcs_applier(a)  # apply bcs to a
+        self.ksp_Ap.solve(a, z)  # z = A_p^{-1} a
         y.axpy(1.0, z)  # y = y + z
-        # FIXME: How is with the sign bussines?
+        # FIXME: How is with the sign business?
         y.scale(-1.0)  # y = -y
 
     def applyTranspose(self, pc, x, y):

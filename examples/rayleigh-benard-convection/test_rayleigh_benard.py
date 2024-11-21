@@ -198,9 +198,9 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
         def vec_to_functions(x, u):
             offset = 0
             for i in range(len(u)):
-                size_local = u[i].vector.getLocalSize()
-                u[i].vector.array[:] = x.array_r[offset : offset + size_local]
-                u[i].vector.ghostUpdate(
+                size_local = u[i].x.petsc_vec.getLocalSize()
+                u[i].x.petsc_vec.array[:] = x.array_r[offset : offset + size_local]
+                u[i].x.petsc_vec.ghostUpdate(
                     addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD
                 )
                 offset += size_local
@@ -223,7 +223,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
             x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
             self.vec_to_functions(x, self.solution_vars)
 
-            assemble_vector_block(F, self.F_dfx, self.J_dfx, self.bcs, x0=x, scale=-1.0)
+            assemble_vector_block(F, self.F_dfx, self.J_dfx, self.bcs, x0=x, alpha=-1.0)
             F.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
         def J_block(self, snes, x, J, P):

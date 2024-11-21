@@ -10,8 +10,9 @@ import numpy as np
 import pytest
 
 import ufl
+from basix.ufl import element
 from dolfinx import cpp, fem
-from dolfinx.fem.function import Function, FunctionSpace
+from dolfinx.fem.function import Function, functionspace
 from dolfinx.fem.petsc import assemble_matrix_block, create_matrix_block
 from dolfinx.mesh import create_unit_square
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
@@ -20,12 +21,12 @@ from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 @pytest.fixture
 def get_block_space():
     def _get_block_space(mesh, equal_discretization):
-        CG1 = ufl.FiniteElement("CG", mesh.ufl_cell(), 1)
-        CG2 = ufl.FiniteElement("CG", mesh.ufl_cell(), 2)
+        CG1 = element("Lagrange", mesh.basix_cell(), 1)
+        CG2 = element("Lagrange", mesh.basix_cell(), 2)
 
         components = (CG1, CG1, CG1) if equal_discretization else (CG1, CG1, CG2)
 
-        return tuple([FunctionSpace(mesh, FE) for FE in components])
+        return tuple([functionspace(mesh, FE) for FE in components])
 
     return _get_block_space
 
@@ -40,7 +41,7 @@ def test_nested_fieldsplit(get_block_space, equal_discretization, comm):
 
     v_target = tuple([Function(Vsub) for Vsub in V])
     for i, vsub in enumerate(v_target):
-        with vsub.vector.localForm() as vsub_local:
+        with vsub.x.petsc_vec.localForm() as vsub_local:
             vsub_local.set(i)
 
     a = np.full((3, 3), None).tolist()
@@ -117,7 +118,7 @@ def test_nested_fieldsplit(get_block_space, equal_discretization, comm):
     target_vec = cpp.fem.petsc.create_vector_block(imaps)
     target_vec.set(0.0)
     cpp.la.petsc.scatter_local_vectors(
-        target_vec, list(map(lambda f_sub: f_sub.vector.array, v_target)), imaps
+        target_vec, list(map(lambda f_sub: f_sub.x.petsc_vec.array, v_target)), imaps
     )
 
     target_vec.axpy(-1.0, x)

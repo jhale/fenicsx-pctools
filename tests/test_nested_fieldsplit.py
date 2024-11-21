@@ -12,8 +12,9 @@ import numpy as np
 import pytest
 
 import ufl
+from basix.ufl import element, mixed_element
 from dolfinx import cpp, fem
-from dolfinx.fem import Function, FunctionSpace
+from dolfinx.fem import Function, functionspace
 from dolfinx.fem.petsc import assemble_matrix, assemble_matrix_block, assemble_matrix_nest
 from dolfinx.mesh import CellType, create_unit_square
 from fenicsx_pctools.mat.splittable import (
@@ -24,7 +25,6 @@ from fenicsx_pctools.mat.splittable import (
 
 @pytest.fixture(
     params=itertools.product(
-        # ["block", "nest", "monolithic"],
         ["block", "nest"],
         [CellType.triangle, CellType.quadrilateral],
     )
@@ -39,24 +39,22 @@ def space(request, comm):
             self.mesh = mesh
             self.structure = structure
 
-            family = "P" if cell_type == cpp.mesh.CellType.triangle else "Q"
-            CG1 = ufl.FiniteElement(family, mesh.ufl_cell(), 1)
-            CG2 = ufl.FiniteElement(family, mesh.ufl_cell(), 2)
-            FE0 = ufl.MixedElement([CG2, CG2])
+            family = "Lagrange"
+            CG1 = element(family, mesh.basix_cell(), 1)
+            CG2 = element(family, mesh.basix_cell(), 2)
+            FE0 = mixed_element([CG2, CG2])
             FE1 = CG1
             FE2 = CG2
-            FE3 = ufl.TensorElement(
-                family, mesh.ufl_cell(), 1, shape=(2, 2), symmetry={(1, 0): (0, 1)}
-            )
+            FE3 = element(family, mesh.basix_cell(), 1, shape=(2, 2))
 
             if structure == "monolithic":
-                self._V = FunctionSpace(mesh, ufl.MixedElement([FE0, FE1, FE2, FE3]))
+                self._V = functionspace(mesh, mixed_element([FE0, FE1, FE2, FE3]))
             elif structure in ["block", "nest"]:
                 self._V = (
-                    FunctionSpace(mesh, FE0),
-                    FunctionSpace(mesh, FE1),
-                    FunctionSpace(mesh, FE2),
-                    FunctionSpace(mesh, FE3),
+                    functionspace(mesh, FE0),
+                    functionspace(mesh, FE1),
+                    functionspace(mesh, FE2),
+                    functionspace(mesh, FE3),
                 )
 
         def __call__(self):
@@ -65,7 +63,7 @@ def space(request, comm):
         @staticmethod
         def create_constant(function_space, value):
             f = Function(function_space)
-            with f.vector.localForm() as f_local:
+            with f.x.petsc_vec.localForm() as f_local:
                 f_local.set(value)
             return f
 
@@ -396,14 +394,14 @@ def test_nested_fieldsplit(space, A, b, target, variant):
     ksp.solve(b, x)
 
     if space.structure == "monolithic":
-        target_vec = target.vector
+        target_vec = target.x.petsc_vec
     else:
         V = space()
         imaps = [(V_sub.dofmap.index_map, V_sub.dofmap.index_map_bs) for V_sub in V]
         target_vec = cpp.fem.petsc.create_vector_block(imaps)
         target_vec.set(0.0)
         cpp.la.petsc.scatter_local_vectors(
-            target_vec, list(map(lambda f_sub: f_sub.vector.array, target)), imaps
+            target_vec, list(map(lambda f_sub: f_sub.x.petsc_vec.array, target)), imaps
         )
 
     target_vec.axpy(-1.0, x)
