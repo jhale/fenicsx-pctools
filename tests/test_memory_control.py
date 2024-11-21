@@ -19,7 +19,7 @@ from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 @pytest.fixture
 def a(comm):
     mesh = create_unit_square(comm, 2, 2)
-    CG1 = fem.FunctionSpace(mesh, ufl.FiniteElement("CG", mesh.ufl_cell(), 1))
+    CG1 = fem.functionspace(mesh, ("Lagrange", 1))
     V = [CG1, CG1]
 
     trial_functions = tuple(map(lambda V_sub: ufl.TrialFunction(V_sub), V))

@@ -48,6 +48,7 @@ from petsc4py import PETSc
 import numpy as np
 
 import ufl
+from basix.ufl import element
 from dolfinx import fem
 from dolfinx.fem.petsc import (
     assemble_matrix_block,
@@ -61,10 +62,10 @@ from fenicsx_pctools.utils import vec_to_functions
 
 N = 12
 mesh = create_unit_cube(MPI.COMM_WORLD, N, N, N)
-elem = ufl.FiniteElement("Lagrange", mesh.ufl_cell(), 1)
+elem = element("Lagrange", mesh.basix_cell(), 1)
 
 # Create product space W = V x V x V
-W = [fem.FunctionSpace(mesh, elem) for _ in range(3)]
+W = [fem.functionspace(mesh, elem) for _ in range(3)]
 
 # Prepare test and trial functions on each subspace
 test_functions = [ufl.TestFunction(V) for V in W]
@@ -80,7 +81,7 @@ for i, (u_i, v_i) in enumerate(zip(test_functions, trial_functions)):
 f = [fem.Function(V) for V in W]
 
 for i, f_i in enumerate(f):
-    with f_i.vector.localForm() as f_i_loc:
+    with f_i.x.petsc_vec.localForm() as f_i_loc:
         f_i_loc.set(i + 1)  # set `f_i = i + 1` including ghost values
 
 L = [f_i * v_i * ufl.dx for f_i, v_i in zip(f, test_functions)]
@@ -130,7 +131,7 @@ def create_solver(A, prefix=None):
 
 def verify_solution(u, f):
     for u_i, f_i in zip(u, f):
-        with u_i.vector.localForm() as u_i_loc, f_i.vector.localForm() as f_i_loc:
+        with u_i.x.petsc_vec.localForm() as u_i_loc, f_i.x.petsc_vec.localForm() as f_i_loc:
             assert np.allclose(u_i_loc.array_r, f_i_loc.array_r, rtol=1e-6)
 
 

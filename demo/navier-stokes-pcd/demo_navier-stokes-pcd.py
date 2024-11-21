@@ -61,6 +61,7 @@ import numpy as np
 
 import dolfinx.fem.petsc  # noqa: F401
 import ufl
+from basix.ufl import element
 from dolfinx import fem
 from dolfinx.io import XDMFFile
 from dolfinx.io.gmshio import model_to_mesh
@@ -121,8 +122,8 @@ gmsh.finalize()
 # We use the classical Taylor-Hood element to compute the approximate solution.
 
 # +
-V_v = fem.FunctionSpace(mesh, ("P", 2, (mesh.geometry.dim,)))
-V_p = fem.FunctionSpace(mesh, ("P", 1))
+V_v = fem.functionspace(mesh, ("Lagrange", 2, (mesh.geometry.dim,)))
+V_p = fem.functionspace(mesh, ("Lagrange", 1))
 
 v = fem.Function(V_v, name="v")
 p = fem.Function(V_p, name="p")
@@ -220,7 +221,7 @@ class PDEProblem:
         x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
         vec_to_functions(x, self.solution_vars)
 
-        fem.petsc.assemble_vector_block(F, self.F_dfx, self.J_dfx, self.bcs, x0=x, scale=-1.0)
+        fem.petsc.assemble_vector_block(F, self.F_dfx, self.J_dfx, self.bcs, x0=x, alpha=-1.0)
         F.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
     def J_block(self, snes, x, J, P):
@@ -359,7 +360,7 @@ PETSc.Sys.Print(
     f"Solver converged in {its_snes} nonlinear iterations"
     f" (with total number of {its_ksp} linear iterations)"
 )
-del solver
+solver.destroy()
 # -
 
 # As a last step, we save the results for visualisation.
@@ -368,8 +369,8 @@ del solver
 vec_to_functions(x0, pdeproblem.solution_vars)
 v_h, p_h = pdeproblem.solution_vars
 
-V_out_el = ufl.VectorElement("Lagrange", mesh.ufl_cell(), 1)
-V_out = fem.FunctionSpace(mesh, V_out_el)
+V_out_el = element("Lagrange", mesh.basix_cell(), 1, shape=(mesh.geometry.dim,))
+V_out = fem.functionspace(mesh, V_out_el)
 v_h_out = fem.Function(V_out, name="v")
 v_h_out.interpolate(v_h)
 

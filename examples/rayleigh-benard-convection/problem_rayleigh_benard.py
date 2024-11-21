@@ -4,12 +4,12 @@ from functools import cached_property
 import numpy as np
 
 import ufl
+from basix.ufl import element
 from dolfinx.fem import (
     Constant,
     Function,
-    FunctionSpace,
-    VectorFunctionSpace,
     dirichletbc,
+    functionspace,
     locate_dofs_topological,
 )
 from dolfinx.mesh import (
@@ -55,17 +55,19 @@ class Problem:
         mesh.topology.create_connectivity(2, 2)
         imap = mesh.topology.index_map(2)
         indices = np.arange(0, imap.size_local + imap.num_ghosts)
-        mesh_tags_facets = meshtags(mesh, 2, indices, np.zeros_like(indices, dtype=np.intc))
+        values = np.zeros_like(indices, dtype=np.int32)
         bndry_tag_map = {"left": 1, "right": 2, "rest": 3}
 
         bndry_mask = get_boundary_mask(mesh)
-        mesh_tags_facets.values[bndry_mask] = bndry_tag_map["rest"]
+        values[bndry_mask] = bndry_tag_map["rest"]
 
         left_facets = locate_entities(mesh, 2, lambda x: np.isclose(x[0], 0.0))
-        mesh_tags_facets.values[left_facets] = bndry_tag_map["left"]
+        values[left_facets] = bndry_tag_map["left"]
 
         right_facets = locate_entities(mesh, 2, lambda x: np.isclose(x[0], 1.0))
-        mesh_tags_facets.values[right_facets] = bndry_tag_map["right"]
+        values[right_facets] = bndry_tag_map["right"]
+
+        mesh_tags_facets = meshtags(mesh, 2, indices, values)
 
         return mesh, mesh_tags_facets, bndry_tag_map
 
@@ -99,12 +101,14 @@ class Problem:
     @cached_property
     def _mixed_space(self):
         mesh = self.domain_data[0]
-        family = "P" if mesh.ufl_cell() == ufl.tetrahedron else "Q"
+        family = "Lagrange"
 
         return OrderedDict(
-            v=VectorFunctionSpace(mesh, (family, 2), dim=3),
-            p=FunctionSpace(mesh, (family, 1)),
-            T=FunctionSpace(mesh, (family, 1)),
+            v=functionspace(
+                mesh, element(family, mesh.basix_cell(), 2, shape=(mesh.geometry.dim,))
+            ),
+            p=functionspace(mesh, (family, 1)),
+            T=functionspace(mesh, (family, 1)),
         )
 
     @property
@@ -119,7 +123,7 @@ class Problem:
     def num_dofs(self):
         num_dofs = 0
         for f in self.u:
-            num_dofs += f.vector.getSize()
+            num_dofs += f.x.petsc_vec.getSize()
 
         return num_dofs
 
@@ -206,7 +210,7 @@ class Problem:
         bcs.append(dirichletbc(v_walls, wallsdofsV_v))
 
         T_left = Function(V_T)
-        with T_left.vector.localForm() as T_local:
+        with T_left.x.petsc_vec.localForm() as T_local:
             T_local.set(1.0)
         bcs.append(dirichletbc(T_left, leftdofsV_T))
 
