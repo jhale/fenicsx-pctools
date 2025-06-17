@@ -401,8 +401,13 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
 
     # Clean up options database
     for opt in opts.getAll().keys():
-        opts.delValue(opt)
+        del opts[opt]
 
+    J_mat.destroy()
+    J_splittable.destroy()
+    solver.destroy()
+    F_vec.destroy()
+    x0.destroy()
     PETSc.garbage_cleanup()
 
 

@@ -13,17 +13,30 @@ from petsc4py import PETSc
 
 import numpy as np
 
+import ufl
 from dolfinx import cpp
+from dolfinx.fem.function import FunctionSpace
 
 
-def _extract_spaces(ufl_form):
-    """Extract test and trial function spaces from given bilinear form."""
+def _extract_spaces(ufl_form: ufl.Form) -> tuple[FunctionSpace, FunctionSpace]:
+    """Extract test and trial function spaces from given bilinear form.
+
+    Parameters:
+        ufl_form: bilinear form
+
+    Returns:
+        test space, trial space
+    """
     test_space, trial_space = map(lambda arg: arg.ufl_function_space(), ufl_form.arguments())
     return test_space, trial_space
 
 
-def _copy_index_sets(isets):
-    """Duplicate items contained in given tuple of lists with index sets for block rows/columns."""
+def _copy_index_sets(isets) -> tuple[list[PETSc.IS], list[PETSc.IS]]:
+    """Duplicate items contained in given tuple of lists with index sets for block rows/columns.
+
+    Returns:
+        duplicated row index sets and column index sets respectively
+    """
 
     if isets is None:
         return None
@@ -35,52 +48,47 @@ def _copy_index_sets(isets):
     return isets_copy
 
 
-class MatrixLayout(enum.IntEnum):
+class _MatrixLayout(enum.IntEnum):
     """Type of the layout of matrix entries."""
 
-    MIX = 1
-    STRIDE = 2
-    BLOCK = 3
+    MIX = 1  #: for mixed spaces with more than one subspace and dofmap's block size set to 1
+    STRIDE = 2  #: for mixed spaces with dofmap's block size set to the number of subspaces
+    BLOCK = 3  #: special layout type reserved for block matrices
 
 
-def _analyse_block_structure(space):
+def _analyse_block_structure(space: FunctionSpace) -> tuple[int, _MatrixLayout]:
     """Deduce the number of blocks from the number of subspaces of the given space (return 1 if
-    the space have no subspaces) and determine :class:`MatrixLayout` by comparing the number of
+    the space have no subspaces) and determine :class:`_MatrixLayout` by comparing the number of
     blocks with the dofmap's block size.
 
     Parameters:
-        space (`dfx.FunctionSpace`): space to be analysed
+        space: function space to be analysed
 
     Returns:
-        tuple: number of blocks (subspaces) and :class:`MatrixLayout`
-
-    Note:
-        A "truly" mixed function space has components from different subspaces and the block size
-        set to 1. The block size is set correctly only for spaces with components from the same
-        subspace (e.g. those created with `dfx.VectorFunctionSpace` or `dfx.TensorFunctionSpace`).
+        number of blocks (subspaces) and matrix layout type
     """
     num_blocks = space.element.num_sub_elements or 1  # no/zero subspaces -> single block
     bs = space.dofmap.index_map_bs  # 1 for "truly" mixed function spaces
 
     if bs < num_blocks:
-        dof_layout = MatrixLayout.MIX
+        dof_layout = _MatrixLayout.MIX
     else:
         assert bs == num_blocks
-        dof_layout = MatrixLayout.STRIDE
+        dof_layout = _MatrixLayout.STRIDE
 
     return num_blocks, dof_layout
 
 
-def _find_block_indices(iset, isets):
+def _find_block_indices(iset: PETSc.IS, isets: tuple[PETSc.IS]) -> tuple[int]:
     """Verify that given *iset* can be obtained as a subset of *isets* and return corresponding
     block indices (i.e. positions in *isets*).
 
     Parameters:
-        iset (`petsc4py.PETSc.IS`): index set to be found in *isets*
-        isets (tuple): iterable containing PETSc IS objects
+        iset: index set to be found in *isets*
+        isets: iterable containing PETSc IS objects
 
     Returns:
-        list: positions in *isets* marking index sets that need to be concatenated to obtain *iset*
+        positions in *isets* marking index sets that need to be concatenated to obtain *iset*
 
     Raises:
         ValueError: when *iset* cannot be obtained as a subset of *isets*
@@ -92,7 +100,7 @@ def _find_block_indices(iset, isets):
 
     # NOTE:
     #   In the following loop, we repeatedly iterate over the search space taking one index set
-    #   after the other (child IS) and trying to find it at the beginning of the parent IS.
+    #   after the other (child IS), while trying to find it at the beginning of the parent IS.
     #   If there is a match between the two, the respective indices are removed from the parent IS,
     #   the child IS is removed from the search space and the corresponding block ID is remembered.
     #   No indices should remain in the parent IS at the end of this process.
@@ -130,6 +138,10 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
     - :meth:`_get_spaces`
     - :meth:`_create_index_sets`
 
+    Parameters:
+        A: matrix to be wrapped up using this class
+        a: bilinear forms corresponding to individual blocks
+        kwargs: any application-related context
     """
 
     # TODO: Many of the required methods are probably not in the list yet.
@@ -148,7 +160,7 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
         "zeroEntries",
     ]
 
-    def __init__(self, A, a, **kwargs):
+    def __init__(self, A: PETSc.Mat, a: list[list[ufl.Form | None]], **kwargs: dict) -> None:
         self.comm = A.getComm()
         self.kwargs = kwargs
 
@@ -158,7 +170,7 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
         self._ISes = None
 
         # Delegate chosen methods to underlying Mat object
-        def create_callable(method_name):
+        def _create_callable(method_name):
             def wrapper(mat, *args, **kwargs):
                 return getattr(self.Mat, method_name)(*args, **kwargs)
 
@@ -166,48 +178,68 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
 
         delegation_config = getattr(self, "DELEGATED_METHODS", [])
         for method in delegation_config:
-            setattr(self, method, create_callable(method))
+            setattr(self, method, _create_callable(method))
 
         super().__init__()
 
     @property
-    def Mat(self):
-        """Return the wrapped matrix (`PETSc.Mat` object)."""
+    def Mat(self) -> PETSc.Mat:
+        """Return the wrapped matrix of "python" type.
+
+        Returns:
+            wrapped matrix
+        """
         return self._Mat
 
     @property
-    def function_spaces(self):
+    def function_spaces(self) -> tuple[list[FunctionSpace], list[FunctionSpace]]:
         """Return tuple of lists containing function spaces for block rows/columns,
-        i.e. test spaces in the first list and trial spaces in the second one."""
+        i.e. test spaces in the first list and trial spaces in the second one.
+
+        Returns:
+            test spaces, trial spaces
+        """
         if self._spaces is None:
             self._spaces = self._get_spaces()
         return self._spaces
 
     @abc.abstractmethod
-    def _get_spaces(self):
+    def _get_spaces(self) -> tuple[list[FunctionSpace], list[FunctionSpace]]:
         """Implementation of the method for extraction of function spaces from the associated
         bilinear form.
+
+        Returns:
+            test spaces, trial spaces
         """
         pass
 
     @property
-    def ISes(self):
-        """Return tuple of lists containing index sets (`PETSc.IS` objects) for block
-        rows/columns.
+    def ISes(self) -> tuple[list[PETSc.IS], list[PETSc.IS]]:
+        """Return tuple of lists containing index sets for block rows and columns respectively.
+
+        Returns:
+            row index sets, column index sets
         """
         if self._ISes is None:
             self._ISes = self._create_index_sets()
         return self._ISes
 
     @abc.abstractmethod
-    def _create_index_sets(self):
+    def _create_index_sets(self) -> tuple[list[PETSc.IS], list[PETSc.IS]]:
         """Implementation of the method for extraction of index sets from the associated
         matrix data.
+
+        Returns:
+            row index sets, column index sets
         """
         pass
 
-    def create(self, mat):
-        """Prepare index sets and set sizes of the wrapper to match sizes of the wrapped matrix."""
+    def create(self, mat: PETSc.Mat) -> None:
+        """Prepare index sets and set sizes of the wrapper to match sizes of the wrapped matrix.
+
+        Parameters:
+            mat: linked matrix object
+        """
         # Initialize cache
         spaces = self.function_spaces  # calls self._get_spaces
         index_sets = self.ISes  # calls self._create_index_sets
@@ -215,8 +247,8 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
 
         # Check that index sets have correct lengths
         if self._layouts == (
-            MatrixLayout.BLOCK,
-            MatrixLayout.BLOCK,
+            _MatrixLayout.BLOCK,
+            _MatrixLayout.BLOCK,
         ):  # FIXME: Always check!
             assert sum([iset.getSize() for iset in index_sets[0]]) == self.Mat.getSize()[0]
             assert sum([iset.getSize() for iset in index_sets[1]]) == self.Mat.getSize()[1]
@@ -227,15 +259,24 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
         # Increment tab level for ASCII output
         self.Mat.incrementTabLevel(1, parent=mat)
 
-    def destroy(self, mat):
-        """Destroy created index sets."""
+    def destroy(self, mat: PETSc.Mat):
+        """Destroy created index sets.
+
+        Parameters:
+            mat: linked matrix object
+        """
         for iset_row, iset_col in zip(*self.ISes):
             iset_row.destroy()
             iset_col.destroy()
 
-    def duplicate(self, mat, copy=False):
+    def duplicate(self, mat: PETSc.Mat, copy: bool = False) -> None:
         """Duplicate the whole context (involves duplication of the wrapped matrix with all
-        index sets), create a new wrapper (`PETSc.Mat` object of type 'python') and return it.
+        index sets), create a new wrapper (:py:class:`petsc4py.PETSc.Mat` object of type 'python')
+        and return it.
+
+        Parameters:
+            mat: linked matrix object
+            copy: if ``True``, copy also the values of the wrapped matrix
         """
 
         newmat_ctx = type(self)(self._Mat.duplicate(copy), self._a, **self.kwargs)
@@ -248,7 +289,13 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
 
         return A_splittable
 
-    def view(self, mat, viewer=None):
+    def view(self, mat: PETSc.Mat, viewer: PETSc.Viewer | None = None) -> None:
+        """View the matrix.
+
+        Parameters:
+            mat: linked matrix object
+            viewer: a viewer instance or ``None`` for the default viewer
+        """
         if viewer is None:
             return
         viewer_type = viewer.getType()
@@ -271,36 +318,36 @@ class SplittableMatrixBlock(SplittableMatrixBase):
     various combinations of the underlying fields.
 
     Parameters:
-        A (PETSc.Mat): matrix to be wrapped up using this class
-        a (list): list of lists containing bilinear forms corresponding to individual blocks
-        kwargs (dict): any application-related context
+        A: matrix to be wrapped up using this class
+        a: bilinear forms corresponding to individual blocks
+        kwargs: any application-related context
 
     Note:
-        Use ``SplittableMatrixBlock.DELEGATED_METHODS`` to list methods automatically delegated to
-        the wrapped `PETSc.Mat` object.
+        Check :attr:`SplittableMatrixBase.DELEGATED_METHODS` to reveal the list of methods that are
+        automatically delegated to the wrapped :py:class:`petsc4py.PETSc.Mat` object.
     """
 
-    def __init__(self, A, a, **kwargs):
+    def __init__(self, A: PETSc.Mat, a: list[list[ufl.Form | None]], **kwargs: dict) -> None:
         super().__init__(A, a, **kwargs)
 
         self._fieldsplit_pc_types = {}
 
         num_brows = len(a)
         num_bcols = len(a[0])
-        ml_brows = MatrixLayout.BLOCK
-        ml_bcols = MatrixLayout.BLOCK
+        ml_brows = _MatrixLayout.BLOCK
+        ml_bcols = _MatrixLayout.BLOCK
 
         self._block_shape = (num_brows, num_bcols)
         self._layouts = (ml_brows, ml_bcols)
 
-    def _get_spaces(self):
+    def _get_spaces(self) -> tuple[list[FunctionSpace], list[FunctionSpace]]:
         num_brows, num_bcols = self._block_shape
         V = (
             np.full(num_brows, None).tolist(),
             np.full(num_bcols, None).tolist(),
         )
         for i, row in enumerate(self._a):
-            assert len(row) == num_bcols
+            assert len(row) == num_bcols, "Incompatible number of blocks in a row"
             for j, a_sub in enumerate(row):
                 if a_sub is not None:
                     test_space, trial_space = _extract_spaces(a_sub)
@@ -308,15 +355,15 @@ class SplittableMatrixBlock(SplittableMatrixBase):
                         V[0][i] = test_space
                     else:
                         if V[0][i] is not test_space:
-                            raise RuntimeError("Mismatched test space for row.")
+                            raise RuntimeError("Mismatched test space detected in a row.")
                     if V[1][j] is None:
                         V[1][j] = trial_space
                     else:
                         if V[1][j] is not trial_space:
-                            raise RuntimeError("Mismatched trial space for column.")
+                            raise RuntimeError("Mismatched trial space detected in a column.")
         return V
 
-    def _create_index_sets(self):
+    def _create_index_sets(self) -> tuple[list[PETSc.IS], list[PETSc.IS]]:
         # FIXME: Explore in detail: https://github.com/FEniCS/dolfinx/pull/1225
         #   Avoid using LG map and keep index sets with locally owned indices!
         #   Each index set, created as a stride of size `bs * size_local` (bs ... block size)
@@ -349,16 +396,42 @@ class SplittableMatrixBlock(SplittableMatrixBase):
 
         return (global_isrows, global_iscols)
 
-    def _set_fieldsplit_pc_type(self, field_ids, pc_type):
+    def _set_fieldsplit_pc_type(self, field_ids: tuple[int], pc_type: PETSc.PC.Type):
+        """Store fieldsplit preconditioner type for provided field indices.
+
+        Parameters:
+            field_ids: an iterable with field IDs defining the split
+            pc_type: type of associated preconditioner
+        """
         self._fieldsplit_pc_types[field_ids] = pc_type
 
-    def _get_fieldsplit_pc_type(self, field_ids):
+    def _get_fieldsplit_pc_type(self, field_ids: tuple[int]) -> PETSc.PC.Type | None:
+        """Return stored preconditioner type, or ``None`` if it has not been stored.
+
+        Parameters:
+            field_ids: an iterable with field IDs defining the split
+
+        Returns:
+            type of associated preconditioner
+        """
         return self._fieldsplit_pc_types.get(field_ids, None)
 
-    def createSubMatrix(self, mat, isrow, iscol=None, submat=None):
+    def createSubMatrix(
+        self,
+        mat: PETSc.Mat,
+        isrow: PETSc.IS,
+        iscol: PETSc.IS | None = None,
+        submat: PETSc.Mat | None = None,
+    ):
         """Create submatrix of the wrapped matrix (based on provided index sets), wrap it using
         a newly created context with corresponding (appropriately shifted) index sets and return
         the result.
+
+        Parameters:
+            mat: linked matrix object
+            isrow: row indices to be extracted
+            iscol: column indices to be extracted, same as ``isrow`` if ``None``
+            submat: optional resultant matrix
         """
 
         if submat is not None:
@@ -434,7 +507,22 @@ class SplittableMatrixBlock(SplittableMatrixBase):
         return Asub
 
 
-def create_splittable_matrix_block(A, a, **kwargs):
+def create_splittable_matrix_block(
+    A: PETSc.Mat, a: list[list[ufl.Form | None]], **kwargs: dict
+) -> PETSc.Mat:
+    """Assemble a splittable block matrix from given data (bilinear form and
+    boundary conditions). The returned matrix object of type 'python' is a wrapper for the
+    actual matrix of type 'aij'. The wrapped matrix needs to be finalised by calling the
+    ``assemble`` method of the returned object.
+
+    Parameters:
+        A: matrix to be wrapped up using this class
+        a: bilinear forms corresponding to individual blocks
+        kwargs: any application-related context
+
+    Returns:
+        splittable matrix
+    """
     ctx = SplittableMatrixBlock(A, a, **kwargs)
     A_splittable = PETSc.Mat().create(comm=ctx.comm)
     A_splittable.setType("python")
@@ -447,8 +535,8 @@ def create_splittable_matrix_block(A, a, **kwargs):
 # NOTE:
 #   What follows is an attempt to wrap a monolithic matrix in a similar fashion as it has been
 #   done with the block matrix. The interface currently works for monolithic matrices with
-#   `MatrixLayout.STRIDE` (see above). The currently missing feature to make this work for matrices
-#   with `MatrixLayout.MIX` is the extraction of index sets for individual fields from the big
+#   `_MatrixLayout.STRIDE` (see above). The currently missing feature to make this work for matrices
+#   with `_MatrixLayout.MIX` is the extraction of index sets for individual fields from the big
 #   monolithic matrix.
 
 
@@ -457,21 +545,21 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
     various combinations of the underlying fields.
 
     Parameters:
-        A (PETSc.Mat): matrix to be wrapped up using this class
-        a (list): list of lists containing bilinear forms corresponding to individual blocks
-        kwargs (dict): any application-related context
+        A: matrix to be wrapped up using this class
+        a: bilinear forms corresponding to individual blocks
+        kwargs: any application-related context
 
     Note:
-        Use ``SplittableMatrixMonolithic.DELEGATED_METHODS`` to list methods automatically delegated
-        to the wrapped `PETSc.Mat` object.
+        Use :attr:`SplittableMatrixBase.DELEGATED_METHODS` to reveal the list of methods that are
+        automatically delegated to the wrapped :py:class:`petsc4py.PETSc.Mat` object.
 
     .. todo::
 
         How to extract index sets for individual fields from a monolithic matrix with
-        :attr:`MatrixLayout.MIX`?
+        :attr:`_MatrixLayout.MIX`?
     """
 
-    def __init__(self, A, a, **kwargs):
+    def __init__(self, A: PETSc.Mat, a: list[list[ufl.Form | None]], **kwargs: dict) -> None:
         super().__init__(A, a, **kwargs)
 
         # Get block shape and layout of DOFs
@@ -484,11 +572,11 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
         self._block_shape = (num_brows, num_bcols)
         self._layouts = (ml_brows, ml_bcols)
 
-        if min(*self._layouts) == MatrixLayout.MIX:
+        if min(*self._layouts) == _MatrixLayout.MIX:
             msg = "Wrapping mixed monolithic matrices as splittable matrices not supported"
             raise NotImplementedError(msg)
 
-    def _get_spaces(self):
+    def _get_spaces(self) -> tuple[list[FunctionSpace], list[FunctionSpace]]:
         num_brows, num_bcols = self._block_shape
         return (
             [self._test_space.sub(i).collapse() for i in range(num_brows)],
@@ -496,10 +584,26 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
         )
 
     # FIXME: Implement this!
-    def _create_index_sets(self):
+    def _create_index_sets(self) -> tuple[list[PETSc.IS], list[PETSc.IS]]:
         return ([], [])
 
-    def createSubMatrix(self, mat, isrow, iscol=None, submat=None):
+    def createSubMatrix(
+        self,
+        mat: PETSc.Mat,
+        isrow: PETSc.IS,
+        iscol: PETSc.IS | None = None,
+        submat: PETSc.Mat | None = None,
+    ):
+        """Create submatrix of the wrapped matrix (based on provided index sets), wrap it using
+        a newly created context with corresponding (appropriately shifted) index sets and return
+        the result.
+
+        Parameters:
+            mat: linked matrix object
+            isrow: row indices to be extracted
+            iscol: column indices to be extracted, same as ``isrow`` if ``None``
+            submat: optional resultant matrix
+        """
         if submat is not None:
             # NOTE: Repeat call (submatrix already requested in the past), we just need to update
             #       its values from the parent matrix, which may have changed e.g. due within Newton
@@ -521,11 +625,21 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
         return Asub
 
 
-def create_splittable_matrix_monolithic(A, a, **kwargs):
-    """Routine for assembling a splittable monolithic matrix from given data (bilinear form and
-    boundary conditions). The returned `PETSc.Mat` object of type 'python' is a wrapper for the
+def create_splittable_matrix_monolithic(
+    A: PETSc.Mat, a: list[list[ufl.Form | None]], **kwargs: dict
+) -> PETSc.Mat:
+    """Assemble a splittable monolithic matrix from given data (bilinear form and
+    boundary conditions). The returned matrix object of type 'python' is a wrapper for the
     actual matrix of type 'aij'. The wrapped matrix needs to be finalised by calling the
     ``assemble`` method of the returned object.
+
+    Parameters:
+        A: matrix to be wrapped up using this class
+        a: bilinear forms corresponding to individual blocks
+        kwargs: any application-related context
+
+    Returns:
+        splittable matrix
     """
     ctx = SplittableMatrixMonolithic(A, a, **kwargs)
     A_splittable = PETSc.Mat().create(comm=ctx.comm)

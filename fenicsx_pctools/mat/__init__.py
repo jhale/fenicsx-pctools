@@ -4,8 +4,9 @@
 #
 # SPDX-License-Identifier:    LGPL-3.0-or-later
 
+"""A collection of classes and functions for handling of custom ``Mat``-like objects."""
+
 from .splittable import (
-    MatrixLayout,
     SplittableMatrixBase,
     SplittableMatrixBlock,
     SplittableMatrixMonolithic,
@@ -14,7 +15,6 @@ from .splittable import (
 )
 
 __all__ = [
-    "MatrixLayout",
     "SplittableMatrixBase",
     "SplittableMatrixBlock",
     "SplittableMatrixMonolithic",

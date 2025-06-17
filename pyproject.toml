@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "fenicsx_pctools"
 version = "0.9.0"
-description = "FEniCSx Preconditioning Tools"
+description = "PETSc block linear algebra preconditioning in FEniCSx"
 authors = [
     {name = "Martin Rehor", email="martin.rehor@rafinex.com"},
     {name = "Jack S. Hale", email = "jack.hale@uni.lu"}
@@ -14,7 +14,7 @@ license = {file = "COPYING"}
 readme = "README.rst"
 requires-python = ">=3.9"
 
-keywords = ["FEniCS", "preconditioning", "PETSc", "block systems"]
+keywords = ["finite elements", "iterative solvers", "preconditioning", "mixed systems", "multiphysics simulations"]
 
 classifiers = [
     "Topic :: Software Development"
@@ -26,23 +26,26 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+demos = [
+    "gmsh",
+    "matplotlib",
+    "pandas",
+]
 docs = [
+    "fenicsx_pctools[demos]",
     "myst-parser",
     "jupytext",
     "sphinx",
+    "sphinx-autodoc-typehints",
     "sphinx_rtd_theme",
     "sphinxcontrib-bibtex",
-]
-examples = [
-    "matplotlib",
-    "pandas",
 ]
 lint = [
     "ruff"
 ]
 ci = [
     "fenicsx_pctools[docs]",
-    "fenicsx_pctools[examples]",
+    "fenicsx_pctools[demos]",
     "fenicsx_pctools[lint]",
     "pytest"
 ]

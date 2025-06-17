@@ -50,7 +50,7 @@ class PCDPCBase(PCBase):
             ufl_form_Mp = (1.0 / nu) * ufl.inner(p_tr, p_te) * ufl.dx
         form_Mp = fem.form(ufl_form_Mp)
 
-        Mp = fem.petsc.create_matrix(form_Mp)
+        self.Mp = Mp = fem.petsc.create_matrix(form_Mp)
         Mp.setOption(PETSc.Mat.Option.SPD, True)
         Mp.setOptionsPrefix(prefix + "Mp_")
         fem.petsc.assemble_matrix(Mp, form_Mp, bcs=[], diagonal=1.0)
@@ -82,7 +82,7 @@ class PCDPCBase(PCBase):
 
         self.bcs_pcd = bcs_pcd = Pctx.kwargs.get("bcs_pcd", [])
 
-        Ap = fem.petsc.create_matrix(self.form_Ap)
+        self.Ap = Ap = fem.petsc.create_matrix(self.form_Ap)
         Ap.setOptionsPrefix(prefix + "Ap_")
         fem.petsc.assemble_matrix(Ap, self.form_Ap, bcs=bcs_pcd, diagonal=1.0)
         Ap.assemble()
@@ -127,7 +127,11 @@ class PCDPCBase(PCBase):
         fem.petsc.assemble_matrix(Kp, self.form_Kp, bcs=[], diagonal=1.0)
         Kp.assemble()
 
-        PETSc.garbage_cleanup()
+    def __del__(self):
+        self.Kp.destroy()
+        self.Ap.destroy()
+        self.Mp.destroy()
+        self.ghosted_workvec.destroy()
 
     def update(self, pc):
         self.Kp.zeroEntries()

@@ -65,7 +65,7 @@ from basix.ufl import element
 from dolfinx import fem
 from dolfinx.io import XDMFFile
 from dolfinx.io.gmshio import model_to_mesh
-from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
+from fenicsx_pctools.mat import create_splittable_matrix_block
 from fenicsx_pctools.utils import vec_to_functions
 from ufl import div, dot, dx, grad, inner
 

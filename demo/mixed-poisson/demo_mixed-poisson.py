@@ -10,9 +10,99 @@
 
 # # Mixed Poisson problem with a Schur complement preconditioner
 
-# ```{admonition} TODO
-# This demo needs documentation.
-# ```
+# A classic example of a block-structured linear system arises from the finite
+# element discretisation of the mixed Poisson problem
+#
+# $$
+# \begin{align}
+# q - \nabla{p} &= 0 &\textrm{in}\ \Omega, \\
+# \mathrm{div}(q) &= -f &\textrm{in}\ \Omega, \\
+# p &= 0 &\textrm{on}\ \Gamma_D, \\
+# q \cdot n &= g &\textrm{on}\ \Gamma_N,
+# \end{align}
+# $$
+#
+# for a domain $\Omega \subset \mathbb{R}^2$ with boundary
+# $\partial \Omega = \Gamma_D \cup \Gamma_N$.
+# In this example we solve for the same boundary conditions used in the DOLFINx's standard Poisson
+# equation [demo](https://docs.fenicsproject.org/dolfinx/main/python/demos/demo_poisson.html),
+# namely:
+#
+# - $\Omega = [0,2] \times [0,1]$.
+# - $\Gamma_{D} = \{(0, y) \cup (2, y) \subset \partial \Omega\}$.
+# - $\Gamma_{N} = \{(x, 0) \cup (x, 1) \subset \partial \Omega\}$.
+# - $g = \sin(5x)$.
+# - $f = 10\exp(-((x - 0.5)^2 + (y - 0.5)^2) / 0.02)$.
+#
+# In weak form we seek a vector-valued flux $q_h \in Q_h$ and scalar-valued pressure $p_h \in P_h$,
+# such that
+#
+# $$
+# \begin{align}
+# \left( q_h, \tilde{q} \right) + \left( p_h, \mathrm{div}(\tilde{q}) \right)
+#   &= 0 \quad &\forall \tilde{q} \in Q_h,\\
+# \left( \mathrm{div}(q_h), \tilde{p} \right)
+#   &= \left( -f_h, \tilde{p} \right) \quad &\forall \tilde{p} \in P_h.
+# \end{align}
+# $$
+#
+# where $\left( \cdot, \cdot \right)$ denotes the usual $L^2$ inner product on
+# the finite element mesh and $f$ a known forcing term. In discrete block form
+# this can be written as a saddle point linear system with unknown vectors of
+# finite element coefficients $q$ and $p$
+#
+# $$
+# \begin{align}
+# \begin{bmatrix}
+# A & B^T \\
+# B & O
+# \end{bmatrix}
+# \begin{bmatrix}
+# q \\ p
+# \end{bmatrix}
+# &=
+# \begin{bmatrix}
+# 0 \\ f
+# \end{bmatrix},
+# \end{align}
+# $$
+#
+# where $A$ is a square matrix arising from the bilinear form $(q_h, \tilde{q})$,
+# $B$ and $B^T$ are non-square matrices arising from the bilinear forms
+# $(\mathrm{div}(q_h), \tilde{p})$ and $(p_h, \mathrm{div}(\tilde{q}))$
+# respectively, $O$ is a square matrix of zeros, $0$ is a vector of zeros and $f$
+# is a vector arising from the linear form $-(f_h, \tilde{p})$. For the ease of notation,
+# we rewrite the above system in a compact form
+#
+# $$
+# \begin{align}
+# K x &= b,
+# \end{align}
+# $$
+#
+# $$
+# \begin{align}
+# K &=
+# \begin{bmatrix}
+# A & B^T \\
+# B & O
+# \end{bmatrix}, &
+# x &=
+# \begin{bmatrix}
+# q \\ p
+# \end{bmatrix}, &
+# b &=
+# \begin{bmatrix}
+# 0 \\ f
+# \end{bmatrix}.
+# \end{align}
+# $$
+#
+# The block-structured matrix $K$ and vector $b$ can be assembled using the
+# standard code shown below. We define a mesh consisting of quadrilateral
+# cells. For the flux space $V_h$ we choose Brezzi-Douglas-Marini elements of
+# first-order, and for the pressure space $Q_h$ discontinuous Lagrange elements
+# of zeroth-order.
 
 # +
 import pathlib
@@ -24,7 +114,12 @@ import numpy as np
 
 from basix.ufl import element
 from dolfinx import fem, io, mesh
-from dolfinx.fem.petsc import assemble_matrix_block, assemble_vector_block, create_matrix_block
+from dolfinx.fem.petsc import (
+    assemble_matrix,
+    assemble_matrix_block,
+    assemble_vector_block,
+    create_matrix_block,
+)
 from fenicsx_pctools.mat import create_splittable_matrix_block
 from fenicsx_pctools.utils import vec_to_functions
 from ufl import (
@@ -43,10 +138,10 @@ from ufl import (
 )
 
 # Define mesh
-nx, ny = 128, 128
+nx, ny = 1024, 1024
 domain = mesh.create_rectangle(
     MPI.COMM_WORLD,
-    [np.array([0.0, 0.0]), np.array([1.0, 1.0])],
+    [np.array([0.0, 0.0]), np.array([2.0, 1.0])],
     [nx, ny],
     mesh.CellType.quadrilateral,
 )
@@ -97,7 +192,6 @@ f_h1.interpolate(f1)
 f_h2 = fem.Function(Q)
 f_h2.interpolate(f2)
 
-
 bc_up = fem.dirichletbc(f_h1, blocked_dofs_up)
 bc_down = fem.dirichletbc(f_h2, blocked_dofs_down)
 bcs = [bc_up, bc_down]
@@ -111,20 +205,158 @@ L = [inner(fem.Constant(domain, (0.0, 0.0)), q_t) * dx, -inner(f, p_t) * dx]
 a_dolfinx = fem.form(a)
 L_dolfinx = fem.form(L)
 
-A = create_matrix_block(a_dolfinx)
-assemble_matrix_block(A, a_dolfinx, bcs)
-A.assemble()
-
-A_splittable = create_splittable_matrix_block(A, a)
-A_splittable.setOptionsPrefix("mp_")
+K = create_matrix_block(a_dolfinx)
+assemble_matrix_block(K, a_dolfinx, bcs)
+K.assemble()
 
 b = assemble_vector_block(L_dolfinx, a_dolfinx, bcs)
 b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+# -
+# FEniCSx-pctools method `create_splittable_matrix_block` takes the DOLFINx
+# assembled matrix `K` and the associated block UFL form `a` and returns a
+# PETSc Mat of type Python with the necessary functionality to apply PETSc
+# block preconditioning strategies.
+
+K_splittable = create_splittable_matrix_block(K, a)
+K_splittable.setOptionsPrefix("mp_")
+
+# We now describe and specify an upper-diagonal Schur complement preconditioner
+# using PETSc. Writing the $LDU$ decomposition of $K$ gives
+#
+# $$
+# K = LDU =
+# \begin{bmatrix}
+# I & 0 \\
+# BA^{-1} & I
+# \end{bmatrix}
+# \begin{bmatrix}
+# A & 0 \\
+# 0 & S
+# \end{bmatrix}
+# \begin{bmatrix}
+# I & A^{-1}B^T \\
+# 0 & I
+# \end{bmatrix}.
+# $$
+#
+# where $S = -B A^{-1} B^T$ is known as the Schur complement. Choosing to use
+# the inverse of the diagonal $D$ and upper $U$ components as a preconditioner
+#
+# $$
+# P_{\mathrm{upper}} = DU =
+# \begin{bmatrix}
+# A & 0 \\
+# 0 & S
+# \end{bmatrix}
+# \begin{bmatrix}
+# I & A^{-1}B^T \\
+# 0 & I
+# \end{bmatrix},
+# $$
+#
+# leads to the following *upper* Schur complement *left* preconditioned block
+# system of equations
+#
+# $$
+# P_{\mathrm{upper}}^{-1} K x = P_{\mathrm{upper}}^{-1} b.
+# $$
+#
+# Use of GMRES and upper Schur complement preconditioning can be specified
+# using the PETSc options shown below. We tell PETSc that we would like to use
+# GMRES as an outer solver for $P^{-1}_{\mathrm{upper}}Kx =
+# P^{-1}_{\mathrm{upper}}b$ with upper Schur complement left preconditioning,
+# and that the Schur complement preconditioner will be specified by the user.
+
+# +
+solver = PETSc.KSP().create(MPI.COMM_WORLD)
+solver.setOperators(K_splittable)
+
+options = PETSc.Options()
+options.prefixPush("mp_")
+options["ksp_type"] = "gmres"
+options["ksp_rtol"] = 1e-8
+options["ksp_monitor_true_residual"] = ""
+options["pc_type"] = "python"
+options["pc_python_type"] = "fenicsx_pctools.WrappedPC"
+
+options.prefixPush("wrapped_")
+options["pc_type"] = "fieldsplit"
+options["pc_fieldsplit_type"] = "schur"
+options["pc_fieldsplit_schur_fact_type"] = "full"
+options["pc_fieldsplit_schur_precondition"] = "user"
+options["pc_fieldsplit_0_fields"] = "0"
+options["pc_fieldsplit_1_fields"] = "1"
+
+# -
+# In the general case $S$ is a dense matrix that cannot be stored explicitly,
+# let alone inverted. To avoid this, we suppose the existence of a 'good'
+# approximate action for both $A^{-1} \approx \tilde{A}^{-1}$ and $S^{-1}
+# \approx \tilde{S}^{-1}$, i.e. we substitute
+#
+# $$
+# \tilde{P}_{\mathrm{upper}}^{-1} =
+# \begin{bmatrix}
+# I & -\tilde{A}^{-1}B^T \\
+# 0 & I
+# \end{bmatrix}
+# \begin{bmatrix}
+# \tilde{A}^{-1} & 0 \\
+# 0 & \tilde{S}^{-1}
+# \end{bmatrix},
+# $$
+#
+# for $P_{\mathrm{upper}}^{-1}$ where the tilde $(\tilde{\cdot})$ denotes an
+# approximate (inexact) inverse.
+#
+# To actually compute $\tilde{P}_{\mathrm{upper}}^{-1}$ we still must specify
+# the form of both $\tilde{A}^{-1}$ and $\tilde{S}^{-1}$.
+#
+# One reasonable choice is to take $\tilde{A}^{-1}$ as a single application of a
+# block Jacobi preconditioned inverse mass matrix on the finite element flux
+# space $Q_h$. This can be specified using the following code. We first setup a
+# class `MassInv` with a method `apply` that will apply the approximate inverse
+# of the mass matrix to the vector `x` and place the result in `y`. We then
+# tell PETSc to use this method when it needs the action of $\tilde{A}^{-1}$.
+
+# +
+m = inner(q, q_t) * dx
+M = assemble_matrix(fem.form(m))
+M.assemble()
 
 
-# Interior penalty DG preconditioner
+class MassInv:
+    def setUp(self, pc):
+        self.ksp = PETSc.KSP().create()
+        self.ksp.setOperators(M)
+        self.ksp.setOptionsPrefix(pc.getOptionsPrefix() + "MassInv_")
+        self.ksp.setFromOptions()
+
+    def apply(self, pc, x, y):
+        self.ksp.solve(x, y)
+
+
+options.prefixPush("fieldsplit_0_")
+options["ksp_type"] = "preonly"
+options["pc_type"] = "python"
+options["pc_python_type"] = __name__ + ".MassInv"
+options.prefixPush("MassInv_")
+options["ksp_type"] = "preonly"
+options["pc_type"] = "bjacobi"
+options.prefixPop()  # MassInv_
+options.prefixPop()  # fieldsplit_0_
+
+# -
+# For $\tilde{S}^{-1}$ we take a single application of algebraic multigrid
+# preconditioned discontinuous Galerkin approximation of the Laplacian on the
+# finite element pressure space $P_h$. We setup a class `SchurInv` with a
+# method `apply` that will apply the approximate inverse of the discontinuous
+# Galerkin Laplacian operator `S` to the vector `x`. We then tell PETSc to use
+# this method when it needs the action of $\tilde{S}^{-1}$.
+
+
+# +
 def boundary_left_and_right(x):
-    return np.logical_or(np.isclose(x[0], 0.0), np.isclose(x[0], 1.0))
+    return np.logical_or(np.isclose(x[0], 0.0), np.isclose(x[0], 2.0))
 
 
 facets_left_and_right = mesh.locate_entities_boundary(
@@ -145,57 +377,52 @@ n = FacetNormal(domain)
 alpha = fem.Constant(domain, 4.0)
 gamma = fem.Constant(domain, 8.0)
 h = CellDiameter(domain)
-a_p_11 = (
-    -inner(grad(p), grad(p_t)) * dx
-    + inner(avg(grad(p_t)), jump(p, n)) * dS
-    + inner(jump(p, n), avg(grad(p_t))) * dS
-    - (alpha / avg(h)) * inner(jump(p, n), jump(p_t, n)) * dS
-    + inner(grad(p), p_t * n) * ds(1)
-    + inner(p * n, grad(p_t)) * ds(1)
-    - (gamma / h) * p * p_t * ds(1)
+
+s = -(
+    inner(grad(p), grad(p_t)) * dx
+    - inner(avg(grad(p_t)), jump(p, n)) * dS
+    - inner(jump(p, n), avg(grad(p_t))) * dS
+    + (alpha / avg(h)) * inner(jump(p, n), jump(p_t, n)) * dS
+    - inner(grad(p), p_t * n) * ds(1)
+    - inner(p * n, grad(p_t)) * ds(1)
+    + (gamma / h) * p * p_t * ds(1)
 )
-a_p = [[inner(q, q_t) * dx, None], [None, a_p_11]]
-a_p_dolfinx = fem.form(a_p)
 
-A_P = fem.petsc.create_matrix_block(a_p_dolfinx)
-fem.petsc.assemble_matrix_block(A_P, a_p_dolfinx, bcs)
-A_P.assemble()
+S = assemble_matrix(fem.form(s))
+S.assemble()
 
-A_P_splittable = create_splittable_matrix_block(A_P, a_p)
-A_P_splittable.setOptionsPrefix("mp_")
 
-solver = PETSc.KSP().create(MPI.COMM_WORLD)
-solver.setOperators(A_splittable, A_P_splittable)
+class SchurInv:
+    def setUp(self, pc):
+        self.ksp = PETSc.KSP().create()
+        self.ksp.setOptionsPrefix(pc.getOptionsPrefix() + "SchurInv_")
+        self.ksp.setOperators(S)
+        self.ksp.setFromOptions()
 
-options = PETSc.Options()
-options.prefixPush("mp_")
-options["ksp_type"] = "gmres"
-options["ksp_rtol"] = 1e-8
-options["ksp_monitor_true_residual"] = ""
-options["pc_type"] = "python"
-options["pc_python_type"] = "fenicsx_pctools.WrappedPC"
+    def apply(self, pc, x, y):
+        self.ksp.solve(x, y)
 
-options.prefixPush("wrapped_")
-options["pc_type"] = "fieldsplit"
-options["pc_fieldsplit_type"] = "schur"
-options["pc_fieldsplit_schur_fact_type"] = "upper"
-options["pc_fieldsplit_schur_precondition"] = "user"
-options["pc_fieldsplit_0_fields"] = "0"
-options["pc_fieldsplit_1_fields"] = "1"
-
-options.prefixPush("fieldsplit_0_")
-options["ksp_type"] = "preonly"
-options["pc_type"] = "bjacobi"
-options.prefixPop()  # fieldsplit_0_
 
 options.prefixPush("fieldsplit_1_")
 options["ksp_type"] = "preonly"
+options["pc_type"] = "python"
+options["pc_python_type"] = __name__ + ".SchurInv"
+options.prefixPush("SchurInv_")
+options["ksp_type"] = "preonly"
 options["pc_type"] = "hypre"
+options.prefixPop()  # SchurInv_
 options.prefixPop()  # fieldsplit_1_
 
 options.prefixPop()  # wrapped_
 options.prefixPop()  # mp_
 
+# -
+#
+# Finally, we set all of the options on the PETSc objects and solve. This
+# solver setup gives a nearly mesh independent number of GMRES iterations (~40)
+# tested up to a mesh size of $1024 \times 1024$.
+
+# +
 solver.setOptionsPrefix("mp_")
 solver.setFromOptions()
 
@@ -222,5 +449,7 @@ with io.XDMFFile(MPI.COMM_WORLD, outdir.joinpath("p_h.xdmf"), "w") as handle:
     handle.write_mesh(domain)
     handle.write_function(p_h)
 
-del solver
+solver.destroy()
+K.destroy()
+b.destroy()
 # -

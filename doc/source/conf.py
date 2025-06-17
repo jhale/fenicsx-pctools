@@ -41,6 +41,7 @@ extensions = [
     "sphinx.ext.intersphinx",
     "sphinx.ext.mathjax",
     "sphinx.ext.napoleon",
+    "sphinx_autodoc_typehints",  # NOTE: Must come after Napoleon extension!
     "sphinx.ext.todo",
     "sphinx.ext.viewcode",
     "sphinxcontrib.bibtex",
@@ -58,12 +59,40 @@ autodoc_default_options = {
     "show-inheritance": True,
     "imported-members": True,
     "undoc-members": True,
+    "private-members": True,
+    "special-members": False,
+    "ignore-module-all": True,  # TODO: Not working - missing private functions (unless in __all__)!
 }
 autosummary_generate = True
+autosummary_ignore_module_all = False
 autoclass_content = "both"
 
 napoleon_google_docstring = True
 napoleon_use_admonition_for_notes = False
+
+# -- Options for Intersphinx  ------------------------------------------------
+
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3", None),
+    "numpy": ("https://numpy.org/doc/stable", None),
+    "dolfinx": ("https://docs.fenicsproject.org/dolfinx/main/python", None),
+    "petsc4py": ("https://petsc.org/release/petsc4py", None),
+    "ufl": ("https://docs.fenicsproject.org/ufl/main", None),
+}
+
+# -- Options for Napoleon  ---------------------------------------------------
+napoleon_use_rtype = False
+
+# -- Options for typehints  --------------------------------------------------
+# https://github.com/tox-dev/sphinx-autodoc-typehints
+
+always_use_bars_union = True
+typehints_fully_qualified = True
+typehints_defaults = "braces-after"
+typehints_document_rtype = True
+typehints_use_rtype = False
+typehints_use_signature = False
+typehints_use_signature_return = False
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
@@ -77,3 +106,20 @@ html_static_path = ["_static"]
 bibtex_bibfiles = ["references.bib"]
 bibtex_default_style = "alpha"
 # bibtex_reference_style = "author_year"
+
+
+def skip_member(app, what, name, obj, skip, opts):
+    # Skip private members from abc
+    if name in [
+        "_abc_cache",
+        "_abc_impl",
+        "_abc_negative_cache",
+        "_abc_registry",
+    ]:
+        return True
+    else:
+        return skip
+
+
+def setup(app):
+    app.connect("autodoc-skip-member", skip_member)
