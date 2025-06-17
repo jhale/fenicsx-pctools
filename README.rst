@@ -62,7 +62,7 @@ FEniCSx-pctools is described in the preprint at https://arxiv.org/abs/2402.02523
      .. code-block::
 
        @misc{rehor2024fenicsx,
-             title={FEniCSx Preconditioning Tools (FEniCSx-pctools)}, 
+             title={FEniCSx Preconditioning Tools (FEniCSx-pctools)},
              author={Martin Řehoř and Jack S. Hale},
              year={2024},
              eprint={2402.02523},
@@ -70,26 +70,41 @@ FEniCSx-pctools is described in the preprint at https://arxiv.org/abs/2402.02523
              primaryClass={cs.MS}
        }
 
+The raw logs and data from the numerical experiments presented in the pre-print are contained
+in the directory ``examples/rayleigh-benard-convection/aion_results_WeakRB100k-r1_2023-10-11``.
+
 Documentation
 =============
 
-Full documentation is available at https://rafinex-external-rifle.gitlab.io/fenicsx-pctools/.
+Full documentation is available at
+https://rafinex-external-rifle.gitlab.io/fenicsx-pctools/.
 
 Dependencies
 ============
 
-FEniCSx-pctools depends on the Python interface to DOLFINx.
+Please see ``pyproject.toml`` file for a precise list of dependencies and
+optional dependency sets.
 
 Quickstart
 ==========
 
-Assuming that the current working directory is the root of this repository.
+Before installing `fenicsx-pctools` you must ensure that DOLFINx built against
+PETSc is already installed. If not, follow the upstream instructions
+`here <https://github.com/fenics/dolfinx?tab=readme-ov-file#installation>`_.
 
-1. Install FEniCSx-pctools:
+To get started quickly you can use the upsteam Docker images:
 
    .. code-block:: console
 
-      python3 -m pip install .
+      docker run -ti -v $(pwd):/shared -w /shared dolfinx/dolfinx:v0.9.0r1
+
+And then in any system with DOLFINx installed:
+
+1. Install FEniCSx-pctools with the optional dependencies to run the demos:
+
+   .. code-block:: console
+
+      python3 -m pip install `.[demos]`
 
 2. Run unit tests to verify the installation:
 
@@ -122,7 +137,7 @@ License
 
 .. |(C)| unicode:: U+000A9
 
-Copyright |(C)| 2021-2023 Rafinex S.à r.l. and Jack S. Hale
+Copyright |(C)| 2021-2025 Rafinex S.à r.l. and Jack S. Hale
 
 FEniCSx-pctools is free software: you can redistribute it and/or modify it
 under the terms of the GNU Lesser General Public License as published

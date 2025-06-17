@@ -410,3 +410,11 @@ def test_nested_fieldsplit(space, A, b, target, variant):
     # Clean up options database
     for opt in opts.getAll().keys():
         opts.delValue(opt)
+
+    opts.destroy()
+    A.destroy()
+    b.destroy()
+    x.destroy()
+    target_vec.destroy()
+    ksp.destroy()
+    PETSc.garbage_cleanup()

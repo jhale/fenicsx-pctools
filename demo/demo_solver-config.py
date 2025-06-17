@@ -8,15 +8,14 @@
 #       jupytext_version: 1.14.1
 # ---
 
-# # Motivation
+# # Solver configuration at runtime
 
-# In this introductory demo we will try to answer the following question:
+# This simple demo emphasizes the most powerful feature of FEniCSx-pctools.
+# In particular, it illustrates the ability to change the solver configuration at runtime
+# independently of the model formulation. We base the presentation on an elementary system
+# of algebraic equations in order to keep the focus on the selected feature.
 
-# ```{admonition} Question
-# Why and when should I use ``fenicsx_pctools``?
-# ```
-
-# ## Example of block system of equations
+# ## Elementary block system of equations
 
 # In what follows, we will solve a system of algebraic equations $A x = b$, where
 
@@ -57,7 +56,7 @@ from dolfinx.fem.petsc import (
     assemble_vector_nest,
 )
 from dolfinx.mesh import create_unit_cube
-from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
+from fenicsx_pctools.mat import create_splittable_matrix_block
 from fenicsx_pctools.utils import vec_to_functions
 
 N = 12

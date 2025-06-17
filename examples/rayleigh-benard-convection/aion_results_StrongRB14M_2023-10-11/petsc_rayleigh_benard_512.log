@@ -1,0 +1,294 @@
+****************************************************************************************************************************************************************
+***                                WIDEN YOUR WINDOW TO 160 CHARACTERS.  Use 'enscript -r -fCourier9' to print this document                                 ***
+****************************************************************************************************************************************************************
+
+------------------------------------------------------------------ PETSc Performance Summary: ------------------------------------------------------------------
+
+Unknown Name on a  named aion-0063 with 512 processors, by jhale Wed Oct 11 13:37:26 2023
+Using Petsc Release Version 3.20.0, unknown 
+
+                         Max       Max/Min     Avg       Total
+Time (sec):           1.591e+01     1.000   1.590e+01
+Objects:              0.000e+00     0.000   0.000e+00
+Flops:                2.143e+09     1.076   2.047e+09  1.048e+12
+Flops/sec:            1.347e+08     1.076   1.287e+08  6.591e+10
+MPI Msg Count:        3.200e+04     5.537   1.888e+04  9.665e+06
+MPI Msg Len (bytes):  1.831e+08     2.669   7.060e+03  6.823e+10
+MPI Reductions:       2.744e+03     1.000
+
+Flop counting convention: 1 flop = 1 real number operation of type (multiply/divide/add/subtract)
+                            e.g., VecAXPY() for real vectors of length N --> 2N flops
+                            and VecAXPY() for complex vectors of length N --> 8N flops
+
+Summary of Stages:   ----- Time ------  ----- Flop ------  --- Messages ---  -- Message Lengths --  -- Reductions --
+                        Avg     %Total     Avg     %Total    Count   %Total     Avg         %Total    Count   %Total
+ 0:      Main Stage: 1.5835e+00  10.0%  2.6792e+09   0.3%  1.118e+05   1.2%  3.212e+04        5.3%  6.000e+01   2.2%
+ 2: WarmUp solve with PCD-AMG: 7.4382e+00  46.8%  5.2282e+11  49.9%  4.930e+06  51.0%  6.717e+03       48.5%  1.436e+03  52.3%
+ 3: Timed solve with PCD-AMG: 6.5504e+00  41.2%  5.2274e+11  49.9%  4.623e+06  47.8%  6.819e+03       46.2%  1.230e+03  44.8%
+
+------------------------------------------------------------------------------------------------------------------------
+See the 'Profiling' chapter of the users' manual for details on interpreting output.
+Phase summary info:
+   Count: number of times phase was executed
+   Time and Flop: Max - maximum over all processors
+                  Ratio - ratio of maximum to minimum over all processors
+   Mess: number of messages sent
+   AvgLen: average message length (bytes)
+   Reduct: number of global reductions
+   Global: entire computation
+   Stage: stages of a computation. Set stages with PetscLogStagePush() and PetscLogStagePop().
+      %T - percent time in this phase         %F - percent flop in this phase
+      %M - percent messages in this phase     %L - percent message lengths in this phase
+      %R - percent reductions in this phase
+   Total Mflop/s: 10e-6 * (sum of flop over all processors)/(max time over all processors)
+------------------------------------------------------------------------------------------------------------------------
+Event                Count      Time (sec)     Flop                              --- Global ---  --- Stage ----  Total
+                   Max Ratio  Max     Ratio   Max  Ratio  Mess   AvgLen  Reduct  %T %F %M %L %R  %T %F %M %L %R Mflop/s
+------------------------------------------------------------------------------------------------------------------------
+
+--- Event Stage 0: Main Stage
+
+BuildTwoSided          6 1.0 1.1422e-01 15.9 0.00e+00 0.0 3.3e+04 4.0e+00 6.0e+00  0  0  0  0  0   3  0 29  0 10     0
+BuildTwoSidedF         2 1.0 1.2228e-01 2.9 0.00e+00 0.0 1.3e+04 2.6e+05 2.0e+00  1  0  0  5  0   5  0 11 93  3     0
+SFSetGraph             4 1.0 7.5328e-04 3.0 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+SFSetUp                4 1.0 4.3703e-03 1.9 0.00e+00 0.0 5.3e+04 1.8e+03 4.0e+00  0  0  1  0  0   0  0 47  3  7     0
+SFPack                 7 1.0 8.1350e-05 3.2 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+SFUnpack               7 1.0 1.0102e-04 3.5 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+VecNorm                1 1.0 3.0330e-04 15.7 5.96e+04 1.1 0.0e+00 0.0e+00 1.0e+00  0  0  0  0  0   0  1  0  0  2 92943
+VecScale               1 1.0 8.2600e-06 1.5 2.98e+04 1.1 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  1  0  0  0 1706414
+VecSet                 5 1.0 1.6669e-04 7.6 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+VecScatterBegin        7 1.0 2.4155e-04 3.2 0.00e+00 0.0 4.6e+04 3.4e+03 0.0e+00  0  0  0  0  0   0  0 41  4  0     0
+VecScatterEnd          7 1.0 1.0166e-03 2.3 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+VecNormalize           1 1.0 3.1197e-04 11.6 8.94e+04 1.1 0.0e+00 0.0e+00 1.0e+00  0  0  0  0  0   0  2  0  0  2 135540
+MatAssemblyBegin       2 1.0 1.7784e-01 1.6 0.00e+00 0.0 1.3e+04 2.6e+05 2.0e+00  1  0  0  5  0  10  0 11 93  3     0
+MatAssemblyEnd         2 1.0 1.0163e-01 2.3 2.94e+05 2.9 1.4e+04 3.1e+03 5.0e+00  0  0  0  0  0   4  4 12  1  8  1070
+
+--- Event Stage 2: WarmUp solve with PCD-AMG
+
+BuildTwoSided         33 1.0 2.1272e-01 9.2 0.00e+00 0.0 1.3e+05 4.0e+00 3.3e+01  1  0  1  0  1   1  0  3  0  2     0
+BuildTwoSidedF        15 1.0 2.0446e-01 10.6 0.00e+00 0.0 8.4e+04 8.1e+04 1.5e+01  1  0  1 10  1   1  0  2 21  1     0
+SFSetGraph            18 1.0 3.5376e-03 3.1 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+SFSetUp               18 1.0 1.3234e-02 1.5 0.00e+00 0.0 1.7e+05 9.7e+02 1.8e+01  0  0  2  0  1   0  0  4  1  1     0
+SFPack              1326 1.0 1.4883e-02 2.2 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+SFUnpack            1326 1.0 6.0068e-04 2.7 5.40e+04 2.8 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0 32802
+VecDot                27 1.0 1.1011e-02 5.5 1.61e+06 1.1 0.0e+00 0.0e+00 2.7e+01  0  0  0  0  1   0  0  0  0  2 69120
+VecMDot              494 1.0 8.0735e-02 1.6 6.88e+07 1.1 0.0e+00 0.0e+00 4.9e+02  0  3  0  0 18   1  6  0  0 34 403402
+VecNorm              225 1.0 2.6211e-02 4.8 9.27e+06 1.1 0.0e+00 0.0e+00 2.2e+02  0  0  0  0  8   0  1  0  0 16 167511
+VecScale             682 1.0 1.4060e-03 1.3 5.13e+06 1.1 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0 1744769
+VecCopy              171 1.0 7.2913e-04 1.8 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+VecSet               575 1.0 4.7563e-03 1.4 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+VecAXPY              196 1.0 8.6208e-04 1.3 2.63e+06 1.1 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0 1433185
+VecWAXPY               2 1.0 9.0602e-05 2.1 5.96e+04 1.1 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0 311141
+VecMAXPY             420 1.0 2.6731e-02 1.2 7.72e+07 1.1 0.0e+00 0.0e+00 0.0e+00  0  3  0  0  0   0  7  0  0  0 1368205
+VecScatterBegin     1326 1.0 4.1150e-02 1.7 0.00e+00 0.0 4.7e+06 5.6e+03 0.0e+00  0  0 48 38  0   0  0 95 78  0     0
+VecScatterEnd       1326 1.0 1.6981e-01 4.9 5.40e+04 2.8 0.0e+00 0.0e+00 0.0e+00  1  0  0  0  0   1  0  0  0  0   116
+VecReduceArith         6 1.0 9.2030e-05 1.6 3.57e+05 1.1 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0 1837843
+VecReduceComm          2 1.0 3.5016e-02 867.8 0.00e+00 0.0 0.0e+00 0.0e+00 2.0e+00  0  0  0  0  0   0  0  0  0  0     0
+VecNormalize         215 1.0 9.3375e-03 1.5 1.30e+07 1.1 0.0e+00 0.0e+00 2.1e+02  0  1  0  0  8   0  1  0  0 15 659918
+MatMult              512 1.0 7.7723e-01 1.1 8.75e+08 1.1 3.4e+06 6.8e+03 0.0e+00  5 41 36 35  0  10 82 70 71  0 554297
+MatSOR               149 1.0 3.5708e-02 2.2 1.19e+07 1.2 1.0e+06 6.0e+02 0.0e+00  0  1 10  1  0   0  1 20  2  0 150207
+MatConvert             4 1.0 1.7616e-01 1.0 0.00e+00 0.0 0.0e+00 0.0e+00 6.0e+00  1  0  0  0  0   2  0  0  0  0     0
+MatAssemblyBegin      61 1.0 2.7959e-01 1.3 0.00e+00 0.0 8.4e+04 8.1e+04 1.5e+01  2  0  1 10  1   3  0  2 21  1     0
+MatAssemblyEnd        61 1.0 2.1659e-01 1.5 1.16e+06 2.9 1.2e+05 1.3e+03 5.0e+01  1  0  1  0  2   3  0  2  0  3  1950
+MatGetRowIJ           12 1.0 6.2010e-05 13.0 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+MatCreateSubMat       10 1.0 1.8822e-01 1.0 0.00e+00 0.0 1.8e+05 7.3e+03 1.3e+02  1  0  2  2  5   3  0  4  4  9     0
+MatZeroEntries         3 1.0 1.0764e-02 1.1 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+MatView               12 1.0 2.7048e-03 1.9 0.00e+00 0.0 0.0e+00 0.0e+00 1.4e+01  0  0  0  0  1   0  0  0  0  1     0
+MatSetPreallCOO        6 1.0 9.2841e-02 1.1 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  1  0  0  0  0   1  0  0  0  0     0
+MatSetValuesCOO        8 1.0 1.3877e-02 1.1 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+PCSetUp               12 1.0 1.0160e+00 1.0 3.62e+05 1.1 2.9e+05 5.6e+03 2.0e+02  6  0  3  2  7  14  0  6  5 14   171
+PCApply                9 1.0 6.2431e+00 1.0 9.91e+08 1.1 4.7e+06 5.4e+03 1.4e+03 39 46 48 37 49  84 93 95 76 94 77596
+KSPSolve_FS_0          9 1.0 5.9626e+00 1.0 9.84e+08 1.1 4.1e+06 5.7e+03 1.2e+03 37 46 43 34 42  80 92 84 71 81 80678
+KSPSolve_FS_1          9 1.0 1.6320e-01 1.0 3.25e+06 1.2 3.7e+05 6.0e+02 1.2e+02  1  0  4  0  4   2  0  8  1  9  9217
+KSPSolve_FS_Schu     149 1.0 4.2002e-01 1.1 1.88e+07 1.2 2.1e+06 6.2e+02 6.3e+02  3  1 22  2 23   5  2 42  4 44 20539
+KSPSetUp              10 1.0 6.6805e-04 1.9 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+KSPSolve               2 1.0 6.2988e+00 1.0 1.05e+09 1.1 4.7e+06 5.5e+03 1.4e+03 40 49 49 38 51  85 98 96 78 97 81632
+KSPGMRESOrthog       205 1.0 7.6838e-02 1.2 1.39e+08 1.1 0.0e+00 0.0e+00 2.2e+02  0  6  0  0  8   1 13  0  0 16 858998
+SNESSolve              1 1.0 7.4352e+00 1.0 1.07e+09 1.1 4.9e+06 6.7e+03 1.4e+03 47 50 51 49 52 100 100 100 100 99 70317
+SNESSetUp              1 1.0 8.3260e-05 9.1 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+SNESFunctionEval       3 1.0 1.0358e-01 2.1 5.40e+04 2.8 1.6e+05 4.1e+03 2.1e+01  1  0  2  1  1   1  0  3  2  1   190
+SNESJacobianEval       2 1.0 1.0184e+00 1.0 1.69e+07 1.1 3.3e+04 2.0e+05 4.0e+00  6  1  0 10  0  14  2  1 20  0  8194
+SNESLineSearch         2 1.0 6.7739e-02 1.0 4.34e+05 1.1 7.9e+04 5.3e+03 2.0e+00  0  0  1  1  0   1  0  2  1  0  3107
+
+--- Event Stage 3: Timed solve with PCD-AMG
+
+BuildTwoSided         14 1.0 2.1500e-01 6.2 0.00e+00 0.0 2.9e+04 4.0e+00 1.4e+01  1  0  0  0  1   2  0  1  0  1     0
+BuildTwoSidedF        14 1.0 2.1537e-01 5.9 0.00e+00 0.0 5.8e+04 1.2e+05 1.4e+01  1  0  1 10  1   2  0  1 21  1     0
+SFPack              1311 1.0 1.4283e-02 2.2 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+SFUnpack            1311 1.0 5.6951e-04 2.7 5.40e+04 2.8 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0 34597
+VecDot                27 1.0 1.1960e-02 3.1 1.61e+06 1.1 0.0e+00 0.0e+00 2.7e+01  0  0  0  0  1   0  0  0  0  2 63641
+VecMDot              494 1.0 7.6845e-02 1.6 6.88e+07 1.1 0.0e+00 0.0e+00 4.9e+02  0  3  0  0 18   1  6  0  0 40 423825
+VecNorm              224 1.0 2.5155e-02 5.1 9.27e+06 1.1 0.0e+00 0.0e+00 2.2e+02  0  0  0  0  8   0  1  0  0 18 174496
+VecScale             681 1.0 1.4270e-03 1.3 5.13e+06 1.1 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0 1718725
+VecCopy              171 1.0 6.4463e-04 1.4 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+VecSet               564 1.0 4.8132e-03 1.5 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+VecAXPY              196 1.0 8.6147e-04 1.3 2.63e+06 1.1 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0 1434200
+VecWAXPY               2 1.0 1.1915e-04 2.4 5.96e+04 1.1 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0 236592
+VecMAXPY             420 1.0 2.6754e-02 1.2 7.72e+07 1.1 0.0e+00 0.0e+00 0.0e+00  0  3  0  0  0   0  7  0  0  0 1367044
+VecScatterBegin     1311 1.0 3.8351e-02 1.6 0.00e+00 0.0 4.6e+06 5.4e+03 0.0e+00  0  0 47 36  0   1  0 99 79  0     0
+VecScatterEnd       1311 1.0 1.5932e-01 5.1 5.40e+04 2.8 0.0e+00 0.0e+00 0.0e+00  1  0  0  0  0   1  0  0  0  0   124
+VecReduceArith         6 1.0 1.0153e-04 1.7 3.57e+05 1.1 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0 1665846
+VecReduceComm          2 1.0 3.4897e-02 1418.6 0.00e+00 0.0 0.0e+00 0.0e+00 2.0e+00  0  0  0  0  0   0  0  0  0  0     0
+VecNormalize         214 1.0 9.0240e-03 1.6 1.30e+07 1.1 0.0e+00 0.0e+00 2.1e+02  0  1  0  0  8   0  1  0  0 17 682781
+MatMult              512 1.0 7.7398e-01 1.1 8.75e+08 1.1 3.4e+06 6.8e+03 0.0e+00  5 41 36 35  0  11 82 75 75  0 556621
+MatSOR               149 1.0 3.6094e-02 2.2 1.19e+07 1.2 1.0e+06 6.0e+02 0.0e+00  0  1 10  1  0   0  1 22  2  0 148586
+MatConvert             2 1.0 1.7664e-04 2.7 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+MatAssemblyBegin      30 1.0 2.8547e-01 1.4 0.00e+00 0.0 5.8e+04 1.2e+05 1.4e+01  2  0  1 10  1   4  0  1 21  1     0
+MatAssemblyEnd        30 1.0 1.0880e-01 3.0 1.15e+06 2.9 0.0e+00 0.0e+00 0.0e+00  1  0  0  0  0   1  0  0  0  0  3867
+MatCreateSubMat        6 1.0 6.6999e-02 1.0 0.00e+00 0.0 0.0e+00 0.0e+00 1.0e+01  0  0  0  0  0   1  0  0  0  1     0
+MatZeroEntries         4 1.0 1.0861e-02 1.1 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+MatView               12 1.0 2.5236e-03 2.2 0.00e+00 0.0 0.0e+00 0.0e+00 1.4e+01  0  0  0  0  1   0  0  0  0  1     0
+MatSetValuesCOO        4 1.0 1.6298e-04 2.9 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+PCSetUp                6 1.0 1.4513e-01 1.0 1.88e+05 1.1 2.5e+04 2.4e+03 1.8e+01  1  0  0  0  1   2  0  1  0  1   624
+PCApply                9 1.0 5.3491e+00 1.0 9.90e+08 1.1 4.4e+06 5.3e+03 1.2e+03 34 46 45 34 43  82 93 95 74 95 90540
+KSPSolve_FS_0          9 1.0 5.1449e+00 1.0 9.83e+08 1.1 3.9e+06 5.7e+03 1.0e+03 32 46 41 33 38  79 92 85 72 84 93475
+KSPSolve_FS_1          9 1.0 1.3246e-01 1.0 3.25e+06 1.2 3.7e+05 6.0e+02 1.2e+02  1  0  4  0  4   2  0  8  1 10 11356
+KSPSolve_FS_Schu     149 1.0 2.5956e-01 1.1 1.85e+07 1.2 2.0e+06 6.0e+02 6.0e+02  2  1 21  2 22   4  2 43  4 48 32739
+KSPSetUp               6 1.0 1.3950e-05 11.6 0.00e+00 0.0 0.0e+00 0.0e+00 0.0e+00  0  0  0  0  0   0  0  0  0  0     0
+KSPSolve               2 1.0 5.4053e+00 1.0 1.05e+09 1.1 4.4e+06 5.4e+03 1.2e+03 34 49 46 35 44  83 98 96 77 98 95103
+KSPGMRESOrthog       205 1.0 7.7230e-02 1.2 1.39e+08 1.1 0.0e+00 0.0e+00 2.2e+02  0  6  0  0  8   1 13  0  0 18 854639
+SNESSolve              1 1.0 6.5467e+00 1.0 1.07e+09 1.1 4.6e+06 6.8e+03 1.2e+03 41 50 48 46 44 100 100 100 100 99 79848
+SNESFunctionEval       3 1.0 9.9255e-02 2.1 5.40e+04 2.8 1.2e+05 5.3e+03 0.0e+00  1  0  1  1  0   1  0  3  2  0   199
+SNESJacobianEval       2 1.0 1.0220e+00 1.0 1.69e+07 1.1 3.3e+04 2.0e+05 4.0e+00  6  1  0 10  0  16  2  1 21  0  8165
+SNESLineSearch         2 1.0 6.6395e-02 1.0 4.34e+05 1.1 7.9e+04 5.3e+03 2.0e+00  0  0  1  1  0   1  0  2  1  0  3170
+------------------------------------------------------------------------------------------------------------------------
+
+Object Type          Creations   Destructions. Reports information only for process 0.
+
+--- Event Stage 0: Main Stage
+
+           Container     2              0
+              Viewer     2              0
+           Index Set    32             20
+   IS L to G Mapping    30             27
+   Star Forest Graph     6              1
+              Vector     9              3
+              Matrix    16             12
+   Matrix Null Space     1              0
+      Preconditioner     1              0
+       Krylov Solver     1              0
+                SNES     1              0
+              DMSNES     1              0
+      SNESLineSearch     1              0
+    Distributed Mesh     1              0
+     Discrete System     1              0
+           Weak Form     1              0
+
+--- Event Stage 1: PCMPI
+
+
+--- Event Stage 2: WarmUp solve with PCD-AMG
+
+           Container     6              0
+           Index Set    94             58
+   IS L to G Mapping    55             48
+   Star Forest Graph    26              0
+              Vector   467            335
+              Matrix    81             31
+   Matrix Null Space     1              0
+      Preconditioner    12              1
+       Krylov Solver     8              1
+     DMKSP interface     1              0
+    Distributed Mesh     4              0
+     Discrete System     4              0
+           Weak Form     4              0
+
+--- Event Stage 3: Timed solve with PCD-AMG
+
+           Index Set    12             12
+   IS L to G Mapping    48             48
+              Vector   298            298
+              Matrix    24             24
+========================================================================================================================
+Average time to get PetscTime(): 3.3e-08
+Average time for MPI_Barrier(): 1.2056e-05
+Average time for zero size MPI_Send(): 8.09477e-07
+#PETSc Option Table entries:
+-options_left # (source: code)
+-rb_ksp_converged_reason # (source: code)
+-rb_ksp_gmres_modifiedgramschmidt # (source: code)
+-rb_ksp_max_it 1000 # (source: code)
+-rb_ksp_monitor # (source: code)
+-rb_ksp_type fgmres # (source: code)
+-rb_pc_python_type fenicsx_pctools.WrappedPC # (source: code)
+-rb_pc_type python # (source: code)
+-rb_snes_converged_reason # (source: code)
+-rb_snes_linesearch_type basic # (source: code)
+-rb_snes_max_it 25 # (source: code)
+-rb_snes_monitor # (source: code)
+-rb_snes_rtol 1e-08 # (source: code)
+-rb_snes_type newtonls # (source: code)
+-rb_snes_view # (source: code)
+-rb_wrapped_fieldsplit_0_ksp_converged_reason # (source: code)
+-rb_wrapped_fieldsplit_0_ksp_rtol 0.01 # (source: code)
+-rb_wrapped_fieldsplit_0_ksp_type gmres # (source: code)
+-rb_wrapped_fieldsplit_0_pc_python_type fenicsx_pctools.WrappedPC # (source: code)
+-rb_wrapped_fieldsplit_0_pc_type python # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_0_ksp_type preonly # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_0_pc_python_type fenicsx_pctools.WrappedPC # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_0_pc_type python # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_0_wrapped_pc_hypre_boomeramg_agg_nl 1 # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_0_wrapped_pc_hypre_boomeramg_agg_num_paths 2 # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_0_wrapped_pc_hypre_boomeramg_coarsen_type HMIS # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_0_wrapped_pc_hypre_boomeramg_interp_type ext+i # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_0_wrapped_pc_hypre_boomeramg_no_CF # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_0_wrapped_pc_hypre_boomeramg_P_max 4 # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_0_wrapped_pc_hypre_type boomeramg # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_0_wrapped_pc_type hypre # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_1_ksp_type preonly # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_1_pc_python_type fenicsx_pctools.PCDPC_vY # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_1_pc_type python # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_1_pcd_Ap_ksp_type preonly # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_1_pcd_Ap_pc_hypre_boomeramg_agg_nl 1 # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_1_pcd_Ap_pc_hypre_boomeramg_agg_num_paths 2 # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_1_pcd_Ap_pc_hypre_boomeramg_coarsen_type HMIS # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_1_pcd_Ap_pc_hypre_boomeramg_interp_type ext+i # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_1_pcd_Ap_pc_hypre_boomeramg_no_CF # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_1_pcd_Ap_pc_hypre_boomeramg_P_max 4 # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_1_pcd_Ap_pc_hypre_type boomeramg # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_1_pcd_Ap_pc_type hypre # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_1_pcd_Mp_ksp_max_it 2 # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_1_pcd_Mp_ksp_type richardson # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_fieldsplit_1_pcd_Mp_pc_type sor # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_pc_fieldsplit_schur_fact_type lower # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_pc_fieldsplit_type schur # (source: code)
+-rb_wrapped_fieldsplit_0_wrapped_pc_type fieldsplit # (source: code)
+-rb_wrapped_fieldsplit_1_ksp_converged_reason # (source: code)
+-rb_wrapped_fieldsplit_1_ksp_rtol 0.0001 # (source: code)
+-rb_wrapped_fieldsplit_1_ksp_type gmres # (source: code)
+-rb_wrapped_fieldsplit_1_pc_python_type fenicsx_pctools.WrappedPC # (source: code)
+-rb_wrapped_fieldsplit_1_pc_type python # (source: code)
+-rb_wrapped_fieldsplit_1_wrapped_pc_hypre_boomeramg_agg_nl 1 # (source: code)
+-rb_wrapped_fieldsplit_1_wrapped_pc_hypre_boomeramg_agg_num_paths 2 # (source: code)
+-rb_wrapped_fieldsplit_1_wrapped_pc_hypre_boomeramg_coarsen_type HMIS # (source: code)
+-rb_wrapped_fieldsplit_1_wrapped_pc_hypre_boomeramg_interp_type ext+i # (source: code)
+-rb_wrapped_fieldsplit_1_wrapped_pc_hypre_boomeramg_no_CF # (source: code)
+-rb_wrapped_fieldsplit_1_wrapped_pc_hypre_boomeramg_P_max 4 # (source: code)
+-rb_wrapped_fieldsplit_1_wrapped_pc_hypre_type boomeramg # (source: code)
+-rb_wrapped_fieldsplit_1_wrapped_pc_type hypre # (source: code)
+-rb_wrapped_pc_fieldsplit_type multiplicative # (source: code)
+-rb_wrapped_pc_type fieldsplit # (source: code)
+#End of PETSc Option Table entries
+Compiled without FORTRAN kernels
+Compiled with full precision matrices (default)
+sizeof(short) 2 sizeof(int) 4 sizeof(long) 8 sizeof(void*) 8 sizeof(PetscScalar) 8 sizeof(PetscInt) 4
+Configure options: --with-blaslapack-dir=/opt/apps/resif/aion/2020b/epyc/software/OpenBLAS/0.3.12-GCC-10.2.0/lib --COPTFLAGS="-O3 -march=znver2" --CXXOPTFLAGS="-O3 -march=znver2" --FOPTFLAGS="-O3 -march=znver2" --with-cc=mpicc --with-cxx=mpicxx --with-fc=mpif90 --with-make-np=16 --with-mpiexec=srun --download-metis --download-parmetis --download-scalapack --download-hypre --download-mumps --with-scalar-type=real --with-debugging=0 --with-shared-libraries --with-fortran-bindings=no --with-64-bit-indices=no --prefix=/scratch/users/jhale//fenicsx-aion-gompi-32-0.7.0-r1
+-----------------------------------------
+Libraries compiled on 2023-10-10 14:52:34 on aion-0250 
+Machine characteristics: Linux-4.18.0-372.32.1.el8_6.x86_64-x86_64-with-glibc2.2.5
+Using PETSc directory: /scratch/users/jhale/fenicsx-aion-gompi-32-0.7.0-r1
+Using PETSc arch: 
+-----------------------------------------
+
+Using C compiler: mpicc  -fPIC -Wall -Wwrite-strings -Wno-unknown-pragmas -Wno-lto-type-mismatch -fstack-protector -fvisibility=hidden -O3 -march=znver2  
+Using Fortran compiler: mpif90  -fPIC -Wall -ffree-line-length-none -ffree-line-length-0 -Wno-lto-type-mismatch -Wno-unused-dummy-argument -O3 -march=znver2    
+-----------------------------------------
+
+Using include paths: -I/scratch/users/jhale/fenicsx-aion-gompi-32-0.7.0-r1/include
+-----------------------------------------
+
+Using C linker: mpicc
+Using Fortran linker: mpif90
+Using libraries: -Wl,-rpath,/scratch/users/jhale/fenicsx-aion-gompi-32-0.7.0-r1/lib -L/scratch/users/jhale/fenicsx-aion-gompi-32-0.7.0-r1/lib -lpetsc -Wl,-rpath,/scratch/users/jhale/fenicsx-aion-gompi-32-0.7.0-r1/lib -L/scratch/users/jhale/fenicsx-aion-gompi-32-0.7.0-r1/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/OpenBLAS/0.3.12-GCC-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/OpenBLAS/0.3.12-GCC-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/UCX/1.9.0-GCCcore-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/UCX/1.9.0-GCCcore-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/OpenMPI/4.0.5-GCC-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/OpenMPI/4.0.5-GCC-10.2.0/lib -Wl,-rpath,/mnt/irisgpfs/apps/resif/aion/2020b/epyc/software/GCCcore/10.2.0/lib/gcc/x86_64-pc-linux-gnu/10.2.0 -L/mnt/irisgpfs/apps/resif/aion/2020b/epyc/software/GCCcore/10.2.0/lib/gcc/x86_64-pc-linux-gnu/10.2.0 -Wl,-rpath,/mnt/irisgpfs/apps/resif/aion/2020b/epyc/software/GCCcore/10.2.0/lib/gcc -L/mnt/irisgpfs/apps/resif/aion/2020b/epyc/software/GCCcore/10.2.0/lib/gcc -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/Bison/3.7.1-GCCcore-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/Bison/3.7.1-GCCcore-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/Boost/1.74.0-GCC-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/Boost/1.74.0-GCC-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/OpenBLAS/0.3.12-GCC-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/OpenBLAS/0.3.12-GCC-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/Python/3.8.6-GCCcore-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/Python/3.8.6-GCCcore-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/libffi/3.3-GCCcore-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/libffi/3.3-GCCcore-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/GMP/6.2.0-GCCcore-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/GMP/6.2.0-GCCcore-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/SQLite/3.33.0-GCCcore-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/SQLite/3.33.0-GCCcore-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/Tcl/8.6.10-GCCcore-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/Tcl/8.6.10-GCCcore-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/libreadline/8.0-GCCcore-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/libreadline/8.0-GCCcore-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/flex/2.6.4-GCCcore-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/flex/2.6.4-GCCcore-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/libarchive/3.4.3-GCCcore-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/libarchive/3.4.3-GCCcore-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/cURL/7.72.0-GCCcore-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/cURL/7.72.0-GCCcore-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/bzip2/1.0.8-GCCcore-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/bzip2/1.0.8-GCCcore-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/ncurses/6.2-GCCcore-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/ncurses/6.2-GCCcore-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/HDF5/1.10.7-gompi-2020b/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/HDF5/1.10.7-gompi-2020b/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/Szip/2.1.1-GCCcore-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/Szip/2.1.1-GCCcore-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/OpenMPI/4.0.5-GCC-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/OpenMPI/4.0.5-GCC-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/hwloc/2.2.0-GCCcore-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/hwloc/2.2.0-GCCcore-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/libpciaccess/0.16-GCCcore-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/libpciaccess/0.16-GCCcore-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/libxml2/2.9.10-GCCcore-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/libxml2/2.9.10-GCCcore-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/XZ/5.2.5-GCCcore-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/XZ/5.2.5-GCCcore-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/numactl/2.0.13-GCCcore-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/numactl/2.0.13-GCCcore-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/binutils/2.35-GCCcore-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/binutils/2.35-GCCcore-10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/zlib/1.2.11-GCCcore-10.2.0/lib64 -L/opt/apps/resif/aion/2020b/epyc/software/zlib/1.2.11-GCCcore-10.2.0/lib64 -Wl,-rpath,/mnt/irisgpfs/apps/resif/aion/2020b/epyc/software/GCCcore/10.2.0/lib64 -L/mnt/irisgpfs/apps/resif/aion/2020b/epyc/software/GCCcore/10.2.0/lib64 -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/Bison/3.7.1-GCCcore-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/Bison/3.7.1-GCCcore-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/Boost/1.74.0-GCC-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/Boost/1.74.0-GCC-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/Python/3.8.6-GCCcore-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/Python/3.8.6-GCCcore-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/libffi/3.3-GCCcore-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/libffi/3.3-GCCcore-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/GMP/6.2.0-GCCcore-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/GMP/6.2.0-GCCcore-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/SQLite/3.33.0-GCCcore-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/SQLite/3.33.0-GCCcore-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/Tcl/8.6.10-GCCcore-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/Tcl/8.6.10-GCCcore-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/libreadline/8.0-GCCcore-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/libreadline/8.0-GCCcore-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/flex/2.6.4-GCCcore-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/flex/2.6.4-GCCcore-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/libarchive/3.4.3-GCCcore-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/libarchive/3.4.3-GCCcore-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/cURL/7.72.0-GCCcore-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/cURL/7.72.0-GCCcore-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/bzip2/1.0.8-GCCcore-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/bzip2/1.0.8-GCCcore-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/ncurses/6.2-GCCcore-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/ncurses/6.2-GCCcore-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/HDF5/1.10.7-gompi-2020b/lib -L/opt/apps/resif/aion/2020b/epyc/software/HDF5/1.10.7-gompi-2020b/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/Szip/2.1.1-GCCcore-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/Szip/2.1.1-GCCcore-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/UCX/1.9.0-GCCcore-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/UCX/1.9.0-GCCcore-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/hwloc/2.2.0-GCCcore-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/hwloc/2.2.0-GCCcore-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/libpciaccess/0.16-GCCcore-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/libpciaccess/0.16-GCCcore-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/libxml2/2.9.10-GCCcore-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/libxml2/2.9.10-GCCcore-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/XZ/5.2.5-GCCcore-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/XZ/5.2.5-GCCcore-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/numactl/2.0.13-GCCcore-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/numactl/2.0.13-GCCcore-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/binutils/2.35-GCCcore-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/binutils/2.35-GCCcore-10.2.0/lib -Wl,-rpath,/opt/apps/resif/aion/2020b/epyc/software/zlib/1.2.11-GCCcore-10.2.0/lib -L/opt/apps/resif/aion/2020b/epyc/software/zlib/1.2.11-GCCcore-10.2.0/lib -Wl,-rpath,/mnt/irisgpfs/apps/resif/aion/2020b/epyc/software/GCCcore/10.2.0/lib -L/mnt/irisgpfs/apps/resif/aion/2020b/epyc/software/GCCcore/10.2.0/lib -lHYPRE -ldmumps -lmumps_common -lpord -lpthread -lscalapack -lopenblas -lpthread -lparmetis -lmetis -lm -ldl -lmpi_usempif08 -lmpi_usempi_ignore_tkr -lmpi_mpifh -lmpi -lgfortran -lm -lgfortran -lm -lgcc_s -lquadmath -lstdc++ -lquadmath -ldl
+-----------------------------------------
+
