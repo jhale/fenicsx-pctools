@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier:    LGPL-3.0-or-later
 
-"""A collection of classes and functions for handling of custom ``Mat``-like objects."""
+"""Tools for implementation of custom PETSc/petsc4py Mat-like objects."""
 
 from .splittable import (
     SplittableMatrixBase,

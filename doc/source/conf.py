@@ -90,6 +90,7 @@ always_use_bars_union = True
 typehints_fully_qualified = True
 typehints_defaults = "braces-after"
 typehints_document_rtype = True
+typehints_document_rtype_none = False
 typehints_use_rtype = False
 typehints_use_signature = False
 typehints_use_signature_return = False
