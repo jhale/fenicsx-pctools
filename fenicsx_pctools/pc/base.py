@@ -22,10 +22,10 @@ class PCBase(metaclass=abc.ABCMeta):
     """
 
     needs_python_amat: bool = False
-    """Set this to ``True`` if the system matrix needs to be of type 'python'."""
+    """Set this to ``True`` if the system matrix needs to be of type ``"python"``."""
 
     needs_python_pmat: bool = False
-    """Set this to ``True`` if the preconditioner matrix needs to be of type 'python'."""
+    """Set this to ``True`` if the preconditioner matrix needs to be of type ``"python"``."""
 
     def __init__(self) -> None:
         self.initialized = False
@@ -36,7 +36,7 @@ class PCBase(metaclass=abc.ABCMeta):
         """Initialize preconditioner.
 
         Parameters:
-            pc: preconditioner of type "python"
+            pc: preconditioner of type ``"python"``
         """
         pass
 
@@ -45,7 +45,7 @@ class PCBase(metaclass=abc.ABCMeta):
         """Update preconditioner.
 
         Parameters:
-            pc: preconditioner of type "python"
+            pc: preconditioner of type ``"python"``
         """
         pass
 
@@ -54,7 +54,7 @@ class PCBase(metaclass=abc.ABCMeta):
         """Apply the preconditioner to ``x`` and return the result in ``y``.
 
         Parameters:
-            pc: preconditioner of type "python"
+            pc: preconditioner of type ``"python"``
             x: input vector
             y: output vector
         """
@@ -65,7 +65,7 @@ class PCBase(metaclass=abc.ABCMeta):
         """Apply the transpose of the preconditioner to ``x`` and return the result in ``y``.
 
         Parameters:
-            pc: preconditioner of type "python"
+            pc: preconditioner of type ``"python"``
             x: input vector
             y: output vector
         """
@@ -81,7 +81,7 @@ class PCBase(metaclass=abc.ABCMeta):
         set via runtime options.
 
         Parameters:
-            pc: preconditioner of type "python"
+            pc: preconditioner of type ``"python"``
 
         Raises:
             ValueError: if an operator associated with ``pc`` is of a wrong type
@@ -107,7 +107,7 @@ class PCBase(metaclass=abc.ABCMeta):
         """View the preconditioner.
 
         Parameters:
-            pc: preconditioner of type "python"
+            pc: preconditioner of type ``"python"``
             viewer: a viewer instance or ``None`` for the default viewer
         """
         if viewer is None:

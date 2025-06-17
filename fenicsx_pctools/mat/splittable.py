@@ -238,7 +238,7 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
         """Prepare index sets and set sizes of the wrapper to match sizes of the wrapped matrix.
 
         Parameters:
-            mat: matrix of type "python"
+            mat: matrix of type ``"python"``
         """
         # Initialize cache
         spaces = self.function_spaces  # calls self._get_spaces
@@ -263,7 +263,7 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
         """Destroy created index sets.
 
         Parameters:
-            mat: matrix of type "python"
+            mat: matrix of type ``"python"``
         """
         for iset_row, iset_col in zip(*self.ISes):
             iset_row.destroy()
@@ -275,7 +275,7 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
         and return it.
 
         Parameters:
-            mat: matrix of type "python"
+            mat: matrix of type ``"python"``
             copy: if ``True``, copy also the values of the wrapped matrix
         """
 
@@ -293,7 +293,7 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
         """View the matrix.
 
         Parameters:
-            mat: matrix of type "python"
+            mat: matrix of type ``"python"``
             viewer: a viewer instance or ``None`` for the default viewer
         """
         if viewer is None:
@@ -428,7 +428,7 @@ class SplittableMatrixBlock(SplittableMatrixBase):
         the result.
 
         Parameters:
-            mat: matrix of type "python"
+            mat: matrix of type ``"python"``
             isrow: row indices to be extracted
             iscol: column indices to be extracted, same as ``isrow`` if ``None``
             submat: optional resultant matrix
@@ -599,7 +599,7 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
         the result.
 
         Parameters:
-            mat: matrix of type "python"
+            mat: matrix of type ``"python"``
             isrow: row indices to be extracted
             iscol: column indices to be extracted, same as ``isrow`` if ``None``
             submat: optional resultant matrix

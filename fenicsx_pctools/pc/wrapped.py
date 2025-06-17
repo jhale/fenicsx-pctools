@@ -14,15 +14,20 @@ from fenicsx_pctools.pc.base import PCBase
 
 
 class WrappedPC(PCBase):
-    r"""A python PC object that works with operators wrapped as splittable matrices.
+    r"""A Python context for preconditioners that are supposed to work with operators wrapped
+    as splittable matrices.
+
     In fact, this is a wrapper for another PETSc PC object which is normally configurable via
-    PETSc options using the extra prefix ``wrapped_``.
+    PETSc options using the extra prefix ``"wrapped_"``.
+
+    Parameters:
+        pc: preconditioner of type ``"python"``
     """
 
     _prefix = "wrapped_"
     needs_python_pmat = True
 
-    def initialize(self, pc):
+    def initialize(self, pc: PETSc.PC) -> None:
         if pc.getType() != "python":
             raise ValueError("Preconditioner must be of type 'python'")
 
@@ -69,7 +74,7 @@ class WrappedPC(PCBase):
             pc.setFromOptions()
         self.pc = pc
 
-    def update(self, pc):
+    def update(self, pc: PETSc.PC) -> None:
         if self.pc.getType() == "fieldsplit":
             for subksp in self.pc.getFieldSplitSubKSP():
                 subpc = subksp.getPC()
@@ -78,13 +83,13 @@ class WrappedPC(PCBase):
                     subctx = subpc.getPythonContext()
                     subctx.update(subpc)
 
-    def apply(self, pc, x, y):
+    def apply(self, pc: PETSc.PC, x: PETSc.Vec, y: PETSc.Vec) -> None:
         self.pc.apply(x, y)
 
-    def applyTranspose(self, pc, x, y):
+    def applyTranspose(self, pc: PETSc.PC, x: PETSc.Vec, y: PETSc.Vec) -> None:
         self.pc.applyTranspose(x, y)
 
-    def view(self, pc, viewer=None):
+    def view(self, pc: PETSc.PC, viewer: PETSc.Viewer | None = None) -> None:
         super().view(pc, viewer)
         if hasattr(self, "pc"):
             viewer.printfASCII("PC to apply inverse:\n")
