@@ -21,9 +21,6 @@ class PCDPCBase(PCBase):
     needs_python_pmat = True
 
     def initialize(self, pc: PETSc.PC) -> None:
-        if pc.getType() != "python":
-            raise ValueError("Preconditioner must be of type 'python'")
-
         prefix = pc.getOptionsPrefix() or ""
         prefix += self._prefix
 
