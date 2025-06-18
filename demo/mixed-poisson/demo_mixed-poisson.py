@@ -311,38 +311,15 @@ options["pc_fieldsplit_1_fields"] = "1"
 # To actually compute $\tilde{P}_{\mathrm{upper}}^{-1}$ we still must specify
 # the form of both $\tilde{A}^{-1}$ and $\tilde{S}^{-1}$.
 #
-# One reasonable choice is to take $\tilde{A}^{-1}$ as a single application of a
-# block Jacobi preconditioned inverse mass matrix on the finite element flux
-# space $Q_h$. This can be specified using the following code. We first setup a
-# class `MassInv` with a method `apply` that will apply the approximate inverse
-# of the mass matrix to the vector `x` and place the result in `y`. We then
-# tell PETSc to use this method when it needs the action of $\tilde{A}^{-1}$.
-
-# +
-m = inner(q, q_t) * dx
-M = assemble_matrix(fem.form(m))
-M.assemble()
-
-
-class MassInv:
-    def setUp(self, pc):
-        self.ksp = PETSc.KSP().create()
-        self.ksp.setOperators(M)
-        self.ksp.setOptionsPrefix(pc.getOptionsPrefix() + "MassInv_")
-        self.ksp.setFromOptions()
-
-    def apply(self, pc, x, y):
-        self.ksp.solve(x, y)
-
+# One reasonable choice is to take $\tilde{A}^{-1}$ as a single application of
+# a block Jacobi preconditioned inverse mass matrix on the finite element flux
+# space $Q_h$. We note that the operator $\tilde{A} = A$ and by default PETSc
+# re-uses the upper left block $A$ in $K$. This can be specified using the
+# following code.
 
 options.prefixPush("fieldsplit_0_")
 options["ksp_type"] = "preonly"
-options["pc_type"] = "python"
-options["pc_python_type"] = __name__ + ".MassInv"
-options.prefixPush("MassInv_")
-options["ksp_type"] = "preonly"
 options["pc_type"] = "bjacobi"
-options.prefixPop()  # MassInv_
 options.prefixPop()  # fieldsplit_0_
 
 # -
