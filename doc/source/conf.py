@@ -59,9 +59,9 @@ autodoc_default_options = {
     "show-inheritance": True,
     "imported-members": True,
     "undoc-members": True,
-    "private-members": True,
+    "private-members": False,
     "special-members": False,
-    "ignore-module-all": True,  # TODO: Not working - missing private functions (unless in __all__)!
+    "ignore-module-all": False,
 }
 autosummary_generate = True
 autosummary_ignore_module_all = False
