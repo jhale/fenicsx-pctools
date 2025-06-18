@@ -20,7 +20,7 @@ class PCDPCBase(PCBase):
     _prefix = "pcd_"
     needs_python_pmat = True
 
-    def initialize(self, pc):
+    def initialize(self, pc: PETSc.PC) -> None:
         if pc.getType() != "python":
             raise ValueError("Preconditioner must be of type 'python'")
 
@@ -133,23 +133,38 @@ class PCDPCBase(PCBase):
         self.Mp.destroy()
         self.ghosted_workvec.destroy()
 
-    def update(self, pc):
+    def update(self, pc: PETSc.PC) -> None:
         self.Kp.zeroEntries()
         fem.petsc.assemble_matrix(self.Kp, self.form_Kp, bcs=[], diagonal=1.0)
         self.Kp.assemble()
 
-    def get_work_vecs(self, v, num):
-        """Return *num* of work vectors initially duplicated from *v*."""
+    def get_work_vecs(self, v: PETSc.Vec, N: int) -> tuple[PETSc.Vec]:
+        """Return ``N`` work vectors, all of them duplicated from ``v``.
+
+        Parameters:
+            v: vector to be duplicated
+            N: number of vectors to be returned
+
+        Returns:
+            N copies of vector ``v``
+        """
         try:
             vecs = self._work_vecs
-            assert len(vecs) == num
+            assert len(vecs) == N
         except AttributeError:
-            self._work_vecs = vecs = tuple(v.duplicate() for i in range(num))
+            self._work_vecs = vecs = tuple(v.duplicate() for i in range(N))
         except AssertionError:
             raise ValueError("Number of work vectors cannot be changed")
         return vecs
 
-    def bcs_applier(self, x, transpose=False):
+    def bcs_applier(self, x: PETSc.Vec, transpose: bool = False) -> None:
+        """Apply subfield BC associated with the discrete pressure Laplacian :math:`A_p`
+        to RHS vector ``x``.
+
+        Parameters:
+            x: RHS vector
+            transpose: if ``True``, apply lifting from transposed :math:`A_p`
+        """
         if not self.bcs_pcd:
             return
 
@@ -177,7 +192,7 @@ class PCDPCBase(PCBase):
 
         y.copy(result=x)  # move truly updated values back to x
 
-    def view(self, pc, viewer=None):
+    def view(self, pc: PETSc.PC, viewer: PETSc.Viewer | None = None) -> None:
         super().view(pc, viewer)
         viewer.printfASCII("Pressure-Convection-Diffusion inverse:\n")
         viewer.printfASCII("KSP solver for discrete Laplace operator on the pressure space:\n")
@@ -191,13 +206,13 @@ class PCDPC_vX(PCDPCBase):
     :cite:t:`olshanskii_pressure_2007`, see also :cite:t:`blechta_towards_2019`.
     """
 
-    def initialize(self, pc):
+    def initialize(self, pc: PETSc.PC) -> None:
         super().initialize(pc)
 
-    def update(self, pc):
+    def update(self, pc: PETSc.PC) -> None:
         super().update(pc)
 
-    def apply(self, pc, x, y):
+    def apply(self, pc: PETSc.PC, x: PETSc.Vec, y: PETSc.Vec) -> None:
         r"""This method implements the action of the inverse of the approximate
         Schur complement :math:`-\hat{S}^{-1}`, namely
 
@@ -208,17 +223,17 @@ class PCDPC_vX(PCDPCBase):
         where :math:`K_p` denotes the discrete pressure convection matrix, :math:`A_p` denotes the
         discrete Laplace operator on the pressure space and :math:`M_p` is the pressure mass matrix.
         Note that the solve :math:`A_p^{-1} x` is performed with the application of a subfield BC
-        on matrix :math:`A_p` and RHS :math:`x` (but only in that term). The subfield BC,
+        on matrix :math:`A_p` and RHS :math:`x`. The subfield BC,
         together with other necessary information, should be provided as keyword arguments to
-        the preconditioner matrix of type "python", e.g.
+        the preconditioner matrix of type ``"python"``, e.g.
         :py:class:`fenicsx_pctools.mat.splittable.SplittableMatrixBlock`.
         The expected keyword arguments include the following items:
 
-            + `"nu"` : kinematic viscosity :math:`\nu` used to scale :math:`M_p` and :math:`K_p`,
+            + ``"nu"``: kinematic viscosity :math:`\nu` used to scale :math:`M_p` and :math:`K_p`,
               both by :math:`\nu^{-1}`
-            + `"v"` : FE representation of the velocity vector computed as part the current
+            + ``"v"``: FE representation of the velocity vector computed as part the current
               nonlinear iterate (used to assemble :math:`K_p`)
-            + `"bcs_pcd"` : homogeneous Dirichlet BC at **inflow** boundary
+            + ``"bcs_pcd"``: homogeneous Dirichlet BC at **inflow** boundary
 
         .. note::
 
@@ -244,7 +259,7 @@ class PCDPC_vX(PCDPCBase):
         # TODO: Check the sign!
         y.scale(-1.0)  # y = -y
 
-    def applyTranspose(self, pc, x, y):
+    def applyTranspose(self, pc: PETSc.PC, x: PETSc.Vec, y: PETSc.Vec) -> None:
         (z,) = self.get_work_vecs(x, 1)
 
         self.ksp_Mp.solveTranspose(x, y)  # y = M_p^{-T} x
@@ -261,13 +276,13 @@ class PCDPC_vY(PCDPCBase):
     by :cite:t:`elman_finite_2014`, see also :cite:t:`blechta_towards_2019`.
     """
 
-    def initialize(self, pc):
+    def initialize(self, pc: PETSc.PC) -> None:
         super().initialize(pc)
 
-    def update(self, pc):
+    def update(self, pc: PETSc.PC) -> None:
         super().update(pc)
 
-    def apply(self, pc, x, y):
+    def apply(self, pc: PETSc.PC, x: PETSc.Vec, y: PETSc.Vec) -> None:
         r"""This method implements the action of the inverse of the approximate
         Schur complement :math:`- \hat{S}^{-1}`, namely
 
@@ -278,18 +293,18 @@ class PCDPC_vY(PCDPCBase):
         where :math:`K_p` denotes the discrete pressure convection matrix, :math:`A_p` denotes the
         discrete Laplace operator on the pressure space and :math:`M_p` is the pressure mass matrix.
         Note that the solve :math:`A_p^{-1} x` is performed with the application of a subfield BC
-        on matrix :math:`A_p` and RHS :math:`x` (but only in that term). The subfield BC,
+        on matrix :math:`A_p` and RHS :math:`x`. The subfield BC,
         together with other necessary information, should be provided as keyword arguments to
-        the preconditioner matrix of type "python", e.g.
+        the preconditioner matrix of type ``"python"``, e.g.
         :py:class:`fenicsx_pctools.mat.splittable.SplittableMatrixBlock`.
         The expected keyword arguments include the following items:
 
-            + `"nu"` : kinematic viscosity :math:`\nu` used to scale :math:`M_p` and :math:`K_p`,
+            + ``"nu"``: kinematic viscosity :math:`\nu` used to scale :math:`M_p` and :math:`K_p`,
               both by :math:`\nu^{-1}`
-            + `"v"` : FE representation of the velocity vector computed as part the current
+            + ``"v"``: FE representation of the velocity vector computed as part the current
               nonlinear iterate (used to assemble :math:`K_p`)
-            + `"bcs_pcd"` : homogeneous Dirichlet BC at **outflow** boundary
-            + `"ds_in"`: measure used to get a surface integral at inflow boundary that contributes
+            + ``"bcs_pcd"``: homogeneous Dirichlet BC at **outflow** boundary
+            + ``"ds_in"``: measure used to get a surface integral at inflow boundary that contributes
               to :math:`K_p`
 
         .. note::
@@ -315,7 +330,7 @@ class PCDPC_vY(PCDPCBase):
         # FIXME: How is with the sign business?
         y.scale(-1.0)  # y = -y
 
-    def applyTranspose(self, pc, x, y):
+    def applyTranspose(self, pc: PETSc.PC, x: PETSc.Vec, y: PETSc.Vec) -> None:
         (z,) = self.get_work_vecs(x, 1)
 
         x.copy(result=z)  # z = x
