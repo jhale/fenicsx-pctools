@@ -45,7 +45,7 @@ def target_mesh_size():
     assert np.polyval(polycoeffs, 10) == num_dofs(10)
 
     def _target_mesh_size(comm_size, num_coredofs):
-        candidates = np.roots(polycoeffs[:-1] + [polycoeffs[-1] - num_coredofs * comm_size])
+        candidates = np.roots(polycoeffs[:-1] + [polycoeffs[-1] - num_coredofs * comm_size])  # noqa: RUF005
         N = [int(np.round(N.real)) for N in candidates if np.isreal(N)]
         assert len(N) == 1
 
