@@ -246,6 +246,11 @@ class PCDPC_vX(PCDPCBase):
 
             Keeping the identity term separated is important to get a stability with respect to
             the leading Stokes term.
+
+        Parameters:
+            pc: preconditioner of type ``"python"``
+            x: input vector
+            y: output vector
         """
 
         (z,) = self.get_work_vecs(x, 1)
@@ -318,6 +323,11 @@ class PCDPC_vY(PCDPCBase):
 
             Keeping the identity term separated is important to get a stability with respect to
             the leading Stokes term.
+
+        Parameters:
+            pc: preconditioner of type ``"python"``
+            x: input vector
+            y: output vector
         """
         (z, a) = self.get_work_vecs(x, 2)
 
