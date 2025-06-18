@@ -135,8 +135,8 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
 
     Any derived class must implement the following methods:
 
-    - :meth:`_get_spaces`
-    - :meth:`_create_index_sets`
+    - :meth:`get_spaces`
+    - :meth:`create_index_sets`
 
     Parameters:
         A: matrix to be wrapped up using this class
@@ -200,11 +200,11 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
             test spaces, trial spaces
         """
         if self._spaces is None:
-            self._spaces = self._get_spaces()
+            self._spaces = self.get_spaces()
         return self._spaces
 
     @abc.abstractmethod
-    def _get_spaces(self) -> tuple[list[FunctionSpace], list[FunctionSpace]]:
+    def get_spaces(self) -> tuple[list[FunctionSpace], list[FunctionSpace]]:
         """Implementation of the method for extraction of function spaces from the associated
         bilinear form.
 
@@ -221,11 +221,11 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
             row index sets, column index sets
         """
         if self._ISes is None:
-            self._ISes = self._create_index_sets()
+            self._ISes = self.create_index_sets()
         return self._ISes
 
     @abc.abstractmethod
-    def _create_index_sets(self) -> tuple[list[PETSc.IS], list[PETSc.IS]]:
+    def create_index_sets(self) -> tuple[list[PETSc.IS], list[PETSc.IS]]:
         """Implementation of the method for extraction of index sets from the associated
         matrix data.
 
@@ -241,8 +241,8 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
             mat: matrix of type ``"python"``
         """
         # Initialize cache
-        spaces = self.function_spaces  # calls self._get_spaces
-        index_sets = self.ISes  # calls self._create_index_sets
+        spaces = self.function_spaces  # calls self.get_spaces
+        index_sets = self.ISes  # calls self.create_index_sets
         assert (len(spaces[0]), len(spaces[1])) == self._block_shape, "Unexpected number of spaces"
 
         # Check that index sets have correct lengths
@@ -340,7 +340,7 @@ class SplittableMatrixBlock(SplittableMatrixBase):
         self._block_shape = (num_brows, num_bcols)
         self._layouts = (ml_brows, ml_bcols)
 
-    def _get_spaces(self) -> tuple[list[FunctionSpace], list[FunctionSpace]]:
+    def get_spaces(self) -> tuple[list[FunctionSpace], list[FunctionSpace]]:
         num_brows, num_bcols = self._block_shape
         V = (
             np.full(num_brows, None).tolist(),
@@ -363,7 +363,7 @@ class SplittableMatrixBlock(SplittableMatrixBase):
                             raise RuntimeError("Mismatched trial space detected in a column.")
         return V
 
-    def _create_index_sets(self) -> tuple[list[PETSc.IS], list[PETSc.IS]]:
+    def create_index_sets(self) -> tuple[list[PETSc.IS], list[PETSc.IS]]:
         # FIXME: Explore in detail: https://github.com/FEniCS/dolfinx/pull/1225
         #   Avoid using LG map and keep index sets with locally owned indices!
         #   Each index set, created as a stride of size `bs * size_local` (bs ... block size)
@@ -576,7 +576,7 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
             msg = "Wrapping mixed monolithic matrices as splittable matrices not supported"
             raise NotImplementedError(msg)
 
-    def _get_spaces(self) -> tuple[list[FunctionSpace], list[FunctionSpace]]:
+    def get_spaces(self) -> tuple[list[FunctionSpace], list[FunctionSpace]]:
         num_brows, num_bcols = self._block_shape
         return (
             [self._test_space.sub(i).collapse() for i in range(num_brows)],
@@ -584,7 +584,7 @@ class SplittableMatrixMonolithic(SplittableMatrixBase):
         )
 
     # FIXME: Implement this!
-    def _create_index_sets(self) -> tuple[list[PETSc.IS], list[PETSc.IS]]:
+    def create_index_sets(self) -> tuple[list[PETSc.IS], list[PETSc.IS]]:
         return ([], [])
 
     def createSubMatrix(
