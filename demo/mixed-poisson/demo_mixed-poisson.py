@@ -118,7 +118,6 @@ from dolfinx.fem.petsc import (
     assemble_matrix,
     assemble_matrix_block,
     assemble_vector_block,
-    create_matrix_block,
 )
 from fenicsx_pctools.mat import create_splittable_matrix_block
 from fenicsx_pctools.utils import vec_to_functions
@@ -205,21 +204,22 @@ L = [inner(fem.Constant(domain, (0.0, 0.0)), q_t) * dx, -inner(f, p_t) * dx]
 a_dolfinx = fem.form(a)
 L_dolfinx = fem.form(L)
 
-K = create_matrix_block(a_dolfinx)
-assemble_matrix_block(K, a_dolfinx, bcs)
+K = assemble_matrix_block(a_dolfinx, bcs)
 K.assemble()
 
 b = assemble_vector_block(L_dolfinx, a_dolfinx, bcs)
 b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+
 # -
 # FEniCSx-pctools method `create_splittable_matrix_block` takes the DOLFINx
 # assembled matrix `K` and the associated block UFL form `a` and returns a
-# PETSc Mat of type Python with the necessary functionality to apply PETSc
+# PETSc Mat of type `"python"` with the necessary functionality to apply PETSc
 # block preconditioning strategies.
 
+# +
 K_splittable = create_splittable_matrix_block(K, a)
-K_splittable.setOptionsPrefix("mp_")
 
+# -
 # We now describe and specify an upper-diagonal Schur complement preconditioner
 # using PETSc. Writing the $LDU$ decomposition of $K$ gives
 #
@@ -262,10 +262,8 @@ K_splittable.setOptionsPrefix("mp_")
 # $$
 #
 # Use of GMRES and upper Schur complement preconditioning can be specified
-# using the PETSc options shown below. We tell PETSc that we would like to use
-# GMRES as an outer solver for $P^{-1}_{\mathrm{upper}}Kx =
-# P^{-1}_{\mathrm{upper}}b$ with upper Schur complement left preconditioning,
-# and that the Schur complement preconditioner will be specified by the user.
+# using the PETSc options shown below. We first tell PETSc that we would like
+# to use GMRES as an outer solver with the default left preconditioning.
 
 # +
 solver = PETSc.KSP().create(MPI.COMM_WORLD)
@@ -276,18 +274,51 @@ options.prefixPush("mp_")
 options["ksp_type"] = "gmres"
 options["ksp_rtol"] = 1e-8
 options["ksp_monitor_true_residual"] = ""
+
+# -
+# The specification of Schur complement preconditioning requires a PETSc preconditioner of type
+# `"fieldsplit"`. However, since the provided preconditioning operator is a splittable matrix,
+# we have to wrap the preconditioner using a dedicated class `"fenicsx_pctools.WrappedPC"`.
+
+# +
 options["pc_type"] = "python"
 options["pc_python_type"] = "fenicsx_pctools.WrappedPC"
 
+# -
+# This additional wrapper enables the interaction of the preconditioner with the wrapped
+# PETSc matrix, and unlocks the possibility to define the splitting scheme using block
+# indices as runtime options. The second feature is not of a practical importance for this
+# simple $2 \times 2$ block system, but it can be very useful when we aim to test different
+# solver configurations with nested splitting schemes without necessarily changing the code
+# (see [Solver configuration at runtime](demo_solver-config.md)).
+#
+# Now we can inform PETSc about our intention to use
+#
+# $$
+# P_{\mathrm{upper}}^{-1} =
+# \begin{bmatrix}
+# I & -A^{-1}B^T \\
+# 0 & I
+# \end{bmatrix}
+# \begin{bmatrix}
+# A^{-1} & 0 \\
+# 0 & S^{-1}
+# \end{bmatrix}
+# $$
+# in the left preconditioned algebraic system.
+
+# +
 options.prefixPush("wrapped_")
 options["pc_type"] = "fieldsplit"
-options["pc_fieldsplit_type"] = "schur"
-options["pc_fieldsplit_schur_fact_type"] = "full"
-options["pc_fieldsplit_schur_precondition"] = "user"
 options["pc_fieldsplit_0_fields"] = "0"
 options["pc_fieldsplit_1_fields"] = "1"
+options["pc_fieldsplit_type"] = "schur"
+options["pc_fieldsplit_schur_fact_type"] = "upper"
+options["pc_fieldsplit_schur_precondition"] = "user"
 
 # -
+# The last option says that $S^{-1}$ will be specified by the user. We will explain this shortly.
+#
 # In the general case $S$ is a dense matrix that cannot be stored explicitly,
 # let alone inverted. To avoid this, we suppose the existence of a 'good'
 # approximate action for both $A^{-1} \approx \tilde{A}^{-1}$ and $S^{-1}
@@ -306,10 +337,8 @@ options["pc_fieldsplit_1_fields"] = "1"
 # $$
 #
 # for $P_{\mathrm{upper}}^{-1}$ where the tilde $(\tilde{\cdot})$ denotes an
-# approximate (inexact) inverse.
-#
-# To actually compute $\tilde{P}_{\mathrm{upper}}^{-1}$ we still must specify
-# the form of both $\tilde{A}^{-1}$ and $\tilde{S}^{-1}$.
+# approximate (inexact) inverse. To actually compute $\tilde{P}_{\mathrm{upper}}^{-1}$
+# we still must specify the form of both $\tilde{A}^{-1}$ and $\tilde{S}^{-1}$.
 #
 # One reasonable choice is to take $\tilde{A}^{-1}$ as a single application of
 # a block Jacobi preconditioned inverse mass matrix on the finite element flux
@@ -317,6 +346,7 @@ options["pc_fieldsplit_1_fields"] = "1"
 # re-uses the upper left block $A$ in $K$. This can be specified using the
 # following code.
 
+# +
 options.prefixPush("fieldsplit_0_")
 options["ksp_type"] = "preonly"
 options["pc_type"] = "bjacobi"
@@ -396,7 +426,7 @@ options.prefixPop()  # mp_
 # -
 #
 # Finally, we set all of the options on the PETSc objects and solve. This
-# solver setup gives a nearly mesh independent number of GMRES iterations (~40)
+# solver setup gives a nearly mesh independent number of GMRES iterations (~20)
 # tested up to a mesh size of $1024 \times 1024$.
 
 # +
@@ -427,6 +457,7 @@ with io.XDMFFile(MPI.COMM_WORLD, outdir.joinpath("p_h.xdmf"), "w") as handle:
     handle.write_function(p_h)
 
 solver.destroy()
+S.destroy()
 K.destroy()
 b.destroy()
 # -
