@@ -4,7 +4,7 @@
 #
 # SPDX-License-Identifier:    LGPL-3.0-or-later
 
-"""A collection of classes and functions for handling of custom ``PC``-like objects."""
+"""Tools for implementation of custom PETSc/petsc4py PC-like objects."""
 
 from .base import PCBase
 from .pcd import PCDPC_vX, PCDPC_vY, PCDPCBase
