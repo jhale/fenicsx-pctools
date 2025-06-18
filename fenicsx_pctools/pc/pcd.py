@@ -304,8 +304,8 @@ class PCDPC_vY(PCDPCBase):
             + ``"v"``: FE representation of the velocity vector computed as part the current
               nonlinear iterate (used to assemble :math:`K_p`)
             + ``"bcs_pcd"``: homogeneous Dirichlet BC at **outflow** boundary
-            + ``"ds_in"``: measure used to get a surface integral at inflow boundary that contributes
-              to :math:`K_p`
+            + ``"ds_in"``: measure used to get a surface integral at inflow boundary that
+              contributes to :math:`K_p`
 
         .. note::
 
