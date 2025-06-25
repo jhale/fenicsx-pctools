@@ -28,9 +28,6 @@ class WrappedPC(PCBase):
     needs_python_pmat = True
 
     def initialize(self, pc: PETSc.PC) -> None:
-        if pc.getType() != "python":
-            raise ValueError("Preconditioner must be of type 'python'")
-
         parent_pc = pc
         prefix = parent_pc.getOptionsPrefix() or ""
         prefix += self._prefix
@@ -47,7 +44,6 @@ class WrappedPC(PCBase):
 
         comm = parent_pc.comm
         pc = PETSc.PC().create(comm=comm)  # new PC object that can be configured via runtime opts
-        pc.incrementTabLevel(1, parent=parent_pc)
         pc.setOptionsPrefix(prefix)
         fs_args = []
         if isfieldsplit:
@@ -92,7 +88,6 @@ class WrappedPC(PCBase):
     def view(self, pc: PETSc.PC, viewer: PETSc.Viewer | None = None) -> None:
         super().view(pc, viewer)
         if hasattr(self, "pc"):
-            viewer.printfASCII("PC to apply inverse:\n")
-            viewer.subtractASCIITab(-1)  # TODO: 'incrementTabLevel' command above seems to fail
+            viewer.subtractASCIITab(-1)
             self.pc.view(viewer)
             viewer.subtractASCIITab(1)

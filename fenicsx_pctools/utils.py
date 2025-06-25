@@ -4,14 +4,20 @@
 #
 # SPDX-License-Identifier:    LGPL-3.0-or-later
 
+"""Tools for easier manipulation with DOLFINx and PETSc/petsc4py objects."""
 
 from petsc4py import PETSc
 
 import dolfinx
 
 
-def functions_to_vec(u: list[dolfinx.fem.Function], x):
-    """Copies functions into block vector."""
+def functions_to_vec(u: list[dolfinx.fem.Function], x: PETSc.Vec) -> None:
+    """Copies functions into block vector.
+
+    Parameters:
+        u: list of functions
+        x: block vector
+    """
     if x.getType() == "nest":
         for i, subvec in enumerate(x.getNestSubVecs()):
             u[i].x.petsc_vec.copy(subvec)
@@ -26,8 +32,13 @@ def functions_to_vec(u: list[dolfinx.fem.Function], x):
             x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
 
-def vec_to_functions(x, u: list[dolfinx.fem.Function]):
-    """Copies block vector into functions."""
+def vec_to_functions(x: PETSc.Vec, u: list[dolfinx.fem.Function]) -> None:
+    """Copies block vector into functions.
+
+    Parameters:
+        x: block vector
+        u: list of functions
+    """
     if x.getType() == "nest":
         for i, subvec in enumerate(x.getNestSubVecs()):
             subvec.copy(u[i].x.petsc_vec)
