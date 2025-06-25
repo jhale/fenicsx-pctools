@@ -329,13 +329,13 @@ class PCDPC_vY(PCDPCBase):
             x: input vector
             y: output vector
         """
-        (z, a) = self.get_work_vecs(x, 2)
+        (z, w) = self.get_work_vecs(x, 2)
 
         # y = -(I + A_p^{-1} K_p) M_p^{-1} x,
         self.ksp_Mp.solve(x, y)  # y = M_p^{-1} x
-        self.Kp.mult(z, a)  # a = K_p z
-        self.bcs_applier(a)  # apply bcs to a
-        self.ksp_Ap.solve(a, z)  # z = A_p^{-1} a
+        self.Kp.mult(y, w)  # w = K_p y
+        self.bcs_applier(w)  # apply bcs to w
+        self.ksp_Ap.solve(w, z)  # z = A_p^{-1} w
         y.axpy(1.0, z)  # y = y + z
         # FIXME: How is with the sign business?
         y.scale(-1.0)  # y = -y
