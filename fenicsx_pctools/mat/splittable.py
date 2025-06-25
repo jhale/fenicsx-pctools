@@ -256,9 +256,6 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
         # Set sizes of wrapper 'mat' to match sizes of 'self.Mat'
         mat.setSizes(self.Mat.getSizes(), bsize=self.Mat.getBlockSizes())
 
-        # Increment tab level for ASCII output
-        self.Mat.incrementTabLevel(1, parent=mat)
-
     def destroy(self, mat: PETSc.Mat):
         """Destroy created index sets.
 
@@ -301,8 +298,7 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
         viewer_type = viewer.getType()
         if viewer_type != PETSc.Viewer.Type.ASCII:
             return
-        viewer.printfASCII(f"Object wrapped by {type(self).__name__}:\n")
-        viewer.subtractASCIITab(-1)  # TODO: 'incrementTabLevel' command above seems to fail
+        viewer.subtractASCIITab(-1)
         self.Mat.view(viewer)
         viewer.subtractASCIITab(1)
 

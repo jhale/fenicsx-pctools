@@ -63,7 +63,6 @@ class PCDPCBase(PCBase):
         ksp_Mp.setType(PETSc.KSP.Type.PREONLY)
         ksp_Mp.pc.setType(PETSc.PC.Type.LU)
         ksp_Mp.pc.setFactorSolverType("mumps")
-        ksp_Mp.incrementTabLevel(1, parent=pc)
         ksp_Mp.setOptionsPrefix(prefix + "Mp_")
         ksp_Mp.setOperators(Mp)
         ksp_Mp.setFromOptions()
@@ -99,7 +98,6 @@ class PCDPCBase(PCBase):
             Ap.setOption(PETSc.Mat.Option.SPD, True)
 
         self.ksp_Ap = ksp_Ap = PETSc.KSP().create(comm=pc.comm)
-        ksp_Ap.incrementTabLevel(1, parent=pc)
         ksp_Ap.setOptionsPrefix(prefix + "Ap_")
         ksp_Ap.setOperators(Ap)
         ksp_Ap.setType(PETSc.KSP.Type.PREONLY)
@@ -191,11 +189,16 @@ class PCDPCBase(PCBase):
 
     def view(self, pc: PETSc.PC, viewer: PETSc.Viewer | None = None) -> None:
         super().view(pc, viewer)
-        viewer.printfASCII("Pressure-Convection-Diffusion inverse:\n")
-        viewer.printfASCII("KSP solver for discrete Laplace operator on the pressure space:\n")
+        viewer.subtractASCIITab(-1)
+        viewer.printfASCII("Solver for discrete Laplace operator on the pressure space:\n")
+        viewer.subtractASCIITab(-1)
         self.ksp_Ap.view(viewer)
-        viewer.printfASCII("KSP solver for pressure mass matrix:\n")
+        viewer.subtractASCIITab(1)
+        viewer.printfASCII("Solver for pressure mass matrix:\n")
+        viewer.subtractASCIITab(-1)
         self.ksp_Mp.view(viewer)
+        viewer.subtractASCIITab(1)
+        viewer.subtractASCIITab(1)
 
 
 class PCDPC_vX(PCDPCBase):

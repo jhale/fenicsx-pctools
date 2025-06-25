@@ -115,4 +115,4 @@ class PCBase(metaclass=abc.ABCMeta):
         viewer_type = viewer.getType()
         if viewer_type != PETSc.Viewer.Type.ASCII:
             return
-        viewer.printfASCII(f"Custom preconditioner {type(self).__name__}\n")
+        viewer.printfASCII(f"Python preconditioner {type(self).__name__}:\n")
