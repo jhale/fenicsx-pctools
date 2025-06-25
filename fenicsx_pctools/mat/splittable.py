@@ -434,7 +434,12 @@ class SplittableMatrixBlock(SplittableMatrixBase):
             # NOTE: Repeat call (submatrix already requested in the past), we just need to update
             #       its values from the parent matrix, which may have changed e.g. due within Newton
             #       iterations.
-            self.Mat.createSubMatrix(isrow, iscol, submat.getPythonContext().Mat)
+            if submat.getType() == PETSc.Mat.Type.PYTHON:
+                subctx = submat.getPythonContext()
+                _submat = subctx.Mat if isinstance(subctx, type(self)) else submat
+            else:
+                _submat = submat
+            self.Mat.createSubMatrix(isrow, iscol, _submat)
             # TODO: Is the above line a new assembly? How about using virtual submatrices here?
             return submat
 

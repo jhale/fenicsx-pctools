@@ -147,11 +147,9 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
         opts["pc_fieldsplit_1_fields"] = "1"
         # -- HYPRE on velocity block
         opts["fieldsplit_0_ksp_type"] = "preonly"
-        opts["fieldsplit_0_pc_type"] = "python"
-        opts["fieldsplit_0_pc_python_type"] = "fenicsx_pctools.WrappedPC"
-        opts["fieldsplit_0_wrapped_pc_type"] = "hypre"
+        opts["fieldsplit_0_pc_type"] = "hypre"
         for key, val in hypre_common_settings.items():
-            opts[f"fieldsplit_0_wrapped_{key}"] = val
+            opts[f"fieldsplit_0_{key}"] = val
         # -- PCD on pressure block
         opts["fieldsplit_1_ksp_type"] = "preonly"
         opts["fieldsplit_1_pc_type"] = "python"
@@ -174,13 +172,9 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
         opts["ksp_converged_reason"] = None
         # opts["ksp_monitor_true_residual"] = None
         # opts["ksp_monitor"] = None
-        opts["pc_type"] = "python"
-        opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
-        opts.prefixPush("wrapped_")
         opts["pc_type"] = "hypre"
         for key, val in hypre_common_settings.items():
             opts[f"{key}"] = val
-        opts.prefixPop()  # wrapped_
         opts.prefixPop()  # fieldsplit_1_
         opts.prefixPop()  # wrapped_
     opts.prefixPop()  # rb_

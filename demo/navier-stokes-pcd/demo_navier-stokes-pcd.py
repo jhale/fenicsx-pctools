@@ -290,7 +290,7 @@ opts["snes_max_it"] = 25
 # inner linear system solver:
 
 # +
-opts["ksp_converged_reason"] = None
+opts["ksp_converged_reason"] = ""
 opts["ksp_rtol"] = 1e-06
 opts["ksp_max_it"] = 1000
 opts["ksp_type"] = "gmres"  # switch to 'fgmres' when using inner solves other than 'lu'
@@ -319,9 +319,8 @@ opts["pc_fieldsplit_1_fields"] = 1  # pressure
 
 # +
 opts["fieldsplit_0_ksp_type"] = "preonly"
-opts["fieldsplit_0_pc_type"] = "python"
-opts["fieldsplit_0_pc_python_type"] = "fenicsx_pctools.WrappedPC"
-opts["fieldsplit_0_wrapped_pc_type"] = "lu"
+opts["fieldsplit_0_pc_type"] = "lu"
+opts["fieldsplit_0_pc_factor_mat_solver_type"] = "mumps"
 # -
 
 # Similarly, we use the same direct solver to invert the operators within the PCD preconditioner:
