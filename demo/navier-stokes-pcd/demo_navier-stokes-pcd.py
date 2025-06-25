@@ -360,6 +360,7 @@ PETSc.Sys.Print(
     f" (with total number of {its_ksp} linear iterations)"
 )
 solver.destroy()
+J_splittable.destroy()
 # -
 
 # As a last step, we save the results for visualisation.

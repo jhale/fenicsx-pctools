@@ -397,9 +397,12 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
     for opt in opts.getAll().keys():
         del opts[opt]
 
-    J_mat.destroy()
-    J_splittable.destroy()
+    ksp_0.destroy()
+    ksp_1.destroy()
+    wrapped_pc.destroy()
+    pc.destroy()
     solver.destroy()
+    J_splittable.destroy()
     F_vec.destroy()
     x0.destroy()
     PETSc.garbage_cleanup()

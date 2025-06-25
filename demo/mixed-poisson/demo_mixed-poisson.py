@@ -457,7 +457,7 @@ with io.XDMFFile(MPI.COMM_WORLD, outdir.joinpath("p_h.xdmf"), "w") as handle:
     handle.write_function(p_h)
 
 solver.destroy()
+K_splittable.destroy()
 S.destroy()
-K.destroy()
 b.destroy()
 # -
