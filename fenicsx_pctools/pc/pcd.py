@@ -122,11 +122,20 @@ class PCDPCBase(PCBase):
         fem.petsc.assemble_matrix(Kp, self.form_Kp, bcs=[], diagonal=1.0)
         Kp.assemble()
 
-    def __del__(self):
+    def destroy(self, pc: PETSc.Mat) -> None:
+        """Destroy created PETSc objects.
+
+        Parameters:
+            pc: preconditioner of type ``"python"``
+        """
+        self.ksp_Ap.destroy()
+        self.ksp_Mp.destroy()
         self.Kp.destroy()
         self.Ap.destroy()
         self.Mp.destroy()
         self.ghosted_workvec.destroy()
+        for vec in self._work_vecs:
+            vec.destroy()
 
     def update(self, pc: PETSc.PC) -> None:
         self.Kp.zeroEntries()

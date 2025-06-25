@@ -257,11 +257,12 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
         mat.setSizes(self.Mat.getSizes(), bsize=self.Mat.getBlockSizes())
 
     def destroy(self, mat: PETSc.Mat):
-        """Destroy created index sets.
+        """Destroy wrapped matrix and created index sets.
 
         Parameters:
             mat: matrix of type ``"python"``
         """
+        self.Mat.destroy()
         for iset_row, iset_col in zip(*self.ISes):
             iset_row.destroy()
             iset_col.destroy()
