@@ -381,11 +381,7 @@ opts["pc_fieldsplit_1_fields"] = "2"
 for i in range(2):
     opts.prefixPush(f"fieldsplit_{i}_")
     opts["ksp_type"] = "cg"
-    opts["pc_type"] = "python"
-    opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
-    opts.prefixPush("wrapped_")
     opts["pc_type"] = "jacobi"
-    opts.prefixPop()  # wrapped_
     opts.prefixPop()  # fieldsplit_{i}_
 opts.prefixPop()  # wrapped_
 opts.prefixPop()
