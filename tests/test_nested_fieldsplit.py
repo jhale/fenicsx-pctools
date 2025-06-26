@@ -211,9 +211,10 @@ def test_nested_fieldsplit(space, A, b, target, variant):
 
     opts = PETSc.Options()
 
+    skip_msg = None
     if variant == "LU":
         if space.structure == "nest":
-            pytest.skip("Direct solver cannot be used with 'nest' structures")
+            skip_msg = "Direct solver cannot be used with 'nest' structures"
         else:
             opts["pc_type"] = "python"
             opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
@@ -267,7 +268,7 @@ def test_nested_fieldsplit(space, A, b, target, variant):
                 sub_ksp.setType("cg")
                 sub_ksp.getPC().setType("jacobi")
         else:
-            pytest.skip(f"Variant '{variant}' needs to be implemented for '{space.structure}'")
+            skip_msg = f"Variant '{variant}' needs to be implemented for '{space.structure}'"
 
     elif variant == "FS 0-3_1-2":
         if space.structure == "block":
@@ -283,7 +284,7 @@ def test_nested_fieldsplit(space, A, b, target, variant):
                 opts[f"fieldsplit_{i}_pc_type"] = "jacobi"
             opts.prefixPop()
         else:
-            pytest.skip(f"Variant '{variant}' needs to be implemented for '{space.structure}'")
+            skip_msg = f"Variant '{variant}' needs to be implemented for '{space.structure}'"
 
     elif variant == "FS 0-2_1_3":
         if space.structure == "block":
@@ -318,7 +319,7 @@ def test_nested_fieldsplit(space, A, b, target, variant):
                 sub_ksp.setType("cg")
                 sub_ksp.getPC().setType("jacobi")
         else:
-            pytest.skip(f"Variant '{variant}' needs to be implemented for '{space.structure}'")
+            skip_msg = f"Variant '{variant}' needs to be implemented for '{space.structure}'"
 
     elif variant == "FS 0-2-3_1 1_0-2":
         if space.structure == "block":
@@ -345,7 +346,7 @@ def test_nested_fieldsplit(space, A, b, target, variant):
             opts["fieldsplit_1_pc_type"] = "jacobi"
             opts.prefixPop()
         else:
-            pytest.skip(f"Variant '{variant}' needs to be implemented for '{space.structure}'")
+            skip_msg = f"Variant '{variant}' needs to be implemented for '{space.structure}'"
 
     elif variant == "FS 0-2-3_1 1_0-2 1_0":
         if space.structure == "block":
@@ -383,10 +384,17 @@ def test_nested_fieldsplit(space, A, b, target, variant):
             opts["fieldsplit_1_pc_type"] = "jacobi"
             opts.prefixPop()
         else:
-            pytest.skip(f"Variant '{variant}' needs to be implemented for '{space.structure}'")
+            skip_msg = f"Variant '{variant}' needs to be implemented for '{space.structure}'"
 
     else:
         raise NotImplementedError(f"Unknown variant '{variant}'")
+
+    if skip_msg:
+        A.destroy()
+        b.destroy()
+        ksp.destroy()
+        PETSc.garbage_cleanup()
+        pytest.skip(skip_msg)
 
     ksp.setFromOptions()
 
