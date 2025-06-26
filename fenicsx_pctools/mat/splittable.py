@@ -262,7 +262,6 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
         Parameters:
             mat: matrix of type ``"python"``
         """
-        self.Mat.destroy()
         for iset_row, iset_col in zip(*self.ISes):
             iset_row.destroy()
             iset_col.destroy()
