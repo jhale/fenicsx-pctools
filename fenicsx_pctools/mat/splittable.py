@@ -166,8 +166,8 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
 
         self._a = a
         self._spaces = None
-        self._Mat = A
         self._ISes = None
+        self._Mat = A
 
         # Delegate chosen methods to underlying Mat object
         def _create_callable(method_name):

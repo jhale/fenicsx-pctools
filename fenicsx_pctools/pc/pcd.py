@@ -122,11 +122,20 @@ class PCDPCBase(PCBase):
         fem.petsc.assemble_matrix(Kp, self.form_Kp, bcs=[], diagonal=1.0)
         Kp.assemble()
 
-    def __del__(self):
+    def destroy(self, pc: PETSc.Mat) -> None:
+        """Destroy created PETSc objects.
+
+        Parameters:
+            pc: preconditioner of type ``"python"``
+        """
+        self.ksp_Ap.destroy()
+        self.ksp_Mp.destroy()
         self.Kp.destroy()
         self.Ap.destroy()
         self.Mp.destroy()
         self.ghosted_workvec.destroy()
+        for vec in self._work_vecs:
+            vec.destroy()
 
     def update(self, pc: PETSc.PC) -> None:
         self.Kp.zeroEntries()
@@ -190,14 +199,23 @@ class PCDPCBase(PCBase):
     def view(self, pc: PETSc.PC, viewer: PETSc.Viewer | None = None) -> None:
         super().view(pc, viewer)
         viewer.subtractASCIITab(-1)
+
         viewer.printfASCII("Solver for discrete Laplace operator on the pressure space:\n")
         viewer.subtractASCIITab(-1)
-        self.ksp_Ap.view(viewer)
+        if hasattr(self, "ksp_Ap"):
+            self.ksp_Ap.view(viewer)
+        else:
+            viewer.printfASCII("Solver for has not been set yet\n")
         viewer.subtractASCIITab(1)
+
         viewer.printfASCII("Solver for pressure mass matrix:\n")
         viewer.subtractASCIITab(-1)
-        self.ksp_Mp.view(viewer)
+        if hasattr(self, "ksp_Mp"):
+            self.ksp_Mp.view(viewer)
+        else:
+            viewer.printfASCII("Solver for has not been set yet\n")
         viewer.subtractASCIITab(1)
+
         viewer.subtractASCIITab(1)
 
 
@@ -205,12 +223,6 @@ class PCDPC_vX(PCDPCBase):
     r"""This class implements a modification of PCD variant similar to the one by
     :cite:t:`olshanskii_pressure_2007`, see also :cite:t:`blechta_towards_2019`.
     """
-
-    def initialize(self, pc: PETSc.PC) -> None:
-        super().initialize(pc)
-
-    def update(self, pc: PETSc.PC) -> None:
-        super().update(pc)
 
     def apply(self, pc: PETSc.PC, x: PETSc.Vec, y: PETSc.Vec) -> None:
         r"""This method implements the action of the inverse of the approximate
@@ -280,12 +292,6 @@ class PCDPC_vY(PCDPCBase):
     r"""This class implements a modification of steady variant of PCD discussed in the book
     by :cite:t:`elman_finite_2014`, see also :cite:t:`blechta_towards_2019`.
     """
-
-    def initialize(self, pc: PETSc.PC) -> None:
-        super().initialize(pc)
-
-    def update(self, pc: PETSc.PC) -> None:
-        super().update(pc)
 
     def apply(self, pc: PETSc.PC, x: PETSc.Vec, y: PETSc.Vec) -> None:
         r"""This method implements the action of the inverse of the approximate

@@ -71,7 +71,7 @@ def test_destroy_mat(a):
     assert B.refcount == 1
 
     # Try to remove the duplicates
-    B_splittable.destroy()
+    B_splittable.destroy()  # NOT called as the reference count is >1 !?
     assert B_splittable.refcount == 0
     assert B.refcount == 1
     B.destroy()

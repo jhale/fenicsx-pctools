@@ -360,12 +360,16 @@ PETSc.Sys.Print(
     f" (with total number of {its_ksp} linear iterations)"
 )
 solver.destroy()
+J_splittable.destroy()
+J_mat.destroy()
+F_vec.destroy()
 # -
 
 # As a last step, we save the results for visualisation.
 
 # +
 vec_to_functions(x0, pdeproblem.solution_vars)
+x0.destroy()
 v_h, p_h = pdeproblem.solution_vars
 
 V_out_el = element("Lagrange", mesh.basix_cell(), 1, shape=(mesh.geometry.dim,))
