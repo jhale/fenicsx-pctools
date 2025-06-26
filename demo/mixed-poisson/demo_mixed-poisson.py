@@ -278,11 +278,11 @@ options["ksp_monitor_true_residual"] = ""
 # -
 # The specification of Schur complement preconditioning requires a PETSc preconditioner of type
 # `"fieldsplit"`. However, since the provided preconditioning operator is a splittable matrix,
-# we have to wrap the preconditioner using a dedicated class `"fenicsx_pctools.WrappedPC"`.
+# we have to wrap the preconditioner using a dedicated class `"fenicsx_pctools.pc.WrappedPC"`.
 
 # +
 options["pc_type"] = "python"
-options["pc_python_type"] = "fenicsx_pctools.WrappedPC"
+options["pc_python_type"] = "fenicsx_pctools.pc.WrappedPC"
 
 # -
 # This additional wrapper enables the interaction of the preconditioner with the wrapped

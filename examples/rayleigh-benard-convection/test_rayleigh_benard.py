@@ -114,7 +114,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
     if pc_approach == "LU":
         opts["ksp_type"] = "preonly"
         opts["pc_type"] = "python"
-        opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
+        opts["pc_python_type"] = "fenicsx_pctools.pc.WrappedPC"
         opts["wrapped_pc_type"] = "lu"
         opts["wrapped_pc_factor_mat_solver_type"] = "mumps"
     elif pc_approach == "PCD-AMG":
@@ -124,7 +124,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
         opts["ksp_monitor"] = None
         opts["ksp_max_it"] = 1000
         opts["pc_type"] = "python"
-        opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
+        opts["pc_python_type"] = "fenicsx_pctools.pc.WrappedPC"
         opts.prefixPush("wrapped_")
         opts["pc_type"] = "fieldsplit"
         opts["pc_fieldsplit_type"] = "multiplicative"
@@ -138,7 +138,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
         # opts["ksp_monitor_true_residual"] = None
         # opts["ksp_monitor"] = None
         opts["pc_type"] = "python"
-        opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
+        opts["pc_python_type"] = "fenicsx_pctools.pc.WrappedPC"
         opts.prefixPush("wrapped_")
         opts["pc_type"] = "fieldsplit"
         opts["pc_fieldsplit_type"] = "schur"
@@ -153,7 +153,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
         # -- PCD on pressure block
         opts["fieldsplit_1_ksp_type"] = "preonly"
         opts["fieldsplit_1_pc_type"] = "python"
-        opts["fieldsplit_1_pc_python_type"] = "fenicsx_pctools.PCDPC_vY"
+        opts["fieldsplit_1_pc_python_type"] = "fenicsx_pctools.pc.PCDPC_vY"
         # ---- SOR on mass matrix
         opts["fieldsplit_1_pcd_Mp_ksp_type"] = "richardson"
         opts["fieldsplit_1_pcd_Mp_ksp_max_it"] = 2
