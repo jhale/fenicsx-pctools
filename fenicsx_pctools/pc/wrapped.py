@@ -32,8 +32,9 @@ class WrappedPC(PCBase):
         prefix = parent_pc.getOptionsPrefix() or ""
         prefix += self._prefix
 
-        _, P = parent_pc.getOperators()
+        A, P = parent_pc.getOperators()
         Pctx = P.getPythonContext()
+        Actx = A.getPythonContext() if A.getType() == PETSc.Mat.Type.PYTHON else None
 
         opts = PETSc.Options(prefix)
         isfieldsplit = opts.getString("pc_type") == "fieldsplit"
@@ -47,7 +48,7 @@ class WrappedPC(PCBase):
         pc.setOptionsPrefix(prefix)
         fs_args = []
         if isfieldsplit:
-            pc.setOperators(P, P)
+            pc.setOperators(A, P)
             for key in opts.getAll().keys():
                 opt = key.strip()
                 if opt.startswith("pc_fieldsplit_") and opt.endswith("_fields"):
@@ -63,10 +64,14 @@ class WrappedPC(PCBase):
                     opt_pc_type = f"fieldsplit_{splitnum}_pc_type"
                     fieldsplit_pc_type = opts.getString(opt_pc_type)  # defaults to None
                     Pctx._set_fieldsplit_pc_type(tuple(field_ids), fieldsplit_pc_type)
+                    if Actx:
+                        Actx._set_fieldsplit_pc_type(tuple(field_ids), fieldsplit_pc_type)
             pc.setFromOptions()
             pc.setFieldSplitIS(*fs_args)
         else:
-            pc.setOperators(Pctx.Mat, Pctx.Mat)
+            Pmat = Pctx.Mat
+            Amat = Actx.Mat if Actx else A
+            pc.setOperators(Amat, Pmat)
             pc.setFromOptions()
         self.pc = pc
 
