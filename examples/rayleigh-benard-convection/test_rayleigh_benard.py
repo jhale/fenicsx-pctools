@@ -403,6 +403,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
     pc.destroy()
     solver.destroy()
     J_splittable.destroy()
+    J_mat.destroy()
     F_vec.destroy()
     x0.destroy()
     PETSc.garbage_cleanup()

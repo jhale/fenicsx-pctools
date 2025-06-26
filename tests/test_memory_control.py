@@ -37,16 +37,16 @@ def test_destroy_mat(a):
     A.assemble()
     A_splittable = create_splittable_matrix_block(A, a)
     assert A_splittable.refcount == 1
-    assert A.refcount == 1
+    assert A.refcount == 2
 
     ksp = PETSc.KSP().create(A_splittable.comm)
     ksp.setOperators(A_splittable, A_splittable)  # adds 2 new references
     assert A_splittable.refcount == 3
-    assert A.refcount == 1
+    assert A.refcount == 2
 
     ksp.destroy()  # removes the 2 references added above
     assert A_splittable.refcount == 1
-    assert A.refcount == 1
+    assert A.refcount == 2
 
     # Make duplicates before removing the originals
     B_splittable = A_splittable.duplicate()
@@ -63,17 +63,17 @@ def test_destroy_mat(a):
 
     # Check that duplicates were left untouched
     assert B_splittable.refcount == 1
-    assert B.refcount == 1
+    assert B.refcount == 2
 
     # Artificially increase the number of references for the wrapper
     B_splittable.incRef()
     assert B_splittable.refcount == 2
-    assert B.refcount == 1
+    assert B.refcount == 2
 
     # Try to remove the duplicates
     B_splittable.destroy()  # NOT called as the reference count is >1 !?
     assert B_splittable.refcount == 0
-    assert B.refcount == 1
+    assert B.refcount == 2
     B.destroy()
     assert B.refcount == 0
 
@@ -83,7 +83,7 @@ def test_destroy_ises(a):
     A.assemble()
     A_splittable = create_splittable_matrix_block(A, a)
     assert A_splittable.refcount == 1
-    assert A.refcount == 1
+    assert A.refcount == 2
 
     isrows, iscols = A_splittable.getPythonContext().ISes
     for iset_row, iset_col in zip(isrows, iscols):
