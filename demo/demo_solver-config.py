@@ -188,7 +188,7 @@ A_splittable = create_splittable_matrix_block(A_block, a)
 # the UFL form ``a`` that is in turn used to create index sets defining the blocks.
 
 # Any preconditioner that is supposed to work with a splittable matrix should be configured
-# as a *wrapped* ``PETSc.PC`` object using the dedicated class ``fenicsx_pctools.WrappedPC``.
+# as a *wrapped* ``PETSc.PC`` object using the dedicated class ``fenicsx_pctools.pc.WrappedPC``.
 # The same holds for inner preconditioners that operate on extracted submatrices that are
 # of the same type. The options of wrapped preconditioners are made accessible using the
 # ``"wrapped_"`` prefix.
@@ -201,7 +201,7 @@ opts.prefixPush(ksp.getOptionsPrefix())
 opts["ksp_type"] = "preonly"
 opts["ksp_monitor"] = None
 opts["pc_type"] = "python"
-opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
+opts["pc_python_type"] = "fenicsx_pctools.pc.WrappedPC"
 opts.prefixPush("wrapped_")
 opts["pc_type"] = "fieldsplit"
 opts["pc_fieldsplit_type"] = "additive"
@@ -370,7 +370,7 @@ opts.prefixPush(ksp.getOptionsPrefix())
 opts["ksp_type"] = "preonly"
 opts["ksp_monitor"] = None
 opts["pc_type"] = "python"
-opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
+opts["pc_python_type"] = "fenicsx_pctools.pc.WrappedPC"
 opts.prefixPush("wrapped_")
 opts["pc_type"] = "fieldsplit"
 opts["pc_fieldsplit_type"] = "schur"

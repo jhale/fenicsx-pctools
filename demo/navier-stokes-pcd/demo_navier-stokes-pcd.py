@@ -305,7 +305,7 @@ opts["ksp_pc_side"] = "right"
 
 # +
 opts["pc_type"] = "python"
-opts["pc_python_type"] = "fenicsx_pctools.WrappedPC"
+opts["pc_python_type"] = "fenicsx_pctools.pc.WrappedPC"
 opts.prefixPush("wrapped_")
 opts["pc_type"] = "fieldsplit"
 opts["pc_fieldsplit_type"] = "schur"
@@ -328,7 +328,7 @@ opts["fieldsplit_0_pc_factor_mat_solver_type"] = "mumps"
 # +
 opts["fieldsplit_1_ksp_type"] = "preonly"
 opts["fieldsplit_1_pc_type"] = "python"
-opts["fieldsplit_1_pc_python_type"] = f"fenicsx_pctools.{pcd_type}"
+opts["fieldsplit_1_pc_python_type"] = f"fenicsx_pctools.pc.{pcd_type}"
 opts["fieldsplit_1_pcd_Mp_ksp_type"] = "preonly"
 opts["fieldsplit_1_pcd_Mp_pc_type"] = "lu"
 opts["fieldsplit_1_pcd_Ap_ksp_type"] = "preonly"
