@@ -168,7 +168,6 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
         self._spaces = None
         self._ISes = None
         self._Mat = A
-        self._Mat.incRef()
 
         # Delegate chosen methods to underlying Mat object
         def _create_callable(method_name):
@@ -263,10 +262,6 @@ class SplittableMatrixBase(metaclass=abc.ABCMeta):
         Parameters:
             mat: matrix of type ``"python"``
         """
-        if self.Mat.refcount > 1:
-            self.Mat.decRef()
-        else:
-            self.Mat.destroy()
         for iset_row, iset_col in zip(*self.ISes):
             iset_row.destroy()
             iset_col.destroy()
