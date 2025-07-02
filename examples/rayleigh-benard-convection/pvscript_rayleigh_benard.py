@@ -1,4 +1,4 @@
-#!/usr/bin/env pvpython
+#!/usr/bin/env pvbatch
 # ruff: noqa
 import os
 import sys

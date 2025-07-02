@@ -32,9 +32,11 @@ import pandas as pd
 import pytest
 from problem_rayleigh_benard import Problem
 
+from basix.ufl import element
 from dolfinx import fem
 from dolfinx.common import TimingType, list_timings
 from dolfinx.fem.petsc import assemble_matrix_block, assemble_vector_block, create_vector_block
+from dolfinx.io import XDMFFile
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 
 
@@ -370,6 +372,30 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
         "FunctionEval": time_residual,
     }
 
+    # Save XDMF data
+    pvscript_args = []
+    if not request.config.getoption("noxdmf"):
+        mesh = s0.function_space.mesh
+        space = fem.functionspace(
+            mesh, element("Lagrange", mesh.basix_cell(), 1, shape=(mesh.geometry.dim,))
+        )
+        s0_interp = fem.Function(space, name=s0.name)
+        s0_interp.interpolate(s0)
+        pvscript_args.extend(
+            [
+                "./pvscript_rayleigh_benard.py",
+                os.path.join(results_dir, "fig_rayleigh_benard.png"),
+            ]
+        )
+        basename = os.path.splitext(os.path.basename(results_file))[0]
+        for field, name in [(s0_interp, s0.name), (s1, s1.name), (s2, s2.name)]:
+            xfile = f"{basename}_{pc_approach}_nprocs{comm.size}_field_{name}.xdmf"
+            xfile = os.path.join(results_dir, xfile)
+            with XDMFFile(comm, xfile, "w") as f:
+                f.write_mesh(field.function_space.mesh)
+                f.write_function(field)
+            pvscript_args.append(xfile)
+
     if comm.rank == 0:
         data = pd.DataFrame(results, index=[0])
         if request.config.getoption("overwrite"):
@@ -392,6 +418,11 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
     # Save logs
     logfile = os.path.join(results_dir, f"petsc_rayleigh_benard_{comm.size}.log")
     PETSc.Log.view(viewer=PETSc.Viewer.ASCII(logfile, comm=comm))
+
+    # PV plots
+    if pvscript_args:
+        PETSc.Sys.Print("\nCall the following cmd to plot the results (requires ParaView 5.13.2):")
+        PETSc.Sys.Print("\n" + " ".join(pvscript_args) + "\n")
 
     # Clean up options database
     for opt in opts.getAll().keys():
