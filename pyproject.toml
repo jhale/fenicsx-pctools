@@ -48,7 +48,6 @@ lint = [
 ]
 ci = [
     "fenicsx_pctools[docs]",
-    "fenicsx_pctools[demos]",
     "fenicsx_pctools[lint]",
     "pytest"
 ]
