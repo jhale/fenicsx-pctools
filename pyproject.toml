@@ -22,6 +22,9 @@ classifiers = [
 
 dependencies = [
     "fenics-dolfinx>=0.9.0,<0.10.0.dev0",
+    "fenics-ufl",
+    "numpy",
+    "mpi4py",
     "petsc4py"
 ]
 
