@@ -104,7 +104,7 @@ And then in any system with DOLFINx installed:
 
    .. code-block:: console
 
-      python3 -m pip install `.[demos]`
+      python3 -m pip install .[demos]
 
 2. Run unit tests to verify the installation:
 
