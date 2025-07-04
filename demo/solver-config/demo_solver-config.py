@@ -137,7 +137,7 @@ x_nest = b_nest.duplicate()
 
 # In each of the following sections we solve the algebraic problem using a linear system solver,
 # we assign the solution vector $x$ to function $u$ and we verify that $u = f$.
-# Every time we reset the solution vector to start with zero inital guess.
+# Every time we reset the solution vector to start with zero initial guess.
 
 
 # +
@@ -437,8 +437,10 @@ for name in unused_opts:
 # of subspaces in the mixed space.
 
 # Another workaround is to use ``PETSc.PC.setFieldSplitIS()`` to indicate which
-# rows/columns of the matrix belong to a particular block. Morever, it is necessary to
-# convert the system matrix to the ``"aij"`` format!
+# rows/columns of the matrix belong to a particular block. Moreover, it is necessary
+# to convert the system matrix into the ``"aij"`` format. However, this transformation
+# may be undesirable in some cases, particularly when the original matrix needs to be
+# retained for specific postprocessing operations.
 
 
 # +
@@ -493,7 +495,7 @@ PETSc.garbage_cleanup()
 # - We applied two different solution strategies based on the fieldsplit preconditioning
 #   to the same algebraic system of equations.
 # - We have shown that transitioning from one solver configuration to the other using
-#   FEniCSx-pctools is straightforward as it requiers only few updates to PETSc options.
+#   FEniCSx-pctools is straightforward as it requires only few updates to PETSc options.
 # - We have shown that the same transition is more involved if we use the standard
 #   "nest" type, as it requires the changes in the problem setup or undesirable steps
 #   like converting the matrix type.
