@@ -84,8 +84,8 @@ f = [fem.Function(V) for V in W]
 
 rhs = [
     lambda x: np.sin(2 * np.pi * x[0]) * np.sin(np.pi * x[1]) * np.sin(np.pi * x[2]),
-    lambda x: (x[0]**2 * (1 - x[0])**2) * (x[1]**2 * (1 - x[1])**2),
-    lambda x: np.exp(-x[0]**2 - x[1]**2 - x[2]**2),
+    lambda x: (x[0] ** 2 * (1 - x[0]) ** 2) * (x[1] ** 2 * (1 - x[1]) ** 2),
+    lambda x: np.exp(-(x[0] ** 2) - x[1] ** 2 - x[2] ** 2),
 ]
 for f_i, rhs in zip(f, rhs):
     f_i.interpolate(rhs)
