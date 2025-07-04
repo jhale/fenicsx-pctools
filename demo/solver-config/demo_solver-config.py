@@ -377,7 +377,15 @@ verify_solution(u, f)
 # for the approximate Schur complement (see
 # [PETSc User-Guide](https://petsc.org/release/docs/manual/ksp/#solving-block-matrices)
 # for details). Any subsystems resulting from the factorization will be solved using
-# the conjugate gradient method in combination with the (point) Jacobi preconditioner.
+# the conjugate gradient method in combination with the (point) Jacobi preconditioner
+# with a tight relative tolerance.
+
+
+# +
+rtol_cg = 1e-10
+# -
+
+# Let us start again with the block problem.
 
 
 # +
@@ -398,6 +406,7 @@ opts["pc_fieldsplit_1_fields"] = "2"
 for i in range(2):
     opts.prefixPush(f"fieldsplit_{i}_")
     opts["ksp_type"] = "cg"
+    opts["ksp_rtol"] = rtol_cg
     opts["pc_type"] = "jacobi"
     opts.prefixPop()  # fieldsplit_{i}_
 opts.prefixPop()  # wrapped_
@@ -442,6 +451,7 @@ pc.setFieldSplitIS(
 pc.setUp()
 for i, sub_ksp in enumerate(pc.getFieldSplitSubKSP()):
     sub_ksp.setType("cg")
+    sub_ksp.setTolerances(rtol=rtol_cg)
     sub_ksp.getPC().setType("jacobi")
 opts.prefixPush(ksp.getOptionsPrefix())
 opts["ksp_monitor"] = None
