@@ -15,7 +15,7 @@
 # independently of the model formulation. We base the presentation on an elementary system
 # of algebraic equations in order to keep the focus on the selected feature.
 
-# ## Elementary block system of equations
+# ## Problem definition
 
 # In what follows, we will solve a system of algebraic equations $A x = b$, where
 
@@ -31,13 +31,13 @@
 # ```
 
 # is the **block $3 \times 3$ matrix** representation of a linear operator,
-# $b = [b_0 \ \ b_1 \ \ b_2]^T$ is a **block vector** of given data and finally
-# $x = [x_0 \ \ x_1 \ \ x_2]^T$ is another **block vector** of unknowns.
+# $b = [b_0 \ \ b_1 \ \ b_2]^T$ is a **block vector** of given data and
+# $x = [x_0 \ \ x_1 \ \ x_2]^T$ is a **block vector** of unknowns.
 
 # First, we prepare the objects that will be used to assemble the above algebraic
 # structures in DOLFINx. We shall consider a simple problem setup with $A$ representing
-# the mass matrix on a finite element space and $b$ corresponding to a constant function
-# over the computational domain.
+# the mass matrix on a finite element space and $b$ resulting from the interpolation of
+# chosen smooth functions into the same space.
 
 
 # +
@@ -62,7 +62,7 @@ from dolfinx.mesh import create_unit_cube
 from fenicsx_pctools.mat import create_splittable_matrix_block
 from fenicsx_pctools.utils import vec_to_functions
 
-N = 12
+N = 24
 mesh = create_unit_cube(MPI.COMM_WORLD, N, N, N)
 elem = element("Lagrange", mesh.basix_cell(), 1)
 
@@ -131,10 +131,13 @@ x_nest = b_nest.duplicate()
 
 # The system $A x = b$ is thus the algebraic counterpart of the problem
 # $I u = f$, where $I$ denotes the identity operator on the finite element space
-# $W = V \times V \times V$. In each of the following sections we solve the algebraic
-# problem using a linear system solver represented by the ``PETSc.KSP`` object, we assign
-# the solution vector $x$ to function $u$ and we verify that $u = f$. Last but not least,
-# We reset the solution vector before each solve.
+# $W = V \times V \times V$.
+
+# ## Methodology
+
+# In each of the following sections we solve the algebraic problem using a linear system solver,
+# we assign the solution vector $x$ to function $u$ and we verify that $u = f$.
+# Every time we reset the solution vector to start with zero inital guess.
 
 
 # +
@@ -172,9 +175,9 @@ opts = PETSc.Options()
 # -
 
 # This will give us the possibility to tweak the solver settings at runtime if needed,
-# e.g. by parsing a config file (not implemented in this demo).
+# e.g. by parsing a config file (the parser is not implemented in this demo).
 
-# ## Solution based on block Jacobi method
+# ## Solutions based on block Jacobi method
 
 # Composable "block" solvers in PETSc can be implemented using the preconditioner of type
 # ``PETSc.PC.Type.FIELDSPLIT``. In our first example we will use its "additive" variant, which
@@ -202,9 +205,11 @@ opts = PETSc.Options()
 # where it is possible to find more details about block solvers.
 # ```
 
-# Let us discuss the solver configuration using our ``A_block`` matrix and a couple of
-# wrappers from ``fenicsx_pctools``. In order to provide the information that defines
-# the blocks to the preconditioner, we must create the so-called *splittable* matrix.
+# ### Solution using FEniCSx-pctools
+
+# Let us discuss the solver configuration using our ``A_block`` matrix and together with
+# the wrappers offered by FEniCSx-pctools. In order to provide the information that defines
+# the blocks to the preconditioner, we must create a *splittable* matrix.
 
 
 # +
@@ -212,13 +217,11 @@ A_splittable = create_splittable_matrix_block(A_block, a)
 # -
 
 # The returned matrix is of type ``PETSc.Mat.Type.PYTHON``. As such, it can be connected with
-# the UFL form ``a`` that is in turn used to create index sets defining the blocks.
+# the UFL form ``a`` that is in turn used to create index sets defining the individual blocks.
 
-# Any preconditioner that is supposed to work with a splittable matrix should be configured
-# as a *wrapped* ``PETSc.PC`` object using the dedicated class ``fenicsx_pctools.pc.WrappedPC``.
-# The same holds for inner preconditioners that operate on extracted submatrices that are
-# of the same type. The options of wrapped preconditioners are made accessible using the
-# ``"wrapped_"`` prefix.
+# Any fieldsplit preconditioner that is supposed to work with a splittable matrix must be
+# wrapped using the dedicated class ``fenicsx_pctools.pc.WrappedPC``.
+# Any options of such a wrapped preconditioner are then available using ``"wrapped_"`` prefix.
 
 
 # +
@@ -227,12 +230,13 @@ ksp = create_solver(A_splittable, prefix="s1_block_")
 
 opts.prefixPush(ksp.getOptionsPrefix())
 opts["ksp_type"] = "preonly"
-opts["ksp_monitor"] = None
+opts["ksp_monitor"] = ""
 opts["pc_type"] = "python"
 opts["pc_python_type"] = "fenicsx_pctools.pc.WrappedPC"
 opts.prefixPush("wrapped_")
 opts["pc_type"] = "fieldsplit"
 opts["pc_fieldsplit_type"] = "additive"
+opts["pc_fieldsplit_block_size"] = 3
 for i in range(3):
     opts[f"pc_fieldsplit_{i}_fields"] = i
     opts.prefixPush(f"fieldsplit_{i}_")
@@ -250,22 +254,22 @@ vec_to_functions(x_block, u)
 verify_solution(u, f)
 # -
 
-# ```{note}
-# Sometimes it is not necessary to wrap the inner preconditioners, but it is not the case when
-# using ``PETSc.PC.Type.LU``.
-# ```
-
-# The usage of the "wrapped" preconditioner is necessary to configure the solver at runtime
-# from the options database. Next, we show that we cannot achieve this out-of-the-box for
-# our ``A_nest`` matrix.
+# We will show that the above wrappers allow to change the fieldsplit strategy purely from
+# the options database, without the need to update the problem setup.
+#
+# ### Solution using "nest" type
+#
+# Before changing the fieldsplit strategy, we want to show that the above approach can be
+# applied to ``A_nest`` matrix without the need to use FEniCSx-pctools.
 
 
 # +
-ksp = create_solver(A_nest, prefix="s0_nest_")
+reset_solution(x_nest)
+ksp = create_solver(A_nest, prefix="s1_nest_")
 
 opts.prefixPush(ksp.getOptionsPrefix())
 opts["ksp_type"] = "preonly"
-opts["ksp_monitor"] = None
+opts["ksp_monitor"] = ""
 opts["pc_type"] = "fieldsplit"
 opts["pc_fieldsplit_type"] = "additive"
 opts["pc_fieldsplit_block_size"] = 3
@@ -276,44 +280,6 @@ for i in range(3):
 opts.prefixPop()
 
 ksp.setFromOptions()
-# ksp.solve(b_nest, x_nest)  # !!! THIS RAISES AN ERROR !!!
-ksp.destroy()
-
-# Remove any unused options to suppress warnings from PETSc
-unused_opts = [name for name in opts.getAll() if name.startswith("s0_nest_fieldsplit_")]
-for name in unused_opts:
-    opts.delValue(name)
-# -
-
-# It is not possible to define the fields in the above way since matrices of type
-# ``PETSc.Mat.Type.NEST`` are not stored in an interlaced fashion and so the solver
-# would complain that it *could not find index set*. To overcome this issue, one has
-# to use ``PETSc.PC.setFieldSplitIS()`` to indicate exactly which rows/columns of
-# the matrix belong to a particular block.
-
-
-# +
-reset_solution(x_nest)
-ksp = create_solver(A_nest, prefix="s1_nest_")
-
-ksp.setType("preonly")
-pc = ksp.getPC()
-pc.setType("fieldsplit")
-pc.setFieldSplitType(PETSc.PC.CompositeType.ADDITIVE)
-nested_IS = A_nest.getNestISs()
-pc.setFieldSplitIS(
-    ["0", nested_IS[0][0]],
-    ["1", nested_IS[0][1]],
-    ["2", nested_IS[0][2]],
-)
-for i, sub_ksp in enumerate(pc.getFieldSplitSubKSP()):
-    sub_ksp.setType("preonly")
-    sub_ksp.getPC().setType("lu")
-opts.prefixPush(ksp.getOptionsPrefix())
-opts["ksp_monitor"] = None
-opts.prefixPop()
-
-ksp.setFromOptions()
 ksp.solve(b_nest, x_nest)
 ksp.destroy()
 
@@ -321,15 +287,11 @@ vec_to_functions(x_nest, u)
 verify_solution(u, f)
 # -
 
-# Nothing is wrong with the above code except the fact that we cannot use the options
-# database to set up the index sets.
+# ## Solutions based on Schur complement method
 
-# In the next section we show what happens if we decide to tweak the solver configuration.
+# In the next sections, we show what happens if we decide to tweak the solver configuration.
 # There will be only few changes in the options database when using the splittable matrix,
 # but the code modifications in the other case will be much more extensive.
-
-
-# ## Solution based on Schur complement method
 
 # In order to apply a solution approach based on Schur complements, we have to rewrite
 # the linear operator as a **block $2 \times 2$ matrix**
@@ -350,22 +312,22 @@ verify_solution(u, f)
 #    \begin{align}
 #    A'_{00} &=
 #    \begin{bmatrix}
-#       A_{00} & A_{01} \\
-#       A_{10} & A_{11}
+#       A_{00} & A_{02} \\
+#       A_{20} & A_{22}
 #    \end{bmatrix}
 #    , &
 #    A'_{01} &=
 #    \begin{bmatrix}
-#       A_{02} \\
-#       A_{12}
+#       A_{01} \\
+#       A_{21}
 #    \end{bmatrix}
 #    , &
 #    A'_{10} &=
 #    \begin{bmatrix}
-#       A_{20} & A_{21}
+#       A_{10} & A_{12}
 #    \end{bmatrix}
 #    , &
-#    A'_{11} &= A_{22}.
+#    A'_{11} &= A_{11}.
 #    \end{align}
 # ```
 
@@ -375,9 +337,9 @@ verify_solution(u, f)
 #    \begin{align}
 #    b &= \begin{bmatrix} b'_0 \\ b'_1 \end{bmatrix}
 #    , &
-#    b'_0 &= \begin{bmatrix} b_0 \\ b_1 \end{bmatrix}
+#    b'_0 &= \begin{bmatrix} b_0 \\ b_2 \end{bmatrix}
 #    , &
-#    b'_1 &= b_2,
+#    b'_1 &= b_1,
 #    \end{align}
 # ```
 
@@ -397,8 +359,9 @@ verify_solution(u, f)
 rtol_cg = 1e-10
 # -
 
-# Let us start again with the block problem.
+# ### Solution using FEniCSx-pctools
 
+# We can change the fieldsplit strategy without the need to update anything in the problem setup.
 
 # +
 reset_solution(x_block)
@@ -406,7 +369,7 @@ ksp = create_solver(A_splittable, prefix="s2_block_")
 
 opts.prefixPush(ksp.getOptionsPrefix())
 opts["ksp_type"] = "preonly"
-opts["ksp_monitor"] = None
+opts["ksp_monitor"] = ""
 opts["pc_type"] = "python"
 opts["pc_python_type"] = "fenicsx_pctools.pc.WrappedPC"
 opts.prefixPush("wrapped_")
@@ -414,8 +377,8 @@ opts["pc_type"] = "fieldsplit"
 opts["pc_fieldsplit_type"] = "schur"
 opts["pc_fieldsplit_schur_fact_type"] = "full"
 opts["pc_fieldsplit_schur_precondition"] = "a11"
-opts["pc_fieldsplit_0_fields"] = "0, 1"
-opts["pc_fieldsplit_1_fields"] = "2"
+opts["pc_fieldsplit_0_fields"] = "0, 2"
+opts["pc_fieldsplit_1_fields"] = "1"
 for i in range(2):
     opts.prefixPush(f"fieldsplit_{i}_")
     opts["ksp_type"] = "cg"
@@ -433,19 +396,54 @@ vec_to_functions(x_block, u)
 verify_solution(u, f)
 # -
 
-# The same strategy can be applied to the system with our ``A_nest`` matrix,
-# but we have to manipulate the index sets which makes it cumbersome to use
-# if we wish to test diverse solution strategies quickly.
+# ### Solution using "nest" type
 
-# ```{warning}
-# The setup presented below will work as we concatenate the two neighboring index sets.
-# If we had decided to combine for example the index sets corresponding to block indices
-# 0 and 2, it would have been necessary to convert the system matrix to a different format.
-# ```
+# Let us see what happens if we update the other solver in a similar fashion.
 
 # +
 reset_solution(x_nest)
 ksp = create_solver(A_nest, prefix="s2_nest_")
+
+opts.prefixPush(ksp.getOptionsPrefix())
+opts["ksp_type"] = "preonly"
+opts["ksp_monitor"] = ""
+opts["pc_type"] = "fieldsplit"
+opts["pc_fieldsplit_type"] = "schur"
+opts["pc_fieldsplit_schur_fact_type"] = "full"
+opts["pc_fieldsplit_schur_precondition"] = "a11"
+opts["pc_fieldsplit_0_fields"] = "0, 2"
+opts["pc_fieldsplit_1_fields"] = "1"
+for i in range(2):
+    opts.prefixPush(f"fieldsplit_{i}_")
+    opts["ksp_type"] = "cg"
+    opts["ksp_rtol"] = rtol_cg
+    opts["pc_type"] = "jacobi"
+    opts.prefixPop()  # fieldsplit_{i}_
+opts.prefixPop()
+
+ksp.setFromOptions()
+# ksp.solve(b_nest, x_nest)  # !!! THIS RAISES AN ERROR !!!
+ksp.destroy()
+
+# Remove any unused options to suppress warnings from PETSc
+unused_opts = [name for name in opts.getAll() if name.startswith("s2_nest_")]
+for name in unused_opts:
+    opts.delValue(name)
+# -
+
+# It is not possible to define the fields in the above way as ``pc_fieldsplit_0_fields``
+# combines nonadjacent blocks and the solver would complain that it *could not find index set*.
+# To overcome this issue, we would have to reorder the sytem matrix, e.g. by changing the order
+# of subspaces in the mixed space.
+
+# Another workaround is to use ``PETSc.PC.setFieldSplitIS()`` to indicate which
+# rows/columns of the matrix belong to a particular block. Morever, it is necessary to
+# convert the system matrix to the ``"aij"`` format!
+
+
+# +
+reset_solution(x_nest)
+ksp = create_solver(A_nest, prefix="s3_nest_")
 
 ksp.setType("preonly")
 pc = ksp.getPC()
@@ -455,20 +453,20 @@ pc.setFieldSplitSchurFactType(PETSc.PC.SchurFactType.FULL)
 pc.setFieldSplitSchurPreType(PETSc.PC.SchurPreType.A11)
 nested_IS = A_nest.getNestISs()
 composed_is_row = PETSc.IS(A_nest.getComm()).createGeneral(
-    np.concatenate((nested_IS[0][0], nested_IS[0][1]))
+    np.concatenate((nested_IS[0][0], nested_IS[0][2]))
 )
 pc.setFieldSplitIS(
     ["0", composed_is_row],
-    ["1", nested_IS[0][2]],
+    ["1", nested_IS[0][1]],
 )
-# A_nest.convert("aij")  # required when combining non-neighboring index sets
+A_nest.convert("aij")  # required when combining nonadjacent blocks!
 pc.setUp()
 for i, sub_ksp in enumerate(pc.getFieldSplitSubKSP()):
     sub_ksp.setType("cg")
     sub_ksp.setTolerances(rtol=rtol_cg)
     sub_ksp.getPC().setType("jacobi")
 opts.prefixPush(ksp.getOptionsPrefix())
-opts["ksp_monitor"] = None
+opts["ksp_monitor"] = ""
 opts.prefixPop()
 
 ksp.setFromOptions()
@@ -477,15 +475,25 @@ ksp.destroy()
 
 vec_to_functions(x_nest, u)
 verify_solution(u, f)
+# -
 
+# The above code works as expected, but we cannot use the options database
+# to set up the index sets.
+
+
+# +
 # Destroy any remaining PETSc objects
 x_block.destroy()
 x_nest.destroy()
 PETSc.garbage_cleanup()
 # -
 
-# ## Other benefits
+# ## Summary
 
-# The wrappers discussed above can be used to build advanced custom preconditioners.
-# A few of those have been delivered as part of the package, so do not hesitate to explore
-# the rest of the demos to find out more.
+# - We applied two different solution strategies based on the fieldsplit preconditioning
+#   to the same algebraic system of equations.
+# - We have shown that transitioning from one solver configuration to the other using
+#   FEniCSx-pctools is straightforward as it requiers only few updates to PETSc options.
+# - We have shown that the same transition is more involved if we use the standard
+#   "nest" type, as it requires the changes in the problem setup or undesirable steps
+#   like converting the matrix type.
