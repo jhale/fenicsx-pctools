@@ -79,9 +79,10 @@ for i, (u_i, v_i) in enumerate(zip(test_functions, trial_functions)):
 # Prepare linear form(s) for b
 f = [fem.Function(V) for V in W]
 
+rng = np.random.default_rng()
 for i, f_i in enumerate(f):
-    with f_i.x.petsc_vec.localForm() as f_i_loc:
-        f_i_loc.set(i + 1)  # set `f_i = i + 1` including ghost values
+    f_i.x.array[:] = rng.uniform(size=f_i.x.array.shape)
+    f_i.x.petsc_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
 L = [f_i * v_i * ufl.dx for f_i, v_i in zip(f, test_functions)]
 
@@ -101,6 +102,7 @@ L_dolfinx = fem.form(L)
 A_block = assemble_matrix_block(a_dolfinx)
 A_block.assemble()
 b_block = assemble_vector_block(L_dolfinx, a_dolfinx)
+b_block.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 x_block = A_block.createVecRight()
 
 # Nested assembly
@@ -109,6 +111,7 @@ A_nest.assemble()
 b_nest = assemble_vector_nest(L_dolfinx)
 for b_sub in b_nest.getNestSubVecs():
     b_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+    b_sub.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 x_nest = A_nest.createVecRight()
 # -
 
