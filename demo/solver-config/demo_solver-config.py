@@ -133,7 +133,8 @@ x_nest = b_nest.duplicate()
 # $I u = f$, where $I$ denotes the identity operator on the finite element space
 # $W = V \times V \times V$. In each of the following sections we solve the algebraic
 # problem using a linear system solver represented by the ``PETSc.KSP`` object, we assign
-# the solution vector $x$ to function $u$ and we verify that $u = f$.
+# the solution vector $x$ to function $u$ and we verify that $u = f$. Last but not least,
+# We reset the solution vector before each solve.
 
 
 # +
@@ -149,6 +150,15 @@ def verify_solution(u, f):
     for u_i, f_i in zip(u, f):
         with u_i.x.petsc_vec.localForm() as u_i_loc, f_i.x.petsc_vec.localForm() as f_i_loc:
             assert np.allclose(u_i_loc.array_r, f_i_loc.array_r, rtol=1e-6)
+
+
+def reset_solution(x):
+    x.zeroEntries()
+    if x.getType() == "nest":
+        for x_sub in x.getNestSubVecs():
+            x_sub.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+    else:
+        x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
 
 # -
@@ -212,6 +222,7 @@ A_splittable = create_splittable_matrix_block(A_block, a)
 
 
 # +
+reset_solution(x_block)
 ksp = create_solver(A_splittable, prefix="s1_block_")
 
 opts.prefixPush(ksp.getOptionsPrefix())
@@ -282,6 +293,7 @@ for name in unused_opts:
 
 
 # +
+reset_solution(x_nest)
 ksp = create_solver(A_nest, prefix="s1_nest_")
 
 ksp.setType("preonly")
@@ -389,6 +401,7 @@ rtol_cg = 1e-10
 
 
 # +
+reset_solution(x_block)
 ksp = create_solver(A_splittable, prefix="s2_block_")
 
 opts.prefixPush(ksp.getOptionsPrefix())
@@ -431,6 +444,7 @@ verify_solution(u, f)
 # ```
 
 # +
+reset_solution(x_nest)
 ksp = create_solver(A_nest, prefix="s2_nest_")
 
 ksp.setType("preonly")
