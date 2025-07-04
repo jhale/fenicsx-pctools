@@ -117,7 +117,7 @@ A_block = assemble_matrix_block(a_dolfinx)
 A_block.assemble()
 b_block = assemble_vector_block(L_dolfinx, a_dolfinx)
 b_block.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
-x_block = A_block.createVecRight()
+x_block = b_block.duplicate()
 
 # Nested assembly
 A_nest = assemble_matrix_nest(a_dolfinx)
@@ -126,7 +126,7 @@ b_nest = assemble_vector_nest(L_dolfinx)
 for b_sub in b_nest.getNestSubVecs():
     b_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
     b_sub.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
-x_nest = A_nest.createVecRight()
+x_nest = b_nest.duplicate()
 # -
 
 # The system $A x = b$ is thus the algebraic counterpart of the problem
@@ -465,6 +465,8 @@ vec_to_functions(x_nest, u)
 verify_solution(u, f)
 
 # Destroy any remaining PETSc objects
+x_block.destroy()
+x_nest.destroy()
 PETSc.garbage_cleanup()
 # -
 
