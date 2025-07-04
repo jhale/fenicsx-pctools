@@ -41,6 +41,8 @@
 
 
 # +
+import pathlib
+
 from mpi4py import MPI
 from petsc4py import PETSc
 
@@ -55,6 +57,7 @@ from dolfinx.fem.petsc import (
     assemble_vector_block,
     assemble_vector_nest,
 )
+from dolfinx.io import XDMFFile
 from dolfinx.mesh import create_unit_cube
 from fenicsx_pctools.mat import create_splittable_matrix_block
 from fenicsx_pctools.utils import vec_to_functions
@@ -89,6 +92,13 @@ for f_i, rhs in zip(f, rhs):
     f_i.x.petsc_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
 L = [f_i * v_i * ufl.dx for f_i, v_i in zip(f, test_functions)]
+
+# Save RHS plots
+outdir = pathlib.Path(__file__).resolve().parent.joinpath("rhs-plots")
+for i, f_i in enumerate(f):
+    with XDMFFile(MPI.COMM_WORLD, outdir.joinpath(f"f{i}.xdmf"), "w") as handle:
+        handle.write_mesh(mesh)
+        handle.write_function(f_i)
 
 # Create functions for x
 u = [fem.Function(V) for V in W]
