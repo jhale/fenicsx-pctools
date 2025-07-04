@@ -79,9 +79,13 @@ for i, (u_i, v_i) in enumerate(zip(test_functions, trial_functions)):
 # Prepare linear form(s) for b
 f = [fem.Function(V) for V in W]
 
-rng = np.random.default_rng()
-for i, f_i in enumerate(f):
-    f_i.x.array[:] = rng.uniform(size=f_i.x.array.shape)
+rhs = [
+    lambda x: np.sin(2 * np.pi * x[0]) * np.sin(np.pi * x[1]) * np.sin(np.pi * x[2]),
+    lambda x: (x[0]**2 * (1 - x[0])**2) * (x[1]**2 * (1 - x[1])**2),
+    lambda x: np.exp(-x[0]**2 - x[1]**2 - x[2]**2),
+]
+for f_i, rhs in zip(f, rhs):
+    f_i.interpolate(rhs)
     f_i.x.petsc_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
 L = [f_i * v_i * ufl.dx for f_i, v_i in zip(f, test_functions)]
