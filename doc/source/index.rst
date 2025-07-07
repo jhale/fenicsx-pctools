@@ -1,6 +1,5 @@
 .. toctree::
-   :maxdepth: 1
-   :titlesonly:
+   :maxdepth: 3
    :hidden:
 
    demos
