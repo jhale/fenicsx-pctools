@@ -126,6 +126,7 @@ def target(space):
     v3.sub(0).interpolate(space.create_constant(V[3].sub(0).collapse()[0], 5.0))
     v3.sub(1).interpolate(space.create_constant(V[3].sub(1).collapse()[0], 6.0))
     v3.sub(2).interpolate(space.create_constant(V[3].sub(2).collapse()[0], 7.0))
+    v3.sub(3).interpolate(space.create_constant(V[3].sub(3).collapse()[0], 8.0))
 
     return f
 
