@@ -64,7 +64,7 @@ def space(request, comm):
         def create_constant(function_space, value):
             f = Function(function_space)
             with f.x.petsc_vec.localForm() as f_local:
-                f_local.set(value)
+                f_local.set(value)  # ghost values included
             return f
 
     ghost_mode = cpp.mesh.GhostMode.shared_facet
@@ -126,6 +126,7 @@ def target(space):
     v3.sub(0).interpolate(space.create_constant(V[3].sub(0).collapse()[0], 5.0))
     v3.sub(1).interpolate(space.create_constant(V[3].sub(1).collapse()[0], 6.0))
     v3.sub(2).interpolate(space.create_constant(V[3].sub(2).collapse()[0], 7.0))
+    v3.sub(3).interpolate(space.create_constant(V[3].sub(3).collapse()[0], 8.0))
 
     return f
 
@@ -140,6 +141,7 @@ def b(space, target):
 
         b = fem.assemble_vector(L)
         b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+        b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
     else:
         test_functions = tuple(map(lambda V_sub: ufl.TestFunction(V_sub), V))
 
@@ -165,10 +167,12 @@ def b(space, target):
                 fem.assemble_vector(b_sub, L_sub)
             cpp.la.petsc.scatter_local_vectors(b, b_local, imaps)
             b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+            b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
         elif space.structure == "nest":
             b = fem.petsc.assemble_vector_nest(L_dolfinx)
             for b_sub in b.getNestSubVecs():
                 b_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+                b_sub.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
         else:
             raise RuntimeError
 
@@ -214,11 +218,14 @@ def test_nested_fieldsplit(space, A, b, target, variant):
     skip_msg = None
     if variant == "LU":
         if space.structure == "nest":
-            skip_msg = "Direct solver cannot be used with 'nest' structures"
+            opts["pc_type"] = "python"
+            opts["pc_type"] = "lu"
+            opts["pc_factor_mat_solver_type"] = "mumps"
         else:
             opts["pc_type"] = "python"
             opts["pc_python_type"] = "fenicsx_pctools.pc.WrappedPC"
             opts["wrapped_pc_type"] = "lu"
+            opts["pc_factor_mat_solver_type"] = "mumps"
 
     elif variant == "FS 0_1_2_3":
         if space.structure == "block":
@@ -227,6 +234,7 @@ def test_nested_fieldsplit(space, A, b, target, variant):
             opts.prefixPush("wrapped_")
             opts["pc_type"] = "fieldsplit"
             opts["pc_fieldsplit_type"] = "additive"
+            opts["pc_fieldsplit_block_size"] = 4
             opts["pc_fieldsplit_0_fields"] = 0
             opts["pc_fieldsplit_1_fields"] = 1
             opts["pc_fieldsplit_2_fields"] = 2
@@ -236,37 +244,16 @@ def test_nested_fieldsplit(space, A, b, target, variant):
                 opts[f"fieldsplit_{i}_pc_type"] = "jacobi"
             opts.prefixPop()
         elif space.structure == "nest":
-            # opts["pc_type"] = "fieldsplit"
-            # opts["pc_fieldsplit_type"] = "additive"
-            # opts["pc_fieldsplit_block_size"] = 4
-            # opts["pc_fieldsplit_0_fields"] = 0
-            # opts["pc_fieldsplit_1_fields"] = 1
-            # opts["pc_fieldsplit_2_fields"] = 2
-            # opts["pc_fieldsplit_3_fields"] = 3
-            # for i in range(4):
-            #     opts[f"fieldsplit_{i}_ksp_type"] = "cg"
-            #     opts[f"fieldsplit_{i}_pc_type"] = "jacobi"
-            #
-            # NOTE:
-            #   Definition of fields in the above way is not possible since MATNEST matrices
-            #   are not stored in an interlaced fashion (see p. 76 in the PETSc manual).
-            #   Hence, this will raise PETSc error (75) with the complementary message
-            #   "Could not find index set". Instead, PCFieldSplitSetIS() has to be used to
-            #   indicate exactly which rows/columns of the matrix belong to a particular block.
-            pc = ksp.getPC()
-            pc.setType("fieldsplit")
-            pc.setFieldSplitType(PETSc.PC.CompositeType.ADDITIVE)
-            nested_IS = A.getNestISs()
-            pc.setFieldSplitIS(
-                ["0", nested_IS[0][0]],
-                ["1", nested_IS[0][1]],
-                ["2", nested_IS[0][2]],
-                ["3", nested_IS[0][3]],
-            )
-            for i, sub_ksp in enumerate(pc.getFieldSplitSubKSP()):
-                assert sub_ksp.prefix == f"fieldsplit_{i}_"
-                sub_ksp.setType("cg")
-                sub_ksp.getPC().setType("jacobi")
+            opts["pc_type"] = "fieldsplit"
+            opts["pc_fieldsplit_type"] = "additive"
+            opts["pc_fieldsplit_block_size"] = 4
+            opts["pc_fieldsplit_0_fields"] = 0
+            opts["pc_fieldsplit_1_fields"] = 1
+            opts["pc_fieldsplit_2_fields"] = 2
+            opts["pc_fieldsplit_3_fields"] = 3
+            for i in range(4):
+                opts[f"fieldsplit_{i}_ksp_type"] = "cg"
+                opts[f"fieldsplit_{i}_pc_type"] = "jacobi"
         else:
             skip_msg = f"Variant '{variant}' needs to be implemented for '{space.structure}'"
 
@@ -283,6 +270,41 @@ def test_nested_fieldsplit(space, A, b, target, variant):
                 opts[f"fieldsplit_{i}_ksp_type"] = "cg"
                 opts[f"fieldsplit_{i}_pc_type"] = "jacobi"
             opts.prefixPop()
+        elif space.structure == "nest":
+            # opts["pc_type"] = "fieldsplit"
+            # opts["pc_fieldsplit_type"] = "additive"
+            # opts["pc_fieldsplit_0_fields"] = "0, 3"
+            # opts["pc_fieldsplit_1_fields"] = "1, 2"
+            # for i in range(2):
+            #     opts[f"fieldsplit_{i}_ksp_type"] = "cg"
+            #     opts[f"fieldsplit_{i}_pc_type"] = "jacobi"
+            #
+            # NOTE:
+            #   Definition of fields in the above way is not possible since MATNEST matrices
+            #   are not stored in an interlaced fashion (see p. 76 in the PETSc manual).
+            #   Therefore, this will raise PETSc error (75) with the error message
+            #   "Could not find index set". Instead, PCFieldSplitSetIS() has to be used to
+            #   indicate exactly which rows/columns of the matrix belong to a particular block.
+            #   Moreover, it is necessary to convert the matrix.
+            pc = ksp.getPC()
+            pc.setType("fieldsplit")
+            pc.setFieldSplitType(PETSc.PC.CompositeType.ADDITIVE)
+            nested_IS = A.getNestISs()
+            iset_03 = PETSc.IS(A.getComm()).createGeneral(
+                np.concatenate((nested_IS[0][0], nested_IS[0][3]))
+            )
+            iset_12 = PETSc.IS(A.getComm()).createGeneral(
+                np.concatenate((nested_IS[0][1], nested_IS[0][2]))
+            )
+            pc.setFieldSplitIS(
+                ["0", iset_03],
+                ["1", iset_12],
+            )
+            A.convert("aij")
+            for i, sub_ksp in enumerate(pc.getFieldSplitSubKSP()):
+                assert sub_ksp.prefix == f"fieldsplit_{i}_"
+                sub_ksp.setType("cg")
+                sub_ksp.getPC().setType("jacobi")
         else:
             skip_msg = f"Variant '{variant}' needs to be implemented for '{space.structure}'"
 
