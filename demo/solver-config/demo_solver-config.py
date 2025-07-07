@@ -111,6 +111,7 @@ L_dolfinx = fem.form(L)
 # Block assembly
 A_block = assemble_matrix_block(a_dolfinx)
 A_block.assemble()
+A_block.setOption(PETSc.Mat.Option.SPD, True)
 b_block = assemble_vector_block(L_dolfinx, a_dolfinx)
 b_block.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 x_block = b_block.duplicate()
@@ -118,6 +119,7 @@ x_block = b_block.duplicate()
 # Nested assembly
 A_nest = assemble_matrix_nest(a_dolfinx)
 A_nest.assemble()
+A_nest.setOption(PETSc.Mat.Option.SPD, True)
 b_nest = assemble_vector_nest(L_dolfinx)
 for b_sub in b_nest.getNestSubVecs():
     b_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
@@ -247,7 +249,8 @@ for i in range(3):
     opts[f"pc_fieldsplit_{i}_fields"] = i
     opts.prefixPush(f"fieldsplit_{i}_")
     opts["ksp_type"] = "preonly"
-    opts["pc_type"] = "lu"
+    opts["pc_type"] = "cholesky"
+    opts["pc_factor_mat_solver_type"] = "mumps"
     opts.prefixPop()  # fieldsplit_{i}_
 opts.prefixPop()  # wrapped_
 opts.prefixPop()  # s1_block_
@@ -282,7 +285,8 @@ opts["pc_fieldsplit_block_size"] = 3
 for i in range(3):
     opts[f"pc_fieldsplit_{i}_fields"] = i
     opts[f"fieldsplit_{i}_ksp_type"] = "preonly"
-    opts[f"fieldsplit_{i}_pc_type"] = "lu"
+    opts[f"fieldsplit_{i}_pc_type"] = "cholesky"
+    opts[f"fieldsplit_{i}_pc_factor_mat_solver_type"] = "mumps"
 opts.prefixPop()
 
 ksp.setFromOptions()
