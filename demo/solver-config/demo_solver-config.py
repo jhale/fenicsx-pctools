@@ -36,8 +36,8 @@
 
 # First, we prepare the objects that will be used to assemble the above algebraic
 # structures in DOLFINx. We shall consider a simple problem setup with $A$ representing
-# the mass matrix on a finite element space and $b$ resulting from the interpolation of
-# chosen smooth functions into the same space.
+# the mass matrix on a finite element space, and $b$ the right-hand side vector that is
+# drawn from a uniform distribution.
 
 
 # +
@@ -82,13 +82,9 @@ for i, (u_i, v_i) in enumerate(zip(trial_functions, test_functions)):
 # Prepare linear form(s) for b
 f = [fem.Function(V) for V in W]
 
-rhs = [
-    lambda x: np.sin(2 * np.pi * x[0]) * np.sin(np.pi * x[1]) * np.sin(np.pi * x[2]),
-    lambda x: (x[0] ** 2 * (1 - x[0]) ** 2) * (x[1] ** 2 * (1 - x[1]) ** 2),
-    lambda x: np.exp(-(x[0] ** 2) - x[1] ** 2 - x[2] ** 2),
-]
-for f_i, rhs in zip(f, rhs):
-    f_i.interpolate(rhs)
+rng = np.random.default_rng()
+for i, f_i in enumerate(f):
+    f_i.x.array[:] = rng.uniform(size=f_i.x.array.shape)
     f_i.x.petsc_vec.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
 L = [f_i * v_i * ufl.dx for f_i, v_i in zip(f, test_functions)]
