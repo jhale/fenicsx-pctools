@@ -250,7 +250,7 @@ ksp.setFromOptions()
 ksp.solve(b_block, x_block)
 ksp.destroy()
 
-vec_to_functions(x_block, u)
+vec_to_functions(x_block, u)  # updates ghost values
 verify_solution(u, f)
 # -
 
@@ -283,7 +283,7 @@ ksp.setFromOptions()
 ksp.solve(b_nest, x_nest)
 ksp.destroy()
 
-vec_to_functions(x_nest, u)
+vec_to_functions(x_nest, u)  # updates ghost values
 verify_solution(u, f)
 # -
 
@@ -392,7 +392,7 @@ ksp.setFromOptions()
 ksp.solve(b_block, x_block)
 ksp.destroy()
 
-vec_to_functions(x_block, u)
+vec_to_functions(x_block, u)  # updates ghost values
 verify_solution(u, f)
 # -
 
@@ -475,7 +475,7 @@ ksp.setFromOptions()
 ksp.solve(b_nest, x_nest)
 ksp.destroy()
 
-vec_to_functions(x_nest, u)
+vec_to_functions(x_nest, u)  # updates ghost values
 verify_solution(u, f)
 # -
 
