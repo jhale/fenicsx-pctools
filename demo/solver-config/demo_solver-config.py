@@ -76,7 +76,7 @@ trial_functions = [ufl.TrialFunction(V) for V in W]
 # Prepare bilinear form(s) for A
 a = [[None for _ in range(3)] for _ in range(3)]
 
-for i, (u_i, v_i) in enumerate(zip(test_functions, trial_functions)):
+for i, (u_i, v_i) in enumerate(zip(trial_functions, test_functions)):
     a[i][i] = u_i * v_i * ufl.dx
 
 # Prepare linear form(s) for b
