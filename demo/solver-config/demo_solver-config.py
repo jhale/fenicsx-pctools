@@ -156,7 +156,7 @@ def verify_solution(u, f):
         e = u_i.copy()  # ghost values included
         with e.x.petsc_vec.localForm() as e_loc, f_i.x.petsc_vec.localForm() as f_loc:
             e_loc.axpy(-1.0, f_loc)
-        error_form = fem.form(e ** 2 * ufl.dx)
+        error_form = fem.form(e**2 * ufl.dx)
         error = MPI.COMM_WORLD.allreduce(fem.assemble_scalar(error_form) ** 0.5, op=MPI.SUM)
         assert np.isclose(error, 0.0, atol=1e-10)
 
