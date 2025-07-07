@@ -214,11 +214,14 @@ def test_nested_fieldsplit(space, A, b, target, variant):
     skip_msg = None
     if variant == "LU":
         if space.structure == "nest":
-            skip_msg = "Direct solver cannot be used with 'nest' structures"
+            opts["pc_type"] = "python"
+            opts["pc_type"] = "lu"
+            opts["pc_factor_mat_solver_type"] = "mumps"
         else:
             opts["pc_type"] = "python"
             opts["pc_python_type"] = "fenicsx_pctools.pc.WrappedPC"
             opts["wrapped_pc_type"] = "lu"
+            opts["pc_factor_mat_solver_type"] = "mumps"
 
     elif variant == "FS 0_1_2_3":
         if space.structure == "block":
