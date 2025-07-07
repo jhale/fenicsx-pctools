@@ -125,15 +125,21 @@ for b_sub in b_nest.getNestSubVecs():
 x_nest = b_nest.duplicate()
 # -
 
-# The system $A x = b$ is thus the algebraic counterpart of the problem
-# $I u = f$, where $I$ denotes the identity operator on the finite element space
-# $W = V \times V \times V$.
+# The system $A x = b$ is the algebraic counterpart of the variational problem
+
+# ```{math}
+#    (I u, v) = (f, v) \quad \forall v \in W = V \times V \times V,
+# ```
+
+# where $(\cdot, \cdot)$ denotes the usual $L^2$ inner product on the computational domain
+# and $I$ is the identity operator on the finite element space $W$.
 
 # ## Methodology
 
 # In each of the following sections we solve the algebraic problem using a linear system solver,
-# we assign the solution vector $x$ to function $u$ and we verify that $u = f$.
-# Every time we reset the solution vector to start with zero initial guess.
+# we assign the solution vector $x$ to function $u$ and we verify that the $L^2$-norm of the
+# error function $e = u - f$ is a small number. Every time we reset the solution vector to start
+# with zero initial guess.
 
 
 # +
@@ -147,8 +153,12 @@ def create_solver(A, prefix=None):
 
 def verify_solution(u, f):
     for u_i, f_i in zip(u, f):
-        with u_i.x.petsc_vec.localForm() as u_i_loc, f_i.x.petsc_vec.localForm() as f_i_loc:
-            assert np.allclose(u_i_loc.array_r, f_i_loc.array_r, rtol=1e-6)
+        e = u_i.copy()  # ghost values included
+        with e.x.petsc_vec.localForm() as e_loc, f_i.x.petsc_vec.localForm() as f_loc:
+            e_loc.axpy(-1.0, f_loc)
+        error_form = fem.form(e ** 2 * ufl.dx)
+        error = MPI.COMM_WORLD.allreduce(fem.assemble_scalar(error_form) ** 0.5, op=MPI.SUM)
+        assert np.isclose(error, 0.0, atol=1e-10)
 
 
 def reset_solution(x):
