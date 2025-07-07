@@ -42,7 +42,9 @@ def vec_to_functions(x: PETSc.Vec, u: list[dolfinx.fem.Function]) -> None:
     if x.getType() == "nest":
         for i, subvec in enumerate(x.getNestSubVecs()):
             subvec.copy(u[i].x.petsc_vec)
-            u[i].vector.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+            u[i].x.petsc_vec.ghostUpdate(
+                addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD
+            )
     else:
         offset = 0
         for i in range(len(u)):

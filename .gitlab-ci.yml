@@ -22,8 +22,8 @@ build-lint-and-test:
     - mpirun -n 2 python3 -m pytest tests/
 
     # Run demos
-    - python3 demo/demo_solver-config.py
-    - mpirun -n 2 python3 demo/demo_solver-config.py
+    - python3 demo/solver-config/demo_solver-config.py
+    - mpirun -n 2 python3 demo/solver-config/demo_solver-config.py
     - python3 demo/mixed-poisson/demo_mixed-poisson.py
     - mpirun -n 2 python3 demo/mixed-poisson/demo_mixed-poisson.py
     - python3 demo/navier-stokes-pcd/demo_navier-stokes-pcd.py
