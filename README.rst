@@ -96,7 +96,7 @@ To get started quickly you can use the upsteam Docker images:
 
    .. code-block:: console
 
-      docker run -ti -v $(pwd):/shared -w /shared dolfinx/dolfinx:v0.9.0r1
+      docker run -ti -v $(pwd):/shared -w /shared dolfinx/dolfinx:nightly
 
 And then in any system with DOLFINx installed:
 
