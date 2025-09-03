@@ -48,39 +48,35 @@ from petsc4py import PETSc
 
 import numpy as np
 
+import dolfinx.la.petsc
 import ufl
 from basix.ufl import element
 from dolfinx import fem
-from dolfinx.fem.petsc import (
-    assemble_matrix_block,
-    assemble_matrix_nest,
-    assemble_vector_block,
-    assemble_vector_nest,
-)
+from dolfinx.fem.petsc import assemble_matrix, assemble_vector
 from dolfinx.io import XDMFFile
 from dolfinx.mesh import create_unit_cube
 from fenicsx_pctools.mat import create_splittable_matrix_block
-from fenicsx_pctools.utils import vec_to_functions
 
 N = 24
 mesh = create_unit_cube(MPI.COMM_WORLD, N, N, N)
 elem = element("Lagrange", mesh.basix_cell(), 1)
 
 # Create product space W = V x V x V
-W = [fem.functionspace(mesh, elem) for _ in range(3)]
+W = ufl.MixedFunctionSpace(*[fem.functionspace(mesh, elem) for _ in range(3)])
 
 # Prepare test and trial functions on each subspace
-test_functions = [ufl.TestFunction(V) for V in W]
-trial_functions = [ufl.TrialFunction(V) for V in W]
+test_functions = ufl.TestFunctions(W)
+trial_functions = ufl.TrialFunctions(W)
 
 # Prepare bilinear form(s) for A
-a = [[None for _ in range(3)] for _ in range(3)]
+a_mono = 0
+for u_i, v_i in zip(trial_functions, test_functions):
+    a_mono += u_i * v_i * ufl.dx
 
-for i, (u_i, v_i) in enumerate(zip(trial_functions, test_functions)):
-    a[i][i] = u_i * v_i * ufl.dx
+a = ufl.extract_blocks(a_mono)
 
 # Prepare linear form(s) for b
-f = [fem.Function(V) for V in W]
+f = [fem.Function(V) for V in W.ufl_sub_spaces()]
 
 rng = np.random.default_rng()
 for i, f_i in enumerate(f):
@@ -97,7 +93,7 @@ for i, f_i in enumerate(f):
         handle.write_function(f_i)
 
 # Create functions for x
-u = [fem.Function(V) for V in W]
+u = [fem.Function(V) for V in W.ufl_sub_spaces()]
 # -
 
 # Second, we assemble the algebraic system using two different approaches that are
@@ -109,21 +105,29 @@ a_dolfinx = fem.form(a)
 L_dolfinx = fem.form(L)
 
 # Block assembly
-A_block = assemble_matrix_block(a_dolfinx)
+A_block = assemble_matrix(a_dolfinx, kind="mpi")
 A_block.assemble()
 A_block.setOption(PETSc.Mat.Option.SPD, True)
-b_block = assemble_vector_block(L_dolfinx, a_dolfinx)
-b_block.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+b_block = assemble_vector(L_dolfinx, kind="mpi")
+dolfinx.la.petsc._ghost_update(
+    b_block, insert_mode=PETSc.InsertMode.ADD, scatter_mode=PETSc.ScatterMode.REVERSE
+)
+dolfinx.la.petsc._ghost_update(
+    b_block, insert_mode=PETSc.InsertMode.INSERT, scatter_mode=PETSc.ScatterMode.FORWARD
+)
 x_block = b_block.duplicate()
 
 # Nested assembly
-A_nest = assemble_matrix_nest(a_dolfinx)
+A_nest = assemble_matrix(a_dolfinx, kind="nest")
 A_nest.assemble()
 A_nest.setOption(PETSc.Mat.Option.SPD, True)
-b_nest = assemble_vector_nest(L_dolfinx)
-for b_sub in b_nest.getNestSubVecs():
-    b_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
-    b_sub.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+b_nest = assemble_vector(L_dolfinx, kind="nest")
+dolfinx.la.petsc._ghost_update(
+    b_nest, insert_mode=PETSc.InsertMode.ADD, scatter_mode=PETSc.ScatterMode.REVERSE
+)
+dolfinx.la.petsc._ghost_update(
+    b_nest, insert_mode=PETSc.InsertMode.INSERT, scatter_mode=PETSc.ScatterMode.FORWARD
+)
 x_nest = b_nest.duplicate()
 # -
 
@@ -164,12 +168,7 @@ def verify_solution(u, f):
 
 
 def reset_solution(x):
-    x.zeroEntries()
-    if x.getType() == "nest":
-        for x_sub in x.getNestSubVecs():
-            x_sub.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
-    else:
-        x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+    dolfinx.la.petsc._zero_vector(x)  # reset the solution vector to zero
 
 
 # -
@@ -259,7 +258,12 @@ ksp.setFromOptions()
 ksp.solve(b_block, x_block)
 ksp.destroy()
 
-vec_to_functions(x_block, u)  # updates ghost values
+dolfinx.la.petsc._ghost_update(
+    x_block, insert_mode=PETSc.InsertMode.INSERT, scatter_mode=PETSc.ScatterMode.FORWARD
+)
+# Update ghost values in the solution vector
+fem.petsc.assign(x_block, u)  # updates ghost values
+[u_i.x.scatter_forward() for u_i in u]  # scatter to local values
 verify_solution(u, f)
 # -
 
@@ -292,8 +296,11 @@ opts.prefixPop()
 ksp.setFromOptions()
 ksp.solve(b_nest, x_nest)
 ksp.destroy()
-
-vec_to_functions(x_nest, u)  # updates ghost values
+dolfinx.la.petsc._ghost_update(
+    x_nest, insert_mode=PETSc.InsertMode.INSERT, scatter_mode=PETSc.ScatterMode.FORWARD
+)
+fem.petsc.assign(x_nest, u)  # updates ghost values
+[u_i.x.scatter_forward() for u_i in u]  # scatter to local values
 verify_solution(u, f)
 # -
 
@@ -402,7 +409,8 @@ ksp.setFromOptions()
 ksp.solve(b_block, x_block)
 ksp.destroy()
 
-vec_to_functions(x_block, u)  # updates ghost values
+fem.petsc.assign(x_block, u)  # updates ghost values
+[u_i.x.scatter_forward() for u_i in u]  # scatter to local values
 verify_solution(u, f)
 # -
 
@@ -485,7 +493,8 @@ ksp.setFromOptions()
 ksp.solve(b_nest, x_nest)
 ksp.destroy()
 
-vec_to_functions(x_nest, u)  # updates ghost values
+fem.petsc.assign(x_nest, u)  # updates ghost values
+[u_i.x.scatter_forward() for u_i in u]  # scatter to local values
 verify_solution(u, f)
 # -
 

@@ -66,7 +66,6 @@ from dolfinx import fem
 from dolfinx.io import XDMFFile
 from dolfinx.io.gmshio import model_to_mesh
 from fenicsx_pctools.mat import create_splittable_matrix_block
-from fenicsx_pctools.utils import vec_to_functions
 from ufl import div, dot, dx, grad, inner
 
 gmsh.initialize()
@@ -114,7 +113,10 @@ if mesh_comm.rank == model_rank:
 
 
 # Convert Gmsh mesh to DOLFINx
-mesh, _, facet_tags = model_to_mesh(model, MPI.COMM_WORLD, rank=model_rank, gdim=2)
+mesh_data = model_to_mesh(model, MPI.COMM_WORLD, rank=model_rank, gdim=2)
+mesh = mesh_data.mesh
+facet_tags = mesh_data.facet_tags
+assert facet_tags is not None, "Mesh does not contain facet tags"
 facet_tags.name = "facet_tags"
 gmsh.finalize()
 # -
@@ -124,11 +126,12 @@ gmsh.finalize()
 # +
 V_v = fem.functionspace(mesh, ("Lagrange", 2, (mesh.geometry.dim,)))
 V_p = fem.functionspace(mesh, ("Lagrange", 1))
+W = ufl.MixedFunctionSpace(V_v, V_p)
 
 v = fem.Function(V_v, name="v")
 p = fem.Function(V_p, name="p")
-v_te = ufl.TestFunction(V_v)
-p_te = ufl.TestFunction(V_p)
+v_te, p_te = ufl.TestFunctions(W)
+
 # -
 
 # The challenging task, from the point of view of robust numerical methods, is to solve the
@@ -163,18 +166,13 @@ nu = fem.Constant(mesh, V_char * L_char / Re)  # kinematic viscosity
 # we formulate its Jacobian and we collect the Dirichlet boundary conditions.
 
 # +
-F0 = inner(dot(grad(v), v), v_te) * dx + nu * inner(grad(v), grad(v_te)) * dx - p * div(v_te) * dx
-F1 = -div(v) * p_te * dx
+F = inner(dot(grad(v), v), v_te) * dx + nu * inner(grad(v), grad(v_te)) * dx - p * div(v_te) * dx
+F -= -div(v) * p_te * dx
 
-a00 = ufl.derivative(F0, v)
-a01 = ufl.derivative(F0, p)
-a10 = ufl.derivative(F1, v)
-a11 = None
+J = ufl.derivative(F, (v, p), ufl.TrialFunctions(W))
 
-F_ufl = [F0, F1]
-J_ufl = [[a00, a01], [a10, a11]]
-F_dfx = fem.form(F_ufl)
-J_dfx = fem.form(J_ufl)
+F_dfx = fem.form(ufl.extract_blocks(F))
+J_dfx = fem.form(ufl.extract_blocks(J))
 
 
 def v_inflow_eval(x):
@@ -215,24 +213,19 @@ class PDEProblem:
         self.solution_vars = solution_vars
 
     def F_block(self, snes, x, F):
-        with F.localForm() as f_local:
-            f_local.set(0.0)  # NOTE: f_local includes ghosts
-
-        x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
-        vec_to_functions(x, self.solution_vars)
-
-        fem.petsc.assemble_vector_block(F, self.F_dfx, self.J_dfx, self.bcs, x0=x, alpha=-1.0)
-        F.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+        fem.petsc.assemble_residual(
+            self.solution_vars, self.F_dfx, self.J_dfx, self.bcs, snes, x, F
+        )
 
     def J_block(self, snes, x, J, P):
         J_mat = J.getPythonContext().Mat if J.getType() == "python" else J
         J.zeroEntries()
-        fem.petsc.assemble_matrix_block(J_mat, self.J_dfx, self.bcs, diagonal=1.0)
+        fem.petsc.assemble_matrix(J_mat, self.J_dfx, self.bcs, diag=1.0)
         J.assemble()
         if self.P_dfx is not None:
             P_mat = P.getPythonContext().Mat if P.getType() == "python" else P
             P.zeroEntries()
-            fem.petsc.assemble_matrix_block(P_mat, self.P_dfx, self.bcs, diagonal=1.0)
+            fem.petsc.assemble_matrix(P_mat, self.P_dfx, self.bcs, diag=1.0)
             P.assemble()
 
 
@@ -264,13 +257,13 @@ ds_in = ufl.Measure("ds", domain=mesh, subdomain_data=facet_tags, subdomain_id=t
 appctx = {"nu": nu, "v": v, "bcs_pcd": bcs_pcd, "ds_in": ds_in}  # application context
 
 # Prepare Jacobian matrix and its splittable version
-J_mat = fem.petsc.assemble_matrix_block(J_dfx, bcs)
+J_mat = fem.petsc.assemble_matrix(J_dfx, bcs, kind="mpi")
 J_mat.assemble()
-J_splittable = create_splittable_matrix_block(J_mat, J_ufl, **appctx)
+J_splittable = create_splittable_matrix_block(J_mat, ufl.extract_blocks(J), **appctx)
 
 # Prepare vectors (DOLFINx form is required here)
-F_vec = fem.petsc.create_vector_block(F_dfx)
-x0 = fem.petsc.create_vector_block(F_dfx)
+F_vec = fem.petsc.create_vector(F_dfx, kind="mpi")
+x0 = fem.petsc.create_vector(F_dfx, kind="mpi")
 # -
 
 # Now we are ready prepare the solver configuration. We start by setting up the scalable nonlinear
@@ -368,7 +361,7 @@ F_vec.destroy()
 # As a last step, we save the results for visualisation.
 
 # +
-vec_to_functions(x0, pdeproblem.solution_vars)
+fem.petsc.assign(x0, pdeproblem.solution_vars)
 x0.destroy()
 v_h, p_h = pdeproblem.solution_vars
 

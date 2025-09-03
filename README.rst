@@ -40,8 +40,8 @@ constructed using DOLFINx's built-in assembly functions
        a_dolfinx = fem.form(a)
 
 
-       A = fem.petsc.create_matrix_block(a_dolfinx)
-       fem.petsc.assemble_matrix_block(A, a_dolfinx, bcs)
+       A = fem.petsc.create_matrix(a_dolfinx, kind="mpi")
+       fem.petsc.assemble_matrix(A, a_dolfinx, bcs)
        A.assemble()
 
 and then automatically create a wrapper that is compatible with PETSc's

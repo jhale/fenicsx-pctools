@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fenicsx_pctools"
-version = "0.9.1"
+version = "0.10.0"
 description = "PETSc block linear algebra preconditioning in FEniCSx"
 authors = [
     {name = "Martin Rehor", email="martin.rehor@rafinex.com"},
@@ -21,7 +21,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "fenics-dolfinx>=0.9.0,<0.10.0.dev0",
+    "fenics-dolfinx>=0.10.0.dev0,<0.11.0.dev0",
     "fenics-ufl",
     "numpy",
     "mpi4py",

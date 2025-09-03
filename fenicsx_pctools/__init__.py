@@ -6,10 +6,9 @@
 
 __version__ = "0.9.0"
 
-from fenicsx_pctools import mat, pc, utils
+from fenicsx_pctools import mat, pc
 
 __all__ = [
     "mat",
     "pc",
-    "utils",
 ]

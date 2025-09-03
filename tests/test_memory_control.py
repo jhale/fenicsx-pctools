@@ -11,7 +11,7 @@ import pytest
 
 import ufl
 from dolfinx import fem
-from dolfinx.fem.petsc import assemble_matrix_block
+from dolfinx.fem.petsc import assemble_matrix
 from dolfinx.mesh import create_unit_square
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 
@@ -33,7 +33,7 @@ def a(comm):
 
 
 def test_destroy_mat(a):
-    A = assemble_matrix_block(fem.form(a))
+    A = assemble_matrix(fem.form(a), kind="mpi")
     A.assemble()
     A_splittable = create_splittable_matrix_block(A, a)
     assert A_splittable.refcount == 1
@@ -79,7 +79,7 @@ def test_destroy_mat(a):
 
 
 def test_destroy_ises(a):
-    A = assemble_matrix_block(fem.form(a))
+    A = assemble_matrix(fem.form(a), kind="mpi")
     A.assemble()
     A_splittable = create_splittable_matrix_block(A, a)
     assert A_splittable.refcount == 1

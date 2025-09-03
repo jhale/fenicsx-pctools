@@ -50,7 +50,7 @@ class PCDPCBase(PCBase):
         self.Mp = Mp = fem.petsc.create_matrix(form_Mp)
         Mp.setOption(PETSc.Mat.Option.SPD, True)
         Mp.setOptionsPrefix(prefix + "Mp_")
-        fem.petsc.assemble_matrix(Mp, form_Mp, bcs=[], diagonal=1.0)
+        fem.petsc.assemble_matrix(Mp, form_Mp, bcs=[], diag=1.0)
         Mp.assemble()
 
         # TODO: Is this needed?
@@ -80,7 +80,7 @@ class PCDPCBase(PCBase):
 
         self.Ap = Ap = fem.petsc.create_matrix(self.form_Ap)
         Ap.setOptionsPrefix(prefix + "Ap_")
-        fem.petsc.assemble_matrix(Ap, self.form_Ap, bcs=bcs_pcd, diagonal=1.0)
+        fem.petsc.assemble_matrix(Ap, self.form_Ap, bcs=bcs_pcd, diag=1.0)
         Ap.assemble()
 
         if not bcs_pcd:
@@ -119,7 +119,7 @@ class PCDPCBase(PCBase):
 
         self.Kp = Kp = fem.petsc.create_matrix(self.form_Kp)
         Kp.setOptionsPrefix(prefix + "Kp_")
-        fem.petsc.assemble_matrix(Kp, self.form_Kp, bcs=[], diagonal=1.0)
+        fem.petsc.assemble_matrix(Kp, self.form_Kp, bcs=[], diag=1.0)
         Kp.assemble()
 
     def destroy(self, pc: PETSc.Mat) -> None:
@@ -139,7 +139,7 @@ class PCDPCBase(PCBase):
 
     def update(self, pc: PETSc.PC) -> None:
         self.Kp.zeroEntries()
-        fem.petsc.assemble_matrix(self.Kp, self.form_Kp, bcs=[], diagonal=1.0)
+        fem.petsc.assemble_matrix(self.Kp, self.form_Kp, bcs=[], diag=1.0)
         self.Kp.assemble()
 
     def get_work_vecs(self, v: PETSc.Vec, N: int) -> tuple[PETSc.Vec]:

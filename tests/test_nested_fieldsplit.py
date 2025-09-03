@@ -15,7 +15,7 @@ import ufl
 from basix.ufl import element, mixed_element
 from dolfinx import cpp, fem
 from dolfinx.fem import Function, functionspace
-from dolfinx.fem.petsc import assemble_matrix, assemble_matrix_block, assemble_matrix_nest
+from dolfinx.fem.petsc import assemble_matrix
 from dolfinx.mesh import CellType, create_unit_square
 from fenicsx_pctools.mat.splittable import (
     create_splittable_matrix_block,
@@ -87,11 +87,8 @@ def A(space):
 
     a_dolfinx = fem.form(a)
 
-    A = {
-        "block": assemble_matrix_block,
-        "monolithic": assemble_matrix,
-        "nest": assemble_matrix_nest,
-    }[space.structure](a_dolfinx)
+    structure_to_kind = {"monolithic": None, "block": "block", "nest": "nest"}
+    A = assemble_matrix(a_dolfinx, kind=structure_to_kind[space.structure])
     A.assemble()
 
     A_splittable = {
@@ -134,6 +131,7 @@ def target(space):
 @pytest.fixture
 def b(space, target):
     V = space()
+    # NOTE: This structure could likely be simplified
     if space.structure == "monolithic":
         v_te = ufl.TestFunction(V)
 
@@ -169,7 +167,7 @@ def b(space, target):
             b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
             b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
         elif space.structure == "nest":
-            b = fem.petsc.assemble_vector_nest(L_dolfinx)
+            b = fem.petsc.assemble_vector(L_dolfinx, kind=space.structure)
             for b_sub in b.getNestSubVecs():
                 b_sub.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
                 b_sub.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
