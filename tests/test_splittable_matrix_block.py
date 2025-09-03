@@ -13,7 +13,7 @@ import ufl
 from basix.ufl import element
 from dolfinx import cpp, fem
 from dolfinx.fem.function import Function, functionspace
-from dolfinx.fem.petsc import assemble_matrix_block, create_matrix_block
+from dolfinx.fem.petsc import assemble_matrix, create_matrix
 from dolfinx.mesh import create_unit_square
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 
@@ -52,8 +52,8 @@ def test_nested_fieldsplit(get_block_space, equal_discretization, comm):
         L[i] = ufl.inner(vsub, v_te) * ufl.dx
 
     a_dolfinx = fem.form(a)
-    A = create_matrix_block(a_dolfinx)
-    assemble_matrix_block(A, a_dolfinx)
+    A = create_matrix(a_dolfinx, kind="mpi")
+    assemble_matrix(A, a_dolfinx)
     A.assemble()
 
     A_splittable = create_splittable_matrix_block(A, a)
@@ -63,7 +63,7 @@ def test_nested_fieldsplit(get_block_space, equal_discretization, comm):
         (form.function_spaces[0].dofmap.index_map, form.function_spaces[0].dofmap.index_map_bs)
         for form in L_dolfinx
     ]
-    b = fem.petsc.create_vector_block(L_dolfinx)
+    b = fem.petsc.create_vector(L_dolfinx, kind="mpi")
     b.set(0.0)
     b_local = cpp.la.petsc.get_local_vectors(b, imaps)
     for b_sub, L_sub in zip(b_local, L_dolfinx):

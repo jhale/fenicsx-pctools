@@ -34,8 +34,8 @@ from problem_rayleigh_benard import Problem
 
 from basix.ufl import element
 from dolfinx import fem
-from dolfinx.common import TimingType, list_timings
-from dolfinx.fem.petsc import assemble_matrix_block, assemble_vector_block, create_vector_block
+from dolfinx.common import list_timings
+from dolfinx.fem.petsc import apply_lifting, assemble_matrix, assemble_vector, create_vector, set_bc
 from dolfinx.io import XDMFFile
 from fenicsx_pctools.mat.splittable import create_splittable_matrix_block
 
@@ -190,54 +190,39 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
             self.bcs = bcs
             self.solution_vars = solution_vars
 
-        @staticmethod
-        def vec_to_functions(x, u):
-            offset = 0
-            for i in range(len(u)):
-                size_local = u[i].x.petsc_vec.getLocalSize()
-                u[i].x.petsc_vec.array[:] = x.array_r[offset : offset + size_local]
-                u[i].x.petsc_vec.ghostUpdate(
-                    addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD
-                )
-                offset += size_local
-
-        @staticmethod
-        def functions_to_vec(u, x):
-            # NOTE: There is a possibility to use `dolfinx.cpp.la.scatter_local_vectors` instead.
-            offset = 0
-            for i in range(len(u)):
-                size_local = u[i].vector.getLocalSize()
-                with x.localForm() as loc:
-                    loc.array[offset : offset + size_local] = u[i].vector.array_r
-                offset += size_local
-            x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
-
         def F_block(self, snes, x, F):
             with F.localForm() as f_local:
                 f_local.set(0.0)  # NOTE: f_local includes ghosts
 
             x.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
-            self.vec_to_functions(x, self.solution_vars)
+            fem.petsc.assign(x, self.solution_vars)
 
-            assemble_vector_block(F, self.F_dfx, self.J_dfx, self.bcs, x0=x, alpha=-1.0)
+            b = assemble_vector(F, self.F_dfx)
+            bcs1 = fem.bcs_by_block(fem.extract_function_spaces(self.J_dfx, 1), bcs=self.bcs)
+            apply_lifting(b, self.J_dfx, bcs=bcs1)
+            b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+            bcs0 = fem.bcs_by_block(fem.extract_function_spaces(self.F_dfx), self.bcs)
+            set_bc(b, bcs0)
+            b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
+
             F.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
         def J_block(self, snes, x, J, P):
             J_mat = J.getPythonContext().Mat if J.getType() == "python" else J
             J.zeroEntries()
-            assemble_matrix_block(J_mat, self.J_dfx, self.bcs, diagonal=1.0)
+            assemble_matrix(J_mat, self.J_dfx, self.bcs, diag=1.0)
             J.assemble()
             if self.P_dfx is not None:
                 P_mat = P.getPythonContext().Mat if P.getType() == "python" else P
                 P.zeroEntries()
-                assemble_matrix_block(P_mat, self.P_dfx, self.bcs, diagonal=1.0)
+                assemble_matrix(P_mat, self.P_dfx, self.bcs, diag=1.0)
                 P.assemble()
 
     F_dfx = fem.form(problem.F_ufl)
     J_dfx = fem.form(problem.J_ufl)
 
     # Prepare Jacobian matrix
-    J_mat = assemble_matrix_block(J_dfx)
+    J_mat = assemble_matrix(J_dfx, kind="mpi")
     J_mat.assemble()
     J_splittable = create_splittable_matrix_block(J_mat, problem.J_ufl, **problem.appctx)
     J_splittable.setOptionsPrefix(problem_prefix)
@@ -257,8 +242,8 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
     pdeproblem = PDEProblem(F_dfx, J_dfx, problem.u, problem.bcs)
 
     # Prepare vectors (jitted forms can be used here)
-    F_vec = create_vector_block(F_dfx)
-    x0 = create_vector_block(F_dfx)
+    F_vec = create_vector(F_dfx, kind="mpi")
+    x0 = create_vector(F_dfx, kind="mpi")
 
     solver = PETSc.SNES().create(comm)
     solver.setFunction(pdeproblem.F_block, F_vec)
@@ -341,7 +326,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
             its_fs1 = len(history_fs1) - its_ksp
             its_fs1_avg = its_fs1 / its_ksp
 
-    pdeproblem.vec_to_functions(x0, pdeproblem.solution_vars)
+    fem.petsc.assign(x0, pdeproblem.solution_vars)
     s0, s1, s2 = pdeproblem.solution_vars
 
     # Save results
@@ -413,7 +398,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
         data.to_csv(results_file, index=False, mode=mode, header=header)
 
     # List timings
-    list_timings(comm, [TimingType.wall])
+    list_timings(comm)
 
     # Save logs
     logfile = os.path.join(results_dir, f"petsc_rayleigh_benard_{comm.size}.log")

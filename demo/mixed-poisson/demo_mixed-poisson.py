@@ -115,19 +115,21 @@ import numpy as np
 from basix.ufl import element
 from dolfinx import fem, io, mesh
 from dolfinx.fem.petsc import (
+    apply_lifting,
     assemble_matrix,
-    assemble_matrix_block,
-    assemble_vector_block,
+    assemble_vector,
+    assign,
+    set_bc,
 )
 from fenicsx_pctools.mat import create_splittable_matrix_block
-from fenicsx_pctools.utils import vec_to_functions
 from ufl import (
     CellDiameter,
     FacetNormal,
     Measure,
+    MixedFunctionSpace,
     SpatialCoordinate,
-    TestFunction,
-    TrialFunction,
+    TestFunctions,
+    TrialFunctions,
     avg,
     div,
     exp,
@@ -150,12 +152,10 @@ Q_el = element("BDMCF", domain.basix_cell(), k)
 P_el = element("DG", domain.basix_cell(), k - 1)
 Q = fem.functionspace(domain, Q_el)
 P = fem.functionspace(domain, P_el)
+W = MixedFunctionSpace(Q, P)
 
-q = TrialFunction(Q)
-q_t = TestFunction(Q)
-
-p = TrialFunction(P)
-p_t = TestFunction(P)
+q, p = TrialFunctions(W)
+q_t, p_t = TestFunctions(W)
 
 
 def boundary_top(x):
@@ -204,10 +204,15 @@ L = [inner(fem.Constant(domain, (0.0, 0.0)), q_t) * dx, -inner(f, p_t) * dx]
 a_dolfinx = fem.form(a)
 L_dolfinx = fem.form(L)
 
-K = assemble_matrix_block(a_dolfinx, bcs)
+K = assemble_matrix(a_dolfinx, bcs, kind="mpi")
 K.assemble()
 
-b = assemble_vector_block(L_dolfinx, a_dolfinx, bcs)
+b = assemble_vector(L_dolfinx, kind="mpi")
+bcs1 = fem.bcs_by_block(fem.extract_function_spaces(a_dolfinx, 1), bcs=bcs)
+apply_lifting(b, a_dolfinx, bcs=bcs1)
+b.ghostUpdate(addv=PETSc.InsertMode.ADD, mode=PETSc.ScatterMode.REVERSE)
+bcs0 = fem.bcs_by_block(fem.extract_function_spaces(L_dolfinx), bcs)
+set_bc(b, bcs0)
 b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 
 # -
@@ -266,7 +271,7 @@ K_splittable = create_splittable_matrix_block(K, a)
 # to use GMRES as an outer solver with the default left preconditioning.
 
 # +
-solver = PETSc.KSP().create(MPI.COMM_WORLD)
+solver = PETSc.KSP().create(domain.comm)
 solver.setOperators(K_splittable)
 
 options = PETSc.Options()
@@ -433,12 +438,12 @@ options.prefixPop()  # mp_
 solver.setOptionsPrefix("mp_")
 solver.setFromOptions()
 
-u_h = fem.petsc.create_vector_block(fem.form(L))
+u_h = fem.petsc.create_vector(fem.form(L), kind="mpi")
 solver.solve(b, u_h)
 
 q_h = fem.Function(Q)
 p_h = fem.Function(P)
-vec_to_functions(u_h, [q_h, p_h])
+assign(u_h, [q_h, p_h])
 
 Q_out_el = element("Lagrange", domain.basix_cell(), 1, shape=(domain.geometry.dim,))
 Q_out = fem.functionspace(domain, Q_out_el)
