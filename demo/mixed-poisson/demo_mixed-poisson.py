@@ -130,6 +130,7 @@ from ufl import (
     SpatialCoordinate,
     TestFunctions,
     TrialFunctions,
+    ZeroBaseForm,
     avg,
     div,
     exp,
@@ -200,7 +201,7 @@ f = 10.0 * exp(-((x[0] - 0.5) * (x[0] - 0.5) + (x[1] - 0.5) * (x[1] - 0.5)) / 0.
 
 dx = Measure("dx", domain)
 a = [[inner(q, q_t) * dx, inner(p, div(q_t)) * dx], [inner(div(q), p_t) * dx, None]]
-L = [inner(fem.Constant(domain, (0.0, 0.0)), q_t) * dx, -inner(f, p_t) * dx]
+L = [ZeroBaseForm((q_t,)), -inner(f, p_t) * dx]
 a_dolfinx = fem.form(a)
 L_dolfinx = fem.form(L)
 
