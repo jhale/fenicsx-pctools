@@ -71,9 +71,18 @@ b.ghostUpdate(addv=PETSc.InsertMode.INSERT, mode=PETSc.ScatterMode.FORWARD)
 K_splittable = create_splittable_matrix_block(K, a)
 K_splittable.setOptionsPrefix("mp_")
 
-solver = PETSc.KSP().create(MPI.COMM_WORLD)
-solver.setOptionsPrefix("mp_")
-solver.setOperators(K_splittable)
+setup_solver_from_pc = True
+if setup_solver_from_pc:  # setup corresponding to the diagram presented in the paper
+    fs = PETSc.PC().create(MPI.COMM_WORLD)
+    fs.setOptionsPrefix("mp_")
+    fs.setOperators(K_splittable)
+    solver = PETSc.KSP().create(fs.getComm())
+    solver.setOptionsPrefix(fs.getOptionsPrefix())
+    solver.setPC(fs)
+else:
+    solver = PETSc.KSP().create(MPI.COMM_WORLD)
+    solver.setOptionsPrefix("mp_")
+    solver.setOperators(K_splittable)
 
 options = PETSc.Options()
 options.prefixPush("mp_")
