@@ -28,6 +28,8 @@ build-lint-and-test:
     - mpirun -n 2 python3 demo/mixed-poisson/demo_mixed-poisson.py
     - python3 demo/navier-stokes-pcd/demo_navier-stokes-pcd.py
     - mpirun -n 2 python3 demo/navier-stokes-pcd/demo_navier-stokes-pcd.py
+    - python3 demo/mixed-poisson-paper/demo_mixed-poisson-paper.py
+    - mpirun -n 2 python3 demo/mixed-poisson-paper/demo_mixed-poisson-paper.py
 
     # Run examples
     - python3 -m pytest examples/rayleigh-benard-convection/
