@@ -10,7 +10,8 @@
 
 # # (Paper) Mixed Poisson problem with a Schur complement preconditioner
 
-# This simplied example was shown in the accompanying paper to FEniCSx-pctools.
+# This simplified example was shown in the accompanying paper to FEniCSx-pctools,
+# see it on [arXiv](https://arxiv.org/abs/2402.02523).
 
 from mpi4py import MPI
 from petsc4py import PETSc
