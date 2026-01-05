@@ -150,5 +150,5 @@ options.prefixPop()  # mp_
 
 solver.setFromOptions()
 
-x = fem.petsc.create_vector(L_dolfinx, kind="mpi")
+x = fem.petsc.create_vector([Q, P], kind="mpi")
 solver.solve(b, x)

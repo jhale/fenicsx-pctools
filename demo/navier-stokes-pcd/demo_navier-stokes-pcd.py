@@ -64,7 +64,7 @@ import ufl
 from basix.ufl import element
 from dolfinx import fem
 from dolfinx.io import XDMFFile
-from dolfinx.io.gmshio import model_to_mesh
+from dolfinx.io.gmsh import model_to_mesh
 from fenicsx_pctools.mat import create_splittable_matrix_block
 from ufl import div, dot, dx, grad, inner
 
@@ -262,8 +262,8 @@ J_mat.assemble()
 J_splittable = create_splittable_matrix_block(J_mat, ufl.extract_blocks(J), **appctx)
 
 # Prepare vectors (DOLFINx form is required here)
-F_vec = fem.petsc.create_vector(F_dfx, kind="mpi")
-x0 = fem.petsc.create_vector(F_dfx, kind="mpi")
+F_vec = fem.petsc.create_vector([V_v, V_p], kind="mpi")
+x0 = fem.petsc.create_vector([V_v, V_p], kind="mpi")
 # -
 
 # Now we are ready prepare the solver configuration. We start by setting up the scalable nonlinear

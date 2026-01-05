@@ -439,7 +439,7 @@ options.prefixPop()  # mp_
 solver.setOptionsPrefix("mp_")
 solver.setFromOptions()
 
-u_h = fem.petsc.create_vector(fem.form(L), kind="mpi")
+u_h = fem.petsc.create_vector([P, Q], kind="mpi")
 solver.solve(b, u_h)
 
 q_h = fem.Function(Q)

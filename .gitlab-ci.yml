@@ -1,6 +1,6 @@
 default:
   image:
-    name: dolfinx/dolfinx:nightly
+    name: dolfinx/dolfinx:v0.10.0-r1
     pull_policy: always # Not possible to use if-not-present on public runner.
 
 stages:

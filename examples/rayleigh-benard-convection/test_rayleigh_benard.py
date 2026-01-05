@@ -241,9 +241,9 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
     # Set up PDE problem
     pdeproblem = PDEProblem(F_dfx, J_dfx, problem.u, problem.bcs)
 
-    # Prepare vectors (jitted forms can be used here)
-    F_vec = create_vector(F_dfx, kind="mpi")
-    x0 = create_vector(F_dfx, kind="mpi")
+    # Prepare vectors
+    F_vec = create_vector(problem.function_spaces, kind="mpi")
+    x0 = create_vector(problem.function_spaces, kind="mpi")
 
     solver = PETSc.SNES().create(comm)
     solver.setFunction(pdeproblem.F_block, F_vec)
@@ -330,7 +330,7 @@ def test_rayleigh_benard(problem, pc_approach, timestamp, results_dir, request):
     s0, s1, s2 = pdeproblem.solution_vars
 
     # Save results
-    module_dir, module_name = os.path.split(os.path.realpath(request.node.fspath))
+    _, module_name = os.path.split(os.path.realpath(request.node.fspath))
     results_file = os.path.join(results_dir, f"{os.path.splitext(module_name[5:])[0]}.csv")
     results = {
         "timestamp": timestamp,

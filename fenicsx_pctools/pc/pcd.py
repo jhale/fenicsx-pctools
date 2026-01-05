@@ -38,7 +38,7 @@ class PCDPCBase(PCBase):
         p_te = ufl.TestFunction(V_p)
 
         self.ghosted_workvec = fem.petsc.create_vector(
-            fem.form(p_te * ufl.dx)
+            V_p, kind="mpi"
         )  # aux. vector used to apply BCs
 
         ufl_form_Mp = Pctx.kwargs.get("ufl_form_Mp", None)

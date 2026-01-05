@@ -57,21 +57,42 @@ For more details, see :doc:`Documented demos <demos>` and :doc:`API documentatio
 Citing
 ======
 
-FEniCSx-pctools is described in the preprint at https://arxiv.org/abs/2402.02523
+FEniCSx-pctools is described in the paper https://doi.org/10.5334/jors.494
 
      .. code-block::
 
-       @misc{rehor2024fenicsx,
-             title={FEniCSx Preconditioning Tools (FEniCSx-pctools)},
-             author={Martin Řehoř and Jack S. Hale},
-             year={2024},
-             eprint={2402.02523},
-             archivePrefix={arXiv},
-             primaryClass={cs.MS}
-       }
+        @article{rehor_fenicsx-pctools_2025,
+                title = {{FEniCSx}-pctools: {Tools} for {PETSc} {Block} {Linear} {Algebra} {Preconditioning} in {FEniCSx}},
+                volume = {13},
+                issn = {2049-9647},
+                shorttitle = {{FEniCSx}-pctools},
+                doi = {10.5334/jors.494},
+                language = {en},
+                urldate = {2025-11-19},
+                journal = {Journal of Open Research Software},
+                author = {Řehoř, Martin and Hale, Jack S.},
+                month = sep,
+                year = {2025},
+                pages = {18},
+        }
 
-The raw logs and data from the numerical experiments presented in the pre-print are contained
-in the directory ``examples/rayleigh-benard-convection/aion_results_WeakRB100k-r1_2023-10-11``.
+and the version of the code accompanying the paper is archived permanently at:
+
+     .. code-block::
+
+        @misc{rehor_fenicsx_2025,
+                title = {{FEniCSx} {Preconditioning} {Tools}},
+                url = {https://figshare.com/articles/software/FEniCSx_Preconditioning_Tools/21408294/6},
+                urldate = {2026-01-05},
+                publisher = {figshare},
+                author = {Řehoř, Martin and Hale, Jack S.},
+                year = {2025},
+                doi = {10.6084/M9.FIGSHARE.21408294.V6},
+        }
+
+
+The raw logs and data from the numerical experiments presented in the paper are
+contained in the directory ``examples/rayleigh-benard-convection/aion_results_WeakRB100k-r1_2023-10-11``.
 
 Documentation
 =============
@@ -96,7 +117,7 @@ To get started quickly you can use the upsteam Docker images:
 
    .. code-block:: console
 
-      docker run -ti -v $(pwd):/shared -w /shared dolfinx/dolfinx:nightly
+      docker run -ti -v $(pwd):/shared -w /shared dolfinx/dolfinx:v0.10.0-r1
 
 And then in any system with DOLFINx installed:
 
@@ -137,7 +158,7 @@ License
 
 .. |(C)| unicode:: U+000A9
 
-Copyright |(C)| 2021-2025 Rafinex S.à r.l. and Jack S. Hale
+Copyright |(C)| 2021-2026 Rafinex S.à r.l. and Jack S. Hale
 
 FEniCSx-pctools is free software: you can redistribute it and/or modify it
 under the terms of the GNU Lesser General Public License as published
