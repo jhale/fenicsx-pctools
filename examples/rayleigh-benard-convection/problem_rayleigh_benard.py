@@ -185,7 +185,7 @@ class Problem:
 
     @cached_property
     def bcs(self):
-        V_v, V_p, V_T = self.function_spaces
+        V_v, _, V_T = self.function_spaces
         mesh, mesh_tags_facets, bndry_tag_map = self.domain_data
         facetdim = mesh.topology.dim - 1
 
